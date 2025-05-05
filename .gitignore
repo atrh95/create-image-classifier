@@ -1,0 +1,35 @@
+# macOS
+.DS_Store
+
+# Xcode
+build/
+*.xcodeproj/project.xcworkspace/
+*.xcodeproj/xcuserdata/
+*.xcworkspace/
+xcuserdata/
+DerivedData/
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Swift Package Manager
+.build/
+Packages/
+Package.resolved
+*.swiftpm
+
+# Playgrounds
+*.playground/playground.xcworkspace/
+*.playground/xcuserdata/
+
+# Custom
+OutputModels/
+*.mlmodel
+
+# Mint
+Mintfile.lock
+mint_packages/
+
+# Cursor
+.cursor/
