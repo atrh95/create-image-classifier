@@ -24,7 +24,7 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
         shortDescription: String,
         version: String
     )
-        -> TrainingResultLogModel?
+        async -> TrainingResultLogModel?
     {
         let resourcesPath = resourcesDirectoryPath
         let resourcesDir = URL(fileURLWithPath: resourcesPath)

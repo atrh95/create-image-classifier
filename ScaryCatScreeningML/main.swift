@@ -1,5 +1,6 @@
 import BinaryClassification
 import MultiClassClassification
+import MultiLabelClassification
 import SCSInterface
 import Foundation
 
@@ -7,11 +8,12 @@ import Foundation
 enum TrainerType {
     case binary
     case multiClass
+    case multiLabel
     // case multiLabel // 今後の拡張用
 }
 
 // --- トレーニング設定 ---
-let currentTrainerType: TrainerType = .multiClass // ここでトレーナーを切り替え
+let currentTrainerType: TrainerType = .multiLabel // ここでトレーナーを切り替え
 
 // --- メタデータ定義 ---
 let modelAuthor = "akitora"
@@ -29,7 +31,7 @@ switch currentTrainerType {
 case .binary:
     let binaryTrainer = BinaryClassificationTrainer()
     trainer = binaryTrainer
-    trainingResult = binaryTrainer.train(
+    trainingResult = await binaryTrainer.train(
         author: modelAuthor,
         shortDescription: modelShortDescription,
         version: modelVersion
@@ -37,7 +39,15 @@ case .binary:
 case .multiClass:
     let multiClassTrainer = MultiClassClassificationTrainer()
     trainer = multiClassTrainer
-    trainingResult = multiClassTrainer.train(
+    trainingResult = await multiClassTrainer.train(
+        author: modelAuthor,
+        shortDescription: modelShortDescription,
+        version: modelVersion
+    )
+case .multiLabel:
+    let multiLabelTrainer = MultiLabelClassificationTrainer()
+    trainer = multiLabelTrainer
+    trainingResult = await multiLabelTrainer.train(
         author: modelAuthor,
         shortDescription: modelShortDescription,
         version: modelVersion

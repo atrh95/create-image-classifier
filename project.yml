@@ -4,7 +4,7 @@ name: ScaryCatScreeningML
 options:
   bundleIdPrefix: com.akitorahayashi
   deploymentTarget:
-    macOS: "14.0"
+    macOS: "15.4"
 targets:
   ScaryCatScreeningML:
     type: tool
@@ -14,10 +14,11 @@ targets:
     dependencies:
       - target: BinaryClassification
       - target: MultiClassClassification
+      - target: MultiLabelClassification
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.ScaryCatScreeningML
-        MACOSX_DEPLOYMENT_TARGET: "14.0"
+        MACOSX_DEPLOYMENT_TARGET: "15.4"
 
   SCSInterface:
     type: framework
@@ -27,14 +28,14 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.SCSInterface
-        MACOSX_DEPLOYMENT_TARGET: "14.0"
+        MACOSX_DEPLOYMENT_TARGET: "15.4"
         DEFINES_MODULE: "YES"
 
   BinaryClassification:
     type: framework
     platform: macOS
     sources:
-      - path: BinaryClassification
+      - path: BinaryClassification/BinaryClassificationSources
     resources:
       - path: BinaryClassification/Resources
     dependencies:
@@ -42,14 +43,14 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.BinaryClassification
-        MACOSX_DEPLOYMENT_TARGET: "14.0"
+        MACOSX_DEPLOYMENT_TARGET: "15.4"
         DEFINES_MODULE: "YES"
 
   MultiClassClassification:
     type: framework
     platform: macOS
     sources:
-      - path: MultiClassClassification
+      - path: MultiClassClassification/MultiClassClassificationSources
     resources:
       - path: MultiClassClassification/Resources
     dependencies:
@@ -57,5 +58,22 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.MultiClassClassification
-        MACOSX_DEPLOYMENT_TARGET: "14.0"
+        MACOSX_DEPLOYMENT_TARGET: "15.4"
+        DEFINES_MODULE: "YES"
+
+  MultiLabelClassification:
+    type: framework
+    platform: macOS
+    sources:
+      - path: MultiLabelClassification/MultiLabelClassificationSources
+    resources:
+      - path: MultiLabelClassification/Resources
+    dependencies:
+      - sdk: CreateML.framework
+      - sdk: CreateMLComponents.framework
+      - target: SCSInterface
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.MultiLabelClassification
+        MACOSX_DEPLOYMENT_TARGET: "15.4"
         DEFINES_MODULE: "YES"

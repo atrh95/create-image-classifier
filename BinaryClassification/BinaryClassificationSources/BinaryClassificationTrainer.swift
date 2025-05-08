@@ -19,7 +19,7 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
 
     public init() {}
 
-    public func train(author: String, shortDescription: String, version: String) -> TrainingResult? {
+    public func train(author: String, shortDescription: String, version: String) async -> TrainingResult? {
         let resourcesPath = resourcesDirectoryPath
         let resourcesDir = URL(fileURLWithPath: resourcesPath)
         let trainingDataParentDir = resourcesDir.appendingPathComponent(dataDirectoryName)
@@ -75,7 +75,7 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
 
         print("🚀 \(modelName)のトレーニングを開始します...")
 
-        return executeTrainingCore(
+        return await executeTrainingCore(
             trainingDataParentDir: trainingDataParentDir,
             outputDir: finalOutputDir,
             author: author,
@@ -90,7 +90,7 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
         author: String,
         shortDescription: String,
         version: String
-    ) -> TrainingResult? {
+    ) async -> TrainingResult? {
         guard FileManager.default.fileExists(atPath: trainingDataParentDir.path) else {
             print("❌ エラー: \(modelName)のトレーニングデータ親ディレクトリが見つかりません: \(trainingDataParentDir.path)")
             return nil
