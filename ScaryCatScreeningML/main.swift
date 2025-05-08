@@ -1,5 +1,5 @@
-import Foundation
 import BinaryClassification
+import Foundation
 
 // --- メタデータ定義 ---
 let modelAuthor = "akitora"
@@ -26,4 +26,3 @@ if let result = scaryCatTrainer.train(author: modelAuthor, shortDescription: mod
 } else {
     print("🛑 トレーニングまたはモデルの保存中にエラーが発生しました。")
 }
-
