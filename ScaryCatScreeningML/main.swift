@@ -8,7 +8,7 @@ let modelVersion = "1.0.0"
 // ---------------------
 
 // トレーナークラスのインスタンスを作成
-let scaryCatTrainer = ScaryCatScreenerTrainer()
+let scaryCatTrainer = BinaryClassificationTrainer()
 
 // trainメソッドを呼び出し、メタデータを渡す
 if let result = scaryCatTrainer.train(author: modelAuthor, shortDescription: modelDescription, version: modelVersion) {

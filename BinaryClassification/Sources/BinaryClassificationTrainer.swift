@@ -2,8 +2,8 @@ import CoreML
 import CreateML
 import Foundation
 
-public class ScaryCatScreenerTrainer: ScreeningTrainerProtocol {
-    public var modelName: String { "ScaryCatScreeningML" }
+public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
+    public var modelName: String { "BCScaryCatScreeningML" }
     public var dataDirectoryName: String { "BinaryClassificationData" }
     public var customOutputDirPath: String { "OutputModels" }
 
