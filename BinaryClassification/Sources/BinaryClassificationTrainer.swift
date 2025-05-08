@@ -1,8 +1,11 @@
 import CoreML
 import CreateML
 import Foundation
+import SCSInterface
 
 public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
+    public typealias TrainingResultType = TrainingResult
+
     public var modelName: String { "BCScaryCatScreeningML" }
     public var dataDirectoryName: String { "BinaryClassificationData" }
     public var customOutputDirPath: String { "OutputModels" }

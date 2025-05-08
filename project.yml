@@ -13,24 +13,37 @@ targets:
       - path: ScaryCatScreeningML
     dependencies:
       - target: BinaryClassification
+      - target: MultiClassClassification
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.ScaryCatScreeningML
         MACOSX_DEPLOYMENT_TARGET: "14.0"
 
+  SCSInterface:
+    type: framework
+    platform: macOS
+    sources:
+      - path: SCSInterface
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.SCSInterface
+        MACOSX_DEPLOYMENT_TARGET: "14.0"
+        DEFINES_MODULE: "YES"
+
   BinaryClassification:
-    type: framework # リソースバンドルも可能なフレームワークとして定義
+    type: framework
     platform: macOS
     sources:
       - path: BinaryClassification
     resources:
       - path: BinaryClassification/Resources
-        # これにより、BinaryClassification.framework/Resources/ 以下にコピーされます
+    dependencies:
+      - target: SCSInterface
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.BinaryClassification
         MACOSX_DEPLOYMENT_TARGET: "14.0"
-        DEFINES_MODULE: "YES" # モジュールを正しく定義するために推奨
+        DEFINES_MODULE: "YES"
 
   MultiClassClassification:
     type: framework
@@ -39,6 +52,8 @@ targets:
       - path: MultiClassClassification
     resources:
       - path: MultiClassClassification/Resources
+    dependencies:
+      - target: SCSInterface
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.MultiClassClassification

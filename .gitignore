@@ -3,6 +3,7 @@
 
 # Xcode
 build/
+*.xcodeproj
 *.xcodeproj/project.xcworkspace/
 *.xcodeproj/xcuserdata/
 *.xcworkspace/

@@ -1,17 +1,19 @@
 import CoreML
 import CreateML
 import Foundation
+import SCSInterface
 
 public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
+    public typealias TrainingResultType = TrainingResultLogModel
+
     public var modelName: String { "ScaryCatScreeningML" }
     public var dataDirectoryName: String { "MultiClassScaryCatScreenerData" }
     public var customOutputDirPath: String { "OutputModels/ScaryCatScreeningML/MultiClass" }
 
     public var resourcesDirectoryPath: String {
         var dir = URL(fileURLWithPath: #filePath)
-        dir.deleteLastPathComponent() // MultiClassScaryCatScreenerディレクトリへ
         dir.deleteLastPathComponent() // Sourcesディレクトリへ
-        dir.deleteLastPathComponent() // Playgroundルートディレクトリへ
+        dir.deleteLastPathComponent() // MultiClassClassificationディレクトリへ
         return dir.appendingPathComponent("Resources").path
     }
 
