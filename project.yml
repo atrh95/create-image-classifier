@@ -1,19 +1,21 @@
-name: TrainCatScreeningML
+# $ mint run xcodegen
+
+name: ScaryCatScreeningML
 options:
-  bundleIdPrefix: com.yourcakitorahayashiompany # TODO: あなたのバンドルIDプレフィックスに置き換えてください
+  bundleIdPrefix: com.akitorahayashi
   deploymentTarget:
-    macOS: "14.0" # Package.swiftに合わせています
+    macOS: "14.0"
 targets:
-  TrainCatScreeningML:
+  ScaryCatScreeningML:
     type: tool
     platform: macOS
     sources:
-      - path: TrainCatScreeningML
+      - path: ScaryCatScreeningML
     dependencies:
       - target: BinaryClassification
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.TrainCatScreeningML
+        PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.ScaryCatScreeningML
         MACOSX_DEPLOYMENT_TARGET: "14.0"
 
   BinaryClassification:
@@ -29,3 +31,16 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.BinaryClassification
         MACOSX_DEPLOYMENT_TARGET: "14.0"
         DEFINES_MODULE: "YES" # モジュールを正しく定義するために推奨
+
+  MultiClassClassification:
+    type: framework
+    platform: macOS
+    sources:
+      - path: MultiClassClassification
+    resources:
+      - path: MultiClassClassification/Resources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.MultiClassClassification
+        MACOSX_DEPLOYMENT_TARGET: "14.0"
+        DEFINES_MODULE: "YES"

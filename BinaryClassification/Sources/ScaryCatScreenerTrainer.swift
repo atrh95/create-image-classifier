@@ -4,7 +4,7 @@ import Foundation
 
 public class ScaryCatScreenerTrainer: ScreeningTrainerProtocol {
     public var modelName: String { "ScaryCatScreeningML" }
-    public var dataDirectoryName: String { "ScaryCatScreenerData" }
+    public var dataDirectoryName: String { "BinaryClassificationData" }
     public var customOutputDirPath: String { "OutputModels" }
 
     public var resourcesDirectoryPath: String {
