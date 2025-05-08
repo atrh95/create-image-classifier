@@ -5,7 +5,7 @@ import Foundation
 public class ScaryCatScreenerTrainer: ScreeningTrainerProtocol {
     public var modelName: String { "ScaryCatScreeningML" }
     public var dataDirectoryName: String { "ScaryCatScreenerData" }
-    public var customOutputDirPath: String { "OutputModels/ScaryCatScreeningML" }
+    public var customOutputDirPath: String { "OutputModels" }
 
     public var resourcesDirectoryPath: String {
         var dir = URL(fileURLWithPath: #filePath)
@@ -25,8 +25,7 @@ public class ScaryCatScreenerTrainer: ScreeningTrainerProtocol {
         var playgroundRoot = URL(fileURLWithPath: #filePath)
         playgroundRoot.deleteLastPathComponent()
         playgroundRoot.deleteLastPathComponent()
-        var baseOutputDir = playgroundRoot
-        baseOutputDir.deleteLastPathComponent()
+        let baseOutputDir = playgroundRoot
 
         let baseTargetOutputDir: URL
         let customPath = customOutputDirPath

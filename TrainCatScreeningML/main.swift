@@ -1,8 +1,5 @@
-import Foundation // FileManagerを使うために追加
-import PlaygroundSupport
-
-// モデルのトレーニングのような非同期処理が完了するのを許可します。
-PlaygroundPage.current.needsIndefiniteExecution = true
+import Foundation
+import BinaryClassification
 
 // --- メタデータ定義 ---
 let modelAuthor = "akitora"
@@ -29,3 +26,4 @@ if let result = scaryCatTrainer.train(author: modelAuthor, shortDescription: mod
 } else {
     print("🛑 トレーニングまたはモデルの保存中にエラーが発生しました。")
 }
+

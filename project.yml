@@ -1,0 +1,31 @@
+name: TrainCatScreeningML
+options:
+  bundleIdPrefix: com.yourcakitorahayashiompany # TODO: あなたのバンドルIDプレフィックスに置き換えてください
+  deploymentTarget:
+    macOS: "14.0" # Package.swiftに合わせています
+targets:
+  TrainCatScreeningML:
+    type: tool
+    platform: macOS
+    sources:
+      - path: TrainCatScreeningML
+    dependencies:
+      - target: BinaryClassification
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.TrainCatScreeningML
+        MACOSX_DEPLOYMENT_TARGET: "14.0"
+
+  BinaryClassification:
+    type: framework # リソースバンドルも可能なフレームワークとして定義
+    platform: macOS
+    sources:
+      - path: BinaryClassification
+    resources:
+      - path: BinaryClassification/Resources
+        # これにより、BinaryClassification.framework/Resources/ 以下にコピーされます
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.BinaryClassification
+        MACOSX_DEPLOYMENT_TARGET: "14.0"
+        DEFINES_MODULE: "YES" # モジュールを正しく定義するために推奨
