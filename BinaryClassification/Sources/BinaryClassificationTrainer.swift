@@ -135,11 +135,11 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
             )
 
             let fileManager = FileManager.default
-            let outputModelURL = outputDir.appendingPathComponent("\(modelName).mlmodel")
+            let outputModelURL = outputDir.appendingPathComponent("\(modelName)_\(version).mlmodel")
 
-            print("💾 \(modelName)を保存中: \(outputModelURL.path)")
+            print("💾 \(modelName) (\(version)) を保存中: \(outputModelURL.path)")
             try model.write(to: outputModelURL, metadata: metadata)
-            print("✅ \(modelName)は正常に保存されました。")
+            print("✅ \(modelName) (\(version)) は正常に保存されました。")
 
             // --- Get Class Labels ---
             let classLabels: [String]

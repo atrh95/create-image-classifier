@@ -108,11 +108,11 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
                 version: version
             )
 
-            let outputModelURL = finalOutputDir.appendingPathComponent("\(modelName).mlmodel")
+            let outputModelURL = finalOutputDir.appendingPathComponent("\(modelName)_\(version).mlmodel")
 
-            print("  💾 [\(modelName).mlmodel] を保存中: \(outputModelURL.path)")
+            print("  💾 [\(modelName)_\(version).mlmodel] を保存中: \(outputModelURL.path)")
             try model.write(to: outputModelURL, metadata: metadata)
-            print("  ✅ [\(modelName).mlmodel] は正常に保存されました。")
+            print("  ✅ [\(modelName)_\(version).mlmodel] は正常に保存されました。")
 
             return TrainingResultLogModel(
                 trainingAccuracy: trainingAccuracy,

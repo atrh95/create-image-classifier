@@ -1,28 +1,75 @@
 import BinaryClassification
+import MultiClassClassification
+import SCSInterface
 import Foundation
+
+// --- トレーナータイプ定義 ---
+enum TrainerType {
+    case binary
+    case multiClass
+    // case multiLabel // 今後の拡張用
+}
+
+// --- トレーニング設定 ---
+let currentTrainerType: TrainerType = .multiClass // ここでトレーナーを切り替え
 
 // --- メタデータ定義 ---
 let modelAuthor = "akitora"
-let modelDescription = "ScaryCatScreener v1.0.0"
-let modelVersion = "1.0.0"
+let modelShortDescription = "ScaryCatScreener - \(currentTrainerType)"
+let modelVersion = "v1"
 // ---------------------
 
-// トレーナークラスのインスタンスを作成
-let scaryCatTrainer = BinaryClassificationTrainer()
+print("🚀 トレーニングを開始します... 設定タイプ: \(currentTrainerType)")
 
-// trainメソッドを呼び出し、メタデータを渡す
-if let result = scaryCatTrainer.train(author: modelAuthor, shortDescription: modelDescription, version: modelVersion) {
-    print("すべての処理が完了しました。")
+// トレーナーの選択と実行
+let trainer: any ScreeningTrainerProtocol
+var trainingResult: Any? // Any? because the result type varies
 
-    // 結果をファイルに記録 (TrainingResultLoggerを使用)
-    TrainingResultLogger.saveResultToFile(
-        result: result,
-        trainer: scaryCatTrainer,
-        modelAuthor: modelAuthor,
-        modelDescription: modelDescription,
-        modelVersion: modelVersion
+switch currentTrainerType {
+case .binary:
+    let binaryTrainer = BinaryClassificationTrainer()
+    trainer = binaryTrainer
+    trainingResult = binaryTrainer.train(
+        author: modelAuthor,
+        shortDescription: modelShortDescription,
+        version: modelVersion
     )
+case .multiClass:
+    let multiClassTrainer = MultiClassClassificationTrainer()
+    trainer = multiClassTrainer
+    trainingResult = multiClassTrainer.train(
+        author: modelAuthor,
+        shortDescription: modelShortDescription,
+        version: modelVersion
+    )
+// case .multiLabel:
+    // let multiLabelTrainer = MultiLabelClassificationTrainer() // 将来的に実装
+    // trainer = multiLabelTrainer
+    // trainingResult = multiLabelTrainer.train(
+    //     author: modelAuthor,
+    //     shortDescription: modelShortDescription,
+    //     version: modelVersion
+    // )
+}
 
+// 結果の処理
+if let result = trainingResult {
+    print("🎉 トレーニングが正常に完了しました。")
+
+    // 結果をログに保存 (TrainingResultDataプロトコルのsaveLogメソッドを利用)
+    if let resultData = result as? any TrainingResultData {
+        resultData.saveLog(
+            trainer: trainer,
+            modelAuthor: modelAuthor,
+            modelDescription: modelShortDescription,
+            modelVersion: modelVersion
+        )
+        print("💾 トレーニング結果をログに保存しました。")
+    } else {
+        print("⚠️ 結果の型がTrainingResultDataに準拠していません。ログは保存されませんでした。")
+    }
 } else {
     print("🛑 トレーニングまたはモデルの保存中にエラーが発生しました。")
 }
+
+print("✅ すべての処理が完了しました。")
