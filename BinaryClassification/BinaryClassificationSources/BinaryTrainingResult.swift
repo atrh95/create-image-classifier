@@ -39,11 +39,9 @@ public struct BinaryTrainingResult: TrainingResultProtocol {
 
         ## モデル詳細
         モデル名           : \(modelName)
-        保存先モデルパス   : \(trainedModelFilePath)
         ファイル生成日時   : \(generatedDateString)
 
         ## トレーニング設定
-        訓練データ親ディレクトリ: \(sourceTrainingDataDirectoryPath)
         使用されたクラスラベル : \(classLabelsString)
 
         ## パフォーマンス指標

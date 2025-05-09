@@ -27,9 +27,6 @@ public struct OvRTrainingResult: TrainingResultProtocol {
         保存先モデルパス   : \(modelOutputPath)
         ファイル生成日時   : \(generatedDateString)
 
-        ## トレーニング設定
-        訓練データパス     : \(trainingDataPath)
-
         ## パフォーマンス指標 (全体)
         トレーニング所要時間              : \(String(format: "%.2f", trainingTimeInSeconds)) 秒
         トレーニング誤分類率 (学習時)     : \(String(format: "%.2f", trainingDataErrorRate * 100))%

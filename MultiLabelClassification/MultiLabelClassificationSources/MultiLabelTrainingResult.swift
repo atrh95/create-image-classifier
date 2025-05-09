@@ -34,11 +34,9 @@ public struct MultiLabelTrainingResult: TrainingResultProtocol {
 
         ## モデル詳細
         モデル名           : \(modelName)
-        保存先モデルパス   : \(modelOutputPath)
         ファイル生成日時   : \(generatedDateString)
 
         ## トレーニング設定
-        訓練データ Manifest : \(trainingDataPath)
         検出された全ラベル : \(classLabelsString)
 
         ## パフォーマンス指標 (全体)
