@@ -10,7 +10,6 @@ public protocol TrainingResultProtocol {
     ///   - modelDescription: モデルの簡単な説明
     ///   - modelVersion: モデルのバージョン
     func saveLog(
-        trainer: any ScreeningTrainerProtocol,
         modelAuthor: String,
         modelDescription: String,
         modelVersion: String

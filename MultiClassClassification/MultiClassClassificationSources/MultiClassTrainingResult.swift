@@ -1,54 +1,33 @@
 import Foundation
 import SCSInterface
 
-/// 特定のラベルに対する評価
-public struct LabelMetrics {
-    public let precision: Double
-    public let recall: Double
-    public let f1Score: Double
-    public let support: Int
-}
-
-/// 画像分類モデルのトレーニング結果（ログ記録用）を格納する構造体
 public struct MultiClassTrainingResult: TrainingResultProtocol {
-    /// トレーニングデータでの正解率 (0.0 ~ 100.0)
-    public let trainingAccuracy: Double
-    /// 検証データでの正解率 (0.0 ~ 100.0)
-    public let validationAccuracy: Double
-    /// トレーニングデータでのエラー率 (0.0 ~ 1.0)
-    public let trainingError: Double
-    /// 検証データでのエラー率 (0.0 ~ 1.0)
-    public let validationError: Double
-    /// トレーニングにかかった時間（秒）
-    public let trainingDuration: TimeInterval
-    /// 生成されたモデルファイルの出力パス
+    public let modelName: String
+    public let trainingDataAccuracy: Double
+    public let validationDataAccuracy: Double
+    public let trainingDataErrorRate: Double
+    public let validationDataErrorRate: Double
+    public let trainingTimeInSeconds: TimeInterval
     public let modelOutputPath: String
-    /// トレーニングに使用されたデータのパス
     public let trainingDataPath: String
-    /// 検出されたクラスラベルのリスト
     public let classLabels: [String]
-    /// 各ラベルごとの詳細なメトリクス (オプション)
-    public let perLabelMetrics: [String: LabelMetrics]?
 
     public func saveLog(
-        trainer: any ScreeningTrainerProtocol,
         modelAuthor: String,
         modelDescription: String,
         modelVersion: String
     ) {
-        let modelName = trainer.modelName
-
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss Z"
         let generatedDateString = dateFormatter.string(from: Date())
 
         let classLabelsString = classLabels.isEmpty ? "不明" : classLabels.joined(separator: ", ")
 
-        let trainingAccStr = String(format: "%.2f", trainingAccuracy)
-        let validationAccStr = String(format: "%.2f", validationAccuracy)
-        let trainingErrStr = String(format: "%.2f", trainingError * 100)
-        let validationErrStr = String(format: "%.2f", validationError * 100)
-        let durationStr = String(format: "%.2f", trainingDuration)
+        let trainingAccStr = String(format: "%.2f", trainingDataAccuracy)
+        let validationAccStr = String(format: "%.2f", validationDataAccuracy)
+        let trainingErrStr = String(format: "%.2f", trainingDataErrorRate * 100)
+        let validationErrStr = String(format: "%.2f", validationDataErrorRate * 100)
+        let durationStr = String(format: "%.2f", trainingTimeInSeconds)
 
         var markdownText = """
         # モデルトレーニング情報: \(modelName)
@@ -64,29 +43,11 @@ public struct MultiClassTrainingResult: TrainingResultProtocol {
 
         ## パフォーマンス指標 (全体)
         トレーニング所要時間: \(durationStr) 秒
-        トレーニングエラー率 (学習時) : \(trainingErrStr)%
+        トレーニング誤分類率 (学習時) : \(trainingErrStr)%
         訓練データ正解率 (学習時) : \(trainingAccStr)%
         検証データ正解率 (学習時自動検証) : \(validationAccStr)%
         検証誤分類率 (学習時自動検証) : \(validationErrStr)%
         """
-
-        if let perLabelMetrics, !perLabelMetrics.isEmpty {
-            markdownText += "\n\n        ## パフォーマンス指標 (各ラベル別 - 手動検証セット)"
-            markdownText += "\n        | ラベル名 | 適合率 (Precision) | 再現率 (Recall) | F1スコア | サポート数 (Support) |\n"
-            markdownText += "        |:-------|:-----------------:|:--------------:|:--------:|:-----------------:|\n"
-
-            // ラベル名でソートして一貫した順序で表示
-            let sortedLabels = perLabelMetrics.keys.sorted()
-            for labelName in sortedLabels {
-                if let metrics = perLabelMetrics[labelName] {
-                    let precisionStr = String(format: "%.3f", metrics.precision)
-                    let recallStr = String(format: "%.3f", metrics.recall)
-                    let f1ScoreStr = String(format: "%.3f", metrics.f1Score)
-                    markdownText +=
-                        "        | \(labelName) | \(precisionStr) | \(recallStr) | \(f1ScoreStr) | \(metrics.support) |\n"
-                }
-            }
-        }
 
         markdownText += """
 

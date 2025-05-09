@@ -2,147 +2,52 @@ import Foundation
 import SCSInterface
 
 public struct OvRTrainingResult: TrainingResultProtocol {
-    public let modelName: String
     public let modelOutputPath: String
-    public let reportPath: String
-    public let oneLabelName: String
-    public let restLabelNames: [String]
-    public let positiveSamplesCount: Int
-    public let negativeSamplesCount: Int
-    public let trainingAccuracy: Double
-    public let validationAccuracy: Double
-    public let trainingError: Double
-    public let validationError: Double
-    public let trainingDuration: TimeInterval
+    public let trainingDataAccuracy: Double
+    public let validationDataAccuracy: Double
+    public let trainingDataErrorRate: Double
+    public let validationDataErrorRate: Double
+    public let trainingTimeInSeconds: TimeInterval
     public let trainingDataPath: String
 
-    public var classLabels: [String] {
-        ([oneLabelName] + restLabelNames).sorted()
-    }
-
-    public func saveLog(
-        trainer _: any ScreeningTrainerProtocol,
-        modelAuthor: String,
-        modelDescription: String,
-        modelVersion: String
-    ) {
+    public func saveLog(modelAuthor: String, modelDescription: String, modelVersion: String) {
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss Z"
         let generatedDateString = dateFormatter.string(from: Date())
 
-        let classLabelsString = classLabels.joined(separator: ", ")
-        let restLabelsSummary = restLabelNames.isEmpty ? "該当なし" : restLabelNames.sorted().joined(separator: ", ")
+        let reportFileName =
+            "OvR_Model_Stat_\(modelVersion).md"
+        let modelDir = URL(fileURLWithPath: modelOutputPath).standardizedFileURL.deletingLastPathComponent()
+        let reportURL = modelDir.appendingPathComponent(reportFileName)
 
-        let trainingAccStr = String(format: "%.2f", trainingAccuracy * 100)
-        let validationAccStr = String(format: "%.2f", validationAccuracy * 100)
-        let trainingErrStr = String(format: "%.2f", trainingError * 100)
-        let validationErrStr = String(format: "%.2f", validationError * 100)
-        let durationStr = String(format: "%.2f", trainingDuration)
-
-        let reportTitleOneLabelName = oneLabelName
-        let specificModelDescription = "\(modelDescription) — '\(reportTitleOneLabelName)' とその他全てのクラスとの二値分類。"
-
-        let reportContent = """
-        # OvR 分類レポート: \(reportTitleOneLabelName) vs その他
+        var markdownText = """
+        # モデルトレーニング情報
 
         ## モデル詳細
-        - **個別モデル名**: \(modelName) 
-        - **保存先モデルパス**: \(modelOutputPath)
-        - **レポート生成日時**: \(generatedDateString)
+        保存先モデルパス   : \(modelOutputPath)
+        ファイル生成日時   : \(generatedDateString)
 
         ## トレーニング設定
-        - **ターゲットラベル (One)**: \(reportTitleOneLabelName) (\(positiveSamplesCount) サンプル)
-        - **その他のラベル (Rest)**: \(restLabelsSummary) (合計 \(negativeSamplesCount) サンプル)
-        - **このOvRペアで考慮された全ラベル**: \(classLabelsString)
+        訓練データパス     : \(trainingDataPath)
 
-        ## パフォーマンス指標
-        - **トレーニング所要時間**: \(durationStr) 秒
-        - **トレーニング正解率**: \(trainingAccStr)%
-        - **トレーニングエラー率**: \(trainingErrStr)%
-        - **検証データ正解率**: \(validationAccStr)%
-        - **検証データエラー率**: \(validationErrStr)%
+        ## パフォーマンス指標 (全体)
+        トレーニング所要時間              : \(String(format: "%.2f", trainingTimeInSeconds)) 秒
+        トレーニング誤分類率 (学習時)     : \(String(format: "%.2f", trainingDataErrorRate * 100))%
+        訓練データ正解率 (学習時)         : \(String(format: "%.2f", trainingDataAccuracy * 100))%
+        検証データ正解率 (学習時自動検証) : \(String(format: "%.2f", validationDataAccuracy * 100))%
+        検証誤分類率 (学習時自動検証)     : \(String(format: "%.2f", validationDataErrorRate * 100))%
 
-        ## モデルメタデータ (.mlmodelに記述)
-        - **作成者**: \(modelAuthor)
-        - **説明**: \(specificModelDescription) 
-        - **バージョン**: \(modelVersion)
-
-        *このレポートは、'\(reportTitleOneLabelName)' を他の全てのラベルから区別するための二値分類器のトレーニングについて記述しています。*
-        """
-        do {
-            try reportContent.write(to: URL(fileURLWithPath: reportPath), atomically: true, encoding: .utf8)
-            print("  ✅ 個別OvRレポートを保存しました: \(reportPath)")
-        } catch {
-            print("  ❌ 個別OvRレポートの保存エラー (\(modelName)): \(error.localizedDescription)")
-        }
-    }
-}
-
-public struct OvRBatchResult {
-    public let batchVersion: String
-    public let individualResults: [OvRTrainingResult]
-    public let mainOutputDirectoryPath: String
-
-    public func saveLog(
-        trainer: any ScreeningTrainerProtocol,
-        modelAuthor: String,
-        modelDescription: String,
-        modelVersion: String
-    ) {
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss Z"
-        let generatedDateString = dateFormatter.string(from: Date())
-
-        var summaryContent = """
-        # OvR バッチ分類レポート
-
-        ## バッチ詳細
-        - **バッチコーディネーターモデル名**: \(trainer.modelName) 
-        - **バッチバージョン**: \(batchVersion)
-        - **レポート生成日時**: \(generatedDateString)
-        - **トレーニング済みOvRモデル総数**: \(individualResults.count)
-        - **メイン出力ディレクトリ**: \(mainOutputDirectoryPath)
-
-        ## モデルメタデータ (バッチ全体)
-        - **作成者**: \(modelAuthor)
-        - **説明**: \(modelDescription)
-        - **バージョン**: \(modelVersion)
-
-        ## 個別OvRモデル概要
-
+        ## モデルメタデータ
+        作成者            : \(modelAuthor)
+        説明              : \(modelDescription)
+        バージョン        : \(modelVersion)
         """
 
-        if individualResults.isEmpty {
-            summaryContent += "このバッチで正常にトレーニングされた個別のOvRモデルはありませんでした。\n"
-        } else {
-            for result in individualResults {
-                let relativeModelPath = result.modelOutputPath.replacingOccurrences(
-                    of: mainOutputDirectoryPath,
-                    with: "."
-                )
-                let relativeReportPath = result.reportPath.replacingOccurrences(of: mainOutputDirectoryPath, with: ".")
-                summaryContent += """
-                ---
-                - **ターゲットラベル (One)**: \(result.oneLabelName)
-                  - **モデル名**: \(result.modelName)
-                  - **モデルパス**: \(relativeModelPath)
-                  - **レポートパス**: \(relativeReportPath)
-                  - **トレーニング正解率**: \(String(format: "%.2f", result.trainingAccuracy * 100))%
-                  - **検証データ正解率**: \(String(format: "%.2f", result.validationAccuracy * 100))%
-
-                """
-            }
-        }
-
-        let summaryReportFileName = "OvR_Batch_Summary_\(batchVersion).md"
-        let summaryReportURL = URL(fileURLWithPath: mainOutputDirectoryPath)
-            .appendingPathComponent(summaryReportFileName)
-
         do {
-            try summaryContent.write(to: summaryReportURL, atomically: true, encoding: .utf8)
-            print("✅ OvRバッチ概要レポートを保存しました: \(summaryReportURL.path)")
+            try markdownText.write(to: reportURL, atomically: true, encoding: .utf8)
+            print("✅ OvR個別モデルレポートを保存しました: \(reportURL.path)")
         } catch {
-            print("❌ OvRバッチ概要レポートの保存エラー: \(error.localizedDescription)")
+            print("❌ OvR個別モデルレポートの保存エラー: \(error.localizedDescription) (Path: \(reportURL.path))")
         }
     }
 }

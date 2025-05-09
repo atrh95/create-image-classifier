@@ -1,43 +1,32 @@
 import Foundation
 import SCSInterface
 
-/// 画像分類モデルのトレーニング結果（マルチラベル用）を格納する構造体
 public struct MultiLabelTrainingResult: TrainingResultProtocol {
-    /// トレーニングデータでの正解率 (0.0 ~ 100.0)
-    public let trainingAccuracy: Double
-    /// 検証データでの正解率 (0.0 ~ 100.0)
-    public let validationAccuracy: Double
-    /// トレーニングデータでのエラー率 (0.0 ~ 1.0)
-    public let trainingError: Double
-    /// 検証データでのエラー率 (0.0 ~ 1.0)
-    public let validationError: Double
-    /// トレーニングにかかった時間（秒）
+    public let modelName: String
+    public let trainingDataAccuracy: Double
+    public let validationDataAccuracy: Double
+    public let trainingDataError: Double
+    public let validationDataError: Double
     public let trainingDuration: TimeInterval
-    /// 生成されたモデルファイルの出力パス
     public let modelOutputPath: String
-    /// トレーニングに使用されたデータのパス (JSON manifest path)
     public let trainingDataPath: String
-    /// 検出された全ユニーククラスラベルのリスト
     public let classLabels: [String]
 
     public func saveLog(
-        trainer: any ScreeningTrainerProtocol,
         modelAuthor: String,
         modelDescription: String,
         modelVersion: String
     ) {
-        let modelName = trainer.modelName
-
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss Z"
         let generatedDateString = dateFormatter.string(from: Date())
 
         let classLabelsString = classLabels.isEmpty ? "不明" : classLabels.joined(separator: ", ")
 
-        let trainingAccStr = String(format: "%.2f", trainingAccuracy)
-        let validationAccStr = String(format: "%.2f", validationAccuracy)
-        let trainingErrStr = String(format: "%.2f", trainingError * 100)
-        let validationErrStr = String(format: "%.2f", validationError * 100)
+        let trainingAccStr = String(format: "%.2f", trainingDataAccuracy)
+        let validationAccStr = String(format: "%.2f", validationDataAccuracy)
+        let trainingErrStr = String(format: "%.2f", trainingDataError * 100)
+        let validationErrStr = String(format: "%.2f", validationDataError * 100)
         let durationStr = String(format: "%.2f", trainingDuration)
 
         let markdownText = """
@@ -54,7 +43,7 @@ public struct MultiLabelTrainingResult: TrainingResultProtocol {
 
         ## パフォーマンス指標 (全体)
         トレーニング所要時間: \(durationStr) 秒
-        トレーニングエラー率 (学習時) : \(trainingErrStr)%
+        トレーニング誤分類率 (学習時) : \(trainingErrStr)%
         訓練データ正解率 (学習時) : \(trainingAccStr)%
         検証データ正解率 (学習時自動検証) : \(validationAccStr)% (注: マルチラベルの正解率は解釈に注意)
         検証誤分類率 (学習時自動検証) : \(validationErrStr)% (注: マルチラベルの誤分類率は解釈に注意)

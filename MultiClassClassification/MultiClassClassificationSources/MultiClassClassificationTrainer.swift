@@ -39,7 +39,8 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
         var finalOutputDir: URL!
 
         do {
-            var projectRoot = URL(fileURLWithPath: #filePath) // .../MultiClassClassificationSources/MultiClassClassificationTrainer.swift
+            var projectRoot =
+                URL(fileURLWithPath: #filePath) // .../MultiClassClassificationSources/MultiClassClassificationTrainer.swift
             projectRoot.deleteLastPathComponent() // .../MultiClassClassificationSources/
             projectRoot.deleteLastPathComponent() // .../MultiClassClassification/
             projectRoot.deleteLastPathComponent() // プロジェクトルートへ
@@ -93,13 +94,13 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
             let trainingAccuracy = (1.0 - trainingError) * 100
             let trainingErrorStr = String(format: "%.2f", trainingError * 100)
             let trainingAccStr = String(format: "%.2f", trainingAccuracy)
-            print("  📊 トレーニングエラー率: \(trainingErrorStr)% (正解率: \(trainingAccStr)%)")
+            print("  📊 トレーニングデータ正解率: \(trainingAccStr)%")
 
             let validationError = model.validationMetrics.classificationError
             let validationAccuracy = (1.0 - validationError) * 100
             let validationErrorStr = String(format: "%.2f", validationError * 100)
             let validationAccStr = String(format: "%.2f", validationAccuracy)
-            print("  📈 検証エラー率: \(validationErrorStr)% (正解率: \(validationAccStr)%)")
+            print("  📈 検証データ正解率: \(validationAccStr)%")
 
             let metadata = MLModelMetadata(
                 author: author,
@@ -114,15 +115,15 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
             print("  ✅ [\(modelName)_\(version).mlmodel] は正常に保存されました。")
 
             return MultiClassTrainingResult(
-                trainingAccuracy: trainingAccuracy,
-                validationAccuracy: validationAccuracy,
-                trainingError: trainingError,
-                validationError: validationError,
-                trainingDuration: duration,
+                modelName: modelName,
+                trainingDataAccuracy: trainingAccuracy,
+                validationDataAccuracy: validationAccuracy,
+                trainingDataErrorRate: trainingError,
+                validationDataErrorRate: validationError,
+                trainingTimeInSeconds: duration,
                 modelOutputPath: outputModelURL.path,
                 trainingDataPath: trainingDataParentDir.path,
-                classLabels: classLabels,
-                perLabelMetrics: nil
+                classLabels: classLabels
             )
 
         } catch let error as CreateML.MLCreateError {

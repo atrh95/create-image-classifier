@@ -3,6 +3,7 @@ import SCSInterface // For TrainingResultData and ScreeningTrainerProtocol
 
 /// 画像分類モデルのトレーニング結果を格納する構造体
 public struct BinaryTrainingResult: TrainingResultProtocol {
+    public let modelName: String
     public let trainingDataAccuracyPercentage: Double
     public let validationDataAccuracyPercentage: Double
     public let trainingDataMisclassificationRate: Double
@@ -13,7 +14,6 @@ public struct BinaryTrainingResult: TrainingResultProtocol {
     public let detectedClassLabelsList: [String]
 
     public func saveLog(
-        trainer: any ScreeningTrainerProtocol,
         modelAuthor: String,
         modelDescription: String,
         modelVersion: String
@@ -38,7 +38,7 @@ public struct BinaryTrainingResult: TrainingResultProtocol {
         # モデルトレーニング情報
 
         ## モデル詳細
-        モデル名           : \(trainer.modelName)
+        モデル名           : \(modelName)
         保存先モデルパス   : \(trainedModelFilePath)
         ファイル生成日時   : \(generatedDateString)
 
@@ -61,7 +61,7 @@ public struct BinaryTrainingResult: TrainingResultProtocol {
 
         // Markdownファイルのパスを作成 (モデルファイルと同じディレクトリ、拡張子を.mdに変更)
         let outputDir = URL(fileURLWithPath: trainedModelFilePath).deletingLastPathComponent()
-        let textFileName = "\(trainer.modelName)_\(modelVersion).md" // モデル名から .md ファイル名を生成
+        let textFileName = "\(modelName)_\(modelVersion).md" // モデル名から .md ファイル名を生成
         let textFilePath = outputDir.appendingPathComponent(textFileName).path
 
         // Markdownファイルに書き込み

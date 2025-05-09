@@ -61,7 +61,8 @@ public class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
             let duration = Date().timeIntervalSince(start)
 
             var projectRootURL = URL(fileURLWithPath: #filePath)
-            projectRootURL.deleteLastPathComponent() // .../MultiLabelClassificationSources/MultiLabelClassificationTrainer.swift
+            projectRootURL
+                .deleteLastPathComponent() // .../MultiLabelClassificationSources/MultiLabelClassificationTrainer.swift
             projectRootURL.deleteLastPathComponent() // .../MultiLabelClassificationSources/
             projectRootURL.deleteLastPathComponent() // .../MultiLabelClassification/
             projectRootURL.deleteLastPathComponent() // プロジェクトルートへ
@@ -103,10 +104,11 @@ public class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
             )
 
             return MultiLabelTrainingResult(
-                trainingAccuracy: 0.0,
-                validationAccuracy: Double(metrics.meanAveragePrecision),
-                trainingError: 0.0,
-                validationError: 0.0,
+                modelName: modelName,
+                trainingDataAccuracy: 0.0,
+                validationDataAccuracy: Double(metrics.meanAveragePrecision),
+                trainingDataError: 0.0,
+                validationDataError: 0.0,
                 trainingDuration: duration,
                 modelOutputPath: modelURL.path,
                 trainingDataPath: manifestURL.path,
