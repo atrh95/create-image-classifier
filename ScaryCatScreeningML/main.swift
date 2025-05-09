@@ -4,16 +4,15 @@ import MultiLabelClassification
 import SCSInterface
 import Foundation
 
-// --- トレーナータイプ定義 ---
+// --- トレーナータイプ ---
 enum TrainerType {
     case binary
     case multiClass
     case multiLabel
-    // case multiLabel // 今後の拡張用
 }
 
 // --- トレーニング設定 ---
-let currentTrainerType: TrainerType = .multiLabel // ここでトレーナーを切り替え
+let currentTrainerType: TrainerType = .multiLabel
 
 // --- メタデータ定義 ---
 let modelAuthor = "akitora"
@@ -52,14 +51,6 @@ case .multiLabel:
         shortDescription: modelShortDescription,
         version: modelVersion
     )
-// case .multiLabel:
-    // let multiLabelTrainer = MultiLabelClassificationTrainer() // 将来的に実装
-    // trainer = multiLabelTrainer
-    // trainingResult = multiLabelTrainer.train(
-    //     author: modelAuthor,
-    //     shortDescription: modelShortDescription,
-    //     version: modelVersion
-    // )
 }
 
 // 結果の処理

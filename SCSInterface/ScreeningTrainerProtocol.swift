@@ -4,11 +4,7 @@ import Foundation
 public protocol ScreeningTrainerProtocol {
     associatedtype TrainingResultType
 
-    /// モデル名
     var modelName: String { get }
-
-    /// データディレクトリ名 (リソース内相対パス)
-    var dataDirectoryName: String { get }
 
     /// 出力先ディレクトリパス
     var customOutputDirPath: String { get }
