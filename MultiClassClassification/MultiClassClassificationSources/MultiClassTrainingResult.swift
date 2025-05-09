@@ -1,12 +1,12 @@
 import Foundation
-import SCSInterface // For TrainingResultData and ScreeningTrainerProtocol
+import SCSInterface 
 
-/// 特定のラベルに対する評価メトリクス
+/// 特定のラベルに対する評価
 public struct LabelMetrics {
     public let precision: Double
     public let recall: Double
     public let f1Score: Double
-    public let support: Int // そのラベルの真のインスタンス数 (TP + FN)
+    public let support: Int
 }
 
 /// 画像分類モデルのトレーニング結果（ログ記録用）を格納する構造体

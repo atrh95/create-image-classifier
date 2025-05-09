@@ -1,6 +1,7 @@
 import BinaryClassification
 import MultiClassClassification
 import MultiLabelClassification
+import OvRClassification
 import SCSInterface
 import Foundation
 
@@ -9,22 +10,22 @@ enum TrainerType {
     case binary
     case multiClass
     case multiLabel
+    case ovr
 }
 
 // --- トレーニング設定 ---
-let currentTrainerType: TrainerType = .multiLabel
+let currentTrainerType: TrainerType = .ovr
 
 // --- メタデータ定義 ---
 let modelAuthor = "akitora"
-let modelShortDescription = "ScaryCatScreener - \(currentTrainerType)"
+let modelShortDescription = "ScaryCatScreener Training"
 let modelVersion = "v1"
-// ---------------------
 
 print("🚀 トレーニングを開始します... 設定タイプ: \(currentTrainerType)")
 
 // トレーナーの選択と実行
 let trainer: any ScreeningTrainerProtocol
-var trainingResult: Any? // Any? because the result type varies
+var trainingResult: Any?
 
 switch currentTrainerType {
 case .binary:
@@ -32,7 +33,7 @@ case .binary:
     trainer = binaryTrainer
     trainingResult = await binaryTrainer.train(
         author: modelAuthor,
-        shortDescription: modelShortDescription,
+        shortDescription: "Binary Classification: \(modelShortDescription)",
         version: modelVersion
     )
 case .multiClass:
@@ -40,7 +41,7 @@ case .multiClass:
     trainer = multiClassTrainer
     trainingResult = await multiClassTrainer.train(
         author: modelAuthor,
-        shortDescription: modelShortDescription,
+        shortDescription: "Multi-Class Classification: \(modelShortDescription)",
         version: modelVersion
     )
 case .multiLabel:
@@ -48,7 +49,15 @@ case .multiLabel:
     trainer = multiLabelTrainer
     trainingResult = await multiLabelTrainer.train(
         author: modelAuthor,
-        shortDescription: modelShortDescription,
+        shortDescription: "Multi-Label Classification: \(modelShortDescription)",
+        version: modelVersion
+    )
+case .ovr:
+    let ovrTrainer = OvRClassificationTrainer()
+    trainer = ovrTrainer
+    trainingResult = await ovrTrainer.train(
+        author: modelAuthor,
+        shortDescription: "One-vs-Rest (OvR) Batch: \(modelShortDescription)",
         version: modelVersion
     )
 }
