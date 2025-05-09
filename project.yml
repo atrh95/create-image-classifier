@@ -4,7 +4,7 @@ name: ScaryCatScreeningML
 options:
   bundleIdPrefix: com.akitorahayashi
   deploymentTarget:
-    macOS: "15.4"
+    macOS: "15.2"
 targets:
   ScaryCatScreeningML:
     type: tool
@@ -15,10 +15,11 @@ targets:
       - target: BinaryClassification
       - target: MultiClassClassification
       - target: MultiLabelClassification
+      - target: OvRClassification
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.ScaryCatScreeningML
-        MACOSX_DEPLOYMENT_TARGET: "15.4"
+        MACOSX_DEPLOYMENT_TARGET: "15.2"
 
   SCSInterface:
     type: framework
@@ -28,7 +29,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.SCSInterface
-        MACOSX_DEPLOYMENT_TARGET: "15.4"
+        MACOSX_DEPLOYMENT_TARGET: "15.2"
         DEFINES_MODULE: "YES"
 
   BinaryClassification:
@@ -43,7 +44,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.BinaryClassification
-        MACOSX_DEPLOYMENT_TARGET: "15.4"
+        MACOSX_DEPLOYMENT_TARGET: "15.2"
         DEFINES_MODULE: "YES"
 
   MultiClassClassification:
@@ -58,7 +59,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.MultiClassClassification
-        MACOSX_DEPLOYMENT_TARGET: "15.4"
+        MACOSX_DEPLOYMENT_TARGET: "15.2"
         DEFINES_MODULE: "YES"
 
   MultiLabelClassification:
@@ -73,5 +74,20 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.MultiLabelClassification
-        MACOSX_DEPLOYMENT_TARGET: "15.4"
+        MACOSX_DEPLOYMENT_TARGET: "15.2"
+        DEFINES_MODULE: "YES"
+
+  OvRClassification:
+    type: framework
+    platform: macOS
+    sources:
+      - path: OvRClassification/OvRClassificationSources
+    resources:
+      - path: OvRClassification/Resources
+    dependencies:
+      - target: SCSInterface
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.OvRClassification
+        MACOSX_DEPLOYMENT_TARGET: "15.2"
         DEFINES_MODULE: "YES"

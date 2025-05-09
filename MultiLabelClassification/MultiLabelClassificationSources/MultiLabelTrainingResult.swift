@@ -1,20 +1,16 @@
 import Foundation
-import SCSInterface // For TrainingResultData and ScreeningTrainerProtocol
-
-// Note: Create ML's MLImageClassifier.Metrics might not provide
-// precision/recall/F1 for multi-label in the same way as multi-class.
-// This struct mirrors TrainingResultLogModel for now and can be adjusted.
+import SCSInterface
 
 /// 画像分類モデルのトレーニング結果（マルチラベル用）を格納する構造体
-public struct MultiLabelTrainingResult: TrainingResultData {
+public struct MultiLabelTrainingResult: TrainingResultProtocol {
     /// トレーニングデータでの正解率 (0.0 ~ 100.0)
     public let trainingAccuracy: Double
     /// 検証データでの正解率 (0.0 ~ 100.0)
-    public let validationAccuracy: Double // This might be less straightforward for multi-label
+    public let validationAccuracy: Double
     /// トレーニングデータでのエラー率 (0.0 ~ 1.0)
     public let trainingError: Double
     /// 検証データでのエラー率 (0.0 ~ 1.0)
-    public let validationError: Double // This might be less straightforward for multi-label
+    public let validationError: Double
     /// トレーニングにかかった時間（秒）
     public let trainingDuration: TimeInterval
     /// 生成されたモデルファイルの出力パス
@@ -23,10 +19,13 @@ public struct MultiLabelTrainingResult: TrainingResultData {
     public let trainingDataPath: String
     /// 検出された全ユニーククラスラベルのリスト
     public let classLabels: [String]
-    // Multi-label might have different ways of reporting per-label metrics, if at all directly.
-    // For now, we'll omit perLabelMetrics or keep it nil.
 
-    public func saveLog(trainer: any ScreeningTrainerProtocol, modelAuthor: String, modelDescription: String, modelVersion: String) {
+    public func saveLog(
+        trainer: any ScreeningTrainerProtocol,
+        modelAuthor: String,
+        modelDescription: String,
+        modelVersion: String
+    ) {
         let modelName = trainer.modelName
 
         let dateFormatter = DateFormatter()
@@ -65,8 +64,6 @@ public struct MultiLabelTrainingResult: TrainingResultData {
         説明              : \(modelDescription)
         バージョン          : \(modelVersion)
         """
-        // Note: Per-label metrics might need a different representation for multi-label.
-        // This basic log doesn't include them yet.
 
         let outputDir = URL(fileURLWithPath: modelOutputPath).deletingLastPathComponent()
         let textFileName = "\(modelName)_\(modelVersion).md"
@@ -82,4 +79,4 @@ public struct MultiLabelTrainingResult: TrainingResultData {
             print("--- ここまで --- ")
         }
     }
-} 
+}

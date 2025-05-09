@@ -4,11 +4,7 @@ import Foundation
 public protocol ScreeningTrainerProtocol {
     associatedtype TrainingResultType
 
-    /// モデル名
     var modelName: String { get }
-
-    /// データディレクトリ名 (リソース内相対パス)
-    var dataDirectoryName: String { get }
 
     /// 出力先ディレクトリパス
     var customOutputDirPath: String { get }
@@ -23,4 +19,4 @@ public protocol ScreeningTrainerProtocol {
     ///   - version: モデルのバージョン
     /// - Returns: トレーニング結果 (成功時) または nil (失敗時)
     func train(author: String, shortDescription: String, version: String) async -> TrainingResultType?
-} 
+}

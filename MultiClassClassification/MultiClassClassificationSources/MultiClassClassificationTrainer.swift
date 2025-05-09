@@ -4,11 +4,10 @@ import Foundation
 import SCSInterface
 
 public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
-    public typealias TrainingResultType = TrainingResultLogModel
+    public typealias TrainingResultType = MultiClassTrainingResult
 
-    public var modelName: String { "ScaryCatScreeningML" }
-    public var dataDirectoryName: String { "MultiClassScaryCatScreenerData" }
-    public var customOutputDirPath: String { "OutputModels/ScaryCatScreeningML/MultiClass" }
+    public var modelName: String { "ScaryCatScreeningML_MultiClass" }
+    public var customOutputDirPath: String { "MultiClassClassification/OutputModels" }
 
     public var resourcesDirectoryPath: String {
         var dir = URL(fileURLWithPath: #filePath)
@@ -24,11 +23,11 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
         shortDescription: String,
         version: String
     )
-        async -> TrainingResultLogModel?
+        async -> MultiClassTrainingResult?
     {
         let resourcesPath = resourcesDirectoryPath
         let resourcesDir = URL(fileURLWithPath: resourcesPath)
-        let trainingDataParentDir = resourcesDir.appendingPathComponent(dataDirectoryName)
+        let trainingDataParentDir = resourcesDir
 
         guard FileManager.default.fileExists(atPath: trainingDataParentDir.path) else {
             print("❌ エラー: トレーニングデータ親ディレクトリが見つかりません: \(trainingDataParentDir.path)")
@@ -40,11 +39,11 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
         var finalOutputDir: URL!
 
         do {
-            var playgroundRoot = URL(fileURLWithPath: #filePath)
-            playgroundRoot.deleteLastPathComponent()
-            playgroundRoot.deleteLastPathComponent()
-            var baseOutputDir = playgroundRoot
-            baseOutputDir.deleteLastPathComponent()
+            var projectRoot = URL(fileURLWithPath: #filePath) // .../MultiClassClassificationSources/MultiClassClassificationTrainer.swift
+            projectRoot.deleteLastPathComponent() // .../MultiClassClassificationSources/
+            projectRoot.deleteLastPathComponent() // .../MultiClassClassification/
+            projectRoot.deleteLastPathComponent() // プロジェクトルートへ
+            let baseOutputDir = projectRoot
 
             let customPath = customOutputDirPath
             if !customPath.isEmpty {
@@ -59,7 +58,7 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
             print("📂 ベース出力ディレクトリ: \(baseTargetOutputDir.path)")
 
             var resultCounter = 1
-            let resultDirPrefix = "multiclass_result_"
+            let resultDirPrefix = "MultiClass_Result_"
             repeat {
                 let resultDirName = "\(resultDirPrefix)\(resultCounter)"
                 finalOutputDir = baseTargetOutputDir.appendingPathComponent(resultDirName)
@@ -114,7 +113,7 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
             try model.write(to: outputModelURL, metadata: metadata)
             print("  ✅ [\(modelName)_\(version).mlmodel] は正常に保存されました。")
 
-            return TrainingResultLogModel(
+            return MultiClassTrainingResult(
                 trainingAccuracy: trainingAccuracy,
                 validationAccuracy: validationAccuracy,
                 trainingError: trainingError,

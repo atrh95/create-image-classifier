@@ -1,65 +1,65 @@
 import BinaryClassification
+import Foundation
 import MultiClassClassification
 import MultiLabelClassification
+import OvRClassification
 import SCSInterface
-import Foundation
 
-// --- トレーナータイプ定義 ---
+// --- トレーナータイプ ---
 enum TrainerType {
     case binary
     case multiClass
     case multiLabel
-    // case multiLabel // 今後の拡張用
+    case ovr
 }
 
 // --- トレーニング設定 ---
-let currentTrainerType: TrainerType = .multiLabel // ここでトレーナーを切り替え
+let currentTrainerType: TrainerType = .multiClass
 
 // --- メタデータ定義 ---
 let modelAuthor = "akitora"
-let modelShortDescription = "ScaryCatScreener - \(currentTrainerType)"
+let modelShortDescription = "ScaryCatScreener Training"
 let modelVersion = "v1"
-// ---------------------
 
 print("🚀 トレーニングを開始します... 設定タイプ: \(currentTrainerType)")
 
 // トレーナーの選択と実行
 let trainer: any ScreeningTrainerProtocol
-var trainingResult: Any? // Any? because the result type varies
+var trainingResult: Any?
 
 switch currentTrainerType {
-case .binary:
-    let binaryTrainer = BinaryClassificationTrainer()
-    trainer = binaryTrainer
-    trainingResult = await binaryTrainer.train(
-        author: modelAuthor,
-        shortDescription: modelShortDescription,
-        version: modelVersion
-    )
-case .multiClass:
-    let multiClassTrainer = MultiClassClassificationTrainer()
-    trainer = multiClassTrainer
-    trainingResult = await multiClassTrainer.train(
-        author: modelAuthor,
-        shortDescription: modelShortDescription,
-        version: modelVersion
-    )
-case .multiLabel:
-    let multiLabelTrainer = MultiLabelClassificationTrainer()
-    trainer = multiLabelTrainer
-    trainingResult = await multiLabelTrainer.train(
-        author: modelAuthor,
-        shortDescription: modelShortDescription,
-        version: modelVersion
-    )
-// case .multiLabel:
-    // let multiLabelTrainer = MultiLabelClassificationTrainer() // 将来的に実装
-    // trainer = multiLabelTrainer
-    // trainingResult = multiLabelTrainer.train(
-    //     author: modelAuthor,
-    //     shortDescription: modelShortDescription,
-    //     version: modelVersion
-    // )
+    case .binary:
+        let binaryTrainer = BinaryClassificationTrainer()
+        trainer = binaryTrainer
+        trainingResult = await binaryTrainer.train(
+            author: modelAuthor,
+            shortDescription: "Binary Classification: \(modelShortDescription)",
+            version: modelVersion
+        )
+    case .multiClass:
+        let multiClassTrainer = MultiClassClassificationTrainer()
+        trainer = multiClassTrainer
+        trainingResult = await multiClassTrainer.train(
+            author: modelAuthor,
+            shortDescription: "Multi-Class Classification: \(modelShortDescription)",
+            version: modelVersion
+        )
+    case .multiLabel:
+        let multiLabelTrainer = MultiLabelClassificationTrainer()
+        trainer = multiLabelTrainer
+        trainingResult = await multiLabelTrainer.train(
+            author: modelAuthor,
+            shortDescription: "Multi-Label Classification: \(modelShortDescription)",
+            version: modelVersion
+        )
+    case .ovr:
+        let ovrTrainer = OvRClassificationTrainer()
+        trainer = ovrTrainer
+        trainingResult = await ovrTrainer.train(
+            author: modelAuthor,
+            shortDescription: "One-vs-Rest (OvR) Batch: \(modelShortDescription)",
+            version: modelVersion
+        )
 }
 
 // 結果の処理
@@ -67,7 +67,7 @@ if let result = trainingResult {
     print("🎉 トレーニングが正常に完了しました。")
 
     // 結果をログに保存 (TrainingResultDataプロトコルのsaveLogメソッドを利用)
-    if let resultData = result as? any TrainingResultData {
+    if let resultData = result as? any TrainingResultProtocol {
         resultData.saveLog(
             trainer: trainer,
             modelAuthor: modelAuthor,

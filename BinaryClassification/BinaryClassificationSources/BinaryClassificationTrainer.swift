@@ -4,11 +4,10 @@ import Foundation
 import SCSInterface
 
 public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
-    public typealias TrainingResultType = TrainingResult
+    public typealias TrainingResultType = BinaryTrainingResult
 
-    public var modelName: String { "BCScaryCatScreeningML" }
-    public var dataDirectoryName: String { "BinaryClassificationData" }
-    public var customOutputDirPath: String { "OutputModels" }
+    public var modelName: String { "ScaryCatScreeningML_Binary" }
+    public var customOutputDirPath: String { "BinaryClassification/OutputModels" }
 
     public var resourcesDirectoryPath: String {
         var dir = URL(fileURLWithPath: #filePath)
@@ -19,16 +18,17 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
 
     public init() {}
 
-    public func train(author: String, shortDescription: String, version: String) async -> TrainingResult? {
+    public func train(author: String, shortDescription: String, version: String) async -> BinaryTrainingResult? {
         let resourcesPath = resourcesDirectoryPath
         let resourcesDir = URL(fileURLWithPath: resourcesPath)
-        let trainingDataParentDir = resourcesDir.appendingPathComponent(dataDirectoryName)
+        let trainingDataParentDir = resourcesDir
 
         // --- Output Directory Setup ---
-        var playgroundRoot = URL(fileURLWithPath: #filePath)
-        playgroundRoot.deleteLastPathComponent()
-        playgroundRoot.deleteLastPathComponent()
-        let baseOutputDir = playgroundRoot
+        var projectRoot = URL(fileURLWithPath: #filePath) // .../BinaryClassificationSources/BinaryClassificationTrainer.swift
+        projectRoot.deleteLastPathComponent() // .../BinaryClassificationSources/
+        projectRoot.deleteLastPathComponent() // .../BinaryClassification/
+        projectRoot.deleteLastPathComponent() // プロジェクトルートへ
+        let baseOutputDir = projectRoot
 
         let baseTargetOutputDir: URL
         let customPath = customOutputDirPath
@@ -56,7 +56,7 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
 
         var resultCounter = 1
         var finalOutputDir: URL
-        let resultDirPrefix = "result_"
+        let resultDirPrefix = "Binary_Result_"
 
         repeat {
             let resultDirName = "\(resultDirPrefix)\(resultCounter)"
@@ -90,7 +90,7 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
         author: String,
         shortDescription: String,
         version: String
-    ) async -> TrainingResult? {
+    ) async -> BinaryTrainingResult? {
         guard FileManager.default.fileExists(atPath: trainingDataParentDir.path) else {
             print("❌ エラー: \(modelName)のトレーニングデータ親ディレクトリが見つかりません: \(trainingDataParentDir.path)")
             return nil
@@ -158,7 +158,7 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
             }
             // --- End Get Class Labels ---
 
-            return TrainingResult(
+            return BinaryTrainingResult(
                 trainingAccuracy: trainingAccuracy,
                 validationAccuracy: validationAccuracy,
                 trainingError: trainingError,
