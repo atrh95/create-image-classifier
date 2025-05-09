@@ -1,18 +1,18 @@
-import Foundation
-import CreateML
-import TabularData
-import SCSInterface
 import Combine
+import CreateML
+import Foundation
+import SCSInterface
+import TabularData
 
 public class OvRClassificationTrainer: ScreeningTrainerProtocol {
     public typealias TrainingResultType = OvRBatchResult
 
     public var modelName: String {
-        return "OvR_BatchCoordinator"
+        "OvR_BatchCoordinator"
     }
 
     public var customOutputDirPath: String {
-        return "OvRClassification/OutputModels"
+        "OvRClassification/OutputModels"
     }
 
     public var resourcesDirectoryPath: String {
@@ -22,17 +22,16 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
         return dir.appendingPathComponent("Resources").path
     }
 
-    public init() {
-    }
+    public init() {}
 
     static let fileManager = FileManager.default
     static let tempBaseDirName = "TempOvRTrainingData"
 
     // Helper function to convert snake_case to UpperCamelCase
     private func toUpperCamelCase(fromSnakeCase string: String) -> String {
-        return string.split(separator: "_")
-                     .map { $0.capitalized }
-                     .joined()
+        string.split(separator: "_")
+            .map(\.capitalized)
+            .joined()
     }
 
     private enum TrainerError: Error {
@@ -41,17 +40,25 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
         case noPrimaryLabelsFound(path: String)
     }
 
-    private func setupOutputDirectories(version: String, baseProjectURL: URL) throws -> (mainRunURL: URL, tempOvRBaseURL: URL) {
-        let mainOutputRunURL = baseProjectURL.appendingPathComponent(customOutputDirPath).appendingPathComponent("OvR_Run_\(version)")
+    private func setupOutputDirectories(
+        version: String,
+        baseProjectURL: URL
+    ) throws -> (mainRunURL: URL, tempOvRBaseURL: URL) {
+        let mainOutputRunURL = baseProjectURL.appendingPathComponent(customOutputDirPath)
+            .appendingPathComponent("OvR_Run_\(version)")
         let tempOvRBaseURL = baseProjectURL.appendingPathComponent(Self.tempBaseDirName)
 
         do {
-            try Self.fileManager.createDirectory(at: mainOutputRunURL, withIntermediateDirectories: true, attributes: nil)
+            try Self.fileManager.createDirectory(
+                at: mainOutputRunURL,
+                withIntermediateDirectories: true,
+                attributes: nil
+            )
         } catch {
             print("❌ メイン出力実行ディレクトリの作成エラー \(mainOutputRunURL.path): \(error.localizedDescription)")
             throw TrainerError.directoryCreationFailed(path: mainOutputRunURL.path, underlyingError: error)
         }
-        
+
         if Self.fileManager.fileExists(atPath: tempOvRBaseURL.path) {
             do {
                 try Self.fileManager.removeItem(at: tempOvRBaseURL)
@@ -70,22 +77,26 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
     }
 
     public func train(author: String, shortDescription: String, version: String) async -> OvRBatchResult? {
-        let baseProjectURL = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-        
+        let baseProjectURL = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+            .deletingLastPathComponent()
+
         let mainOutputRunURL: URL
         let tempOvRBaseURL: URL
 
         do {
-            (mainOutputRunURL, tempOvRBaseURL) = try setupOutputDirectories(version: version, baseProjectURL: baseProjectURL)
+            (mainOutputRunURL, tempOvRBaseURL) = try setupOutputDirectories(
+                version: version,
+                baseProjectURL: baseProjectURL
+            )
         } catch {
             // エラーはsetupOutputDirectories内で出力済み
             return nil
         }
-        
+
         let ovrResourcesURL = URL(fileURLWithPath: resourcesDirectoryPath)
 
         print("🚀 OvR分類トレーニングバッチを開始します...")
-        print("  バッチコーディネーター: \(self.modelName)")
+        print("  バッチコーディネーター: \(modelName)")
         print("  今回の実行バージョン: \(version)")
         print("  作成者: \(author)")
         print("  バッチ説明: \(shortDescription)")
@@ -105,12 +116,11 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
                 return isDirectory.boolValue && !url.lastPathComponent.hasPrefix(".")
             }
         } catch {
-             print("❌ ラベルディレクトリの一覧取得エラー \(ovrResourcesURL.path): \(error.localizedDescription)")
+            print("❌ ラベルディレクトリの一覧取得エラー \(ovrResourcesURL.path): \(error.localizedDescription)")
             // ここではまだcleanupTemporaryDataを呼び出す必要はない。
             // この関数が失敗した場合、またはsetupOutputDirectoriesが失敗した場合に最後にクリーンアップされる。
             return nil
         }
-        
 
         let primaryLabelSourceDirs = allLabelSourceDirectories.filter { $0.lastPathComponent.lowercased() != "rest" }
 
@@ -121,9 +131,12 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
             return nil
         }
 
-        print("\(primaryLabelSourceDirs.count)件のプライマリラベルを処理します: \(primaryLabelSourceDirs.map {$0.lastPathComponent}.joined(separator: ", "))")
+        print(
+            "\(primaryLabelSourceDirs.count)件のプライマリラベルを処理します: \(primaryLabelSourceDirs.map(\.lastPathComponent).joined(separator: ", "))"
+        )
 
         var individualTrainingResults: [OvRTrainingResult] = []
+        var ovrPairCounter = 1
 
         for oneLabelSourceDirURL in primaryLabelSourceDirs {
             let result = await trainSingleOvRPair(
@@ -133,31 +146,38 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
                 tempOvRBaseURL: tempOvRBaseURL,
                 author: author,
                 shortDescription: shortDescription,
-                version: version
+                version: version,
+                pairIndex: ovrPairCounter
             )
             if let validResult = result {
                 individualTrainingResults.append(validResult)
             }
+            ovrPairCounter += 1
         }
-        
+
         OvRClassificationTrainer.cleanupTemporaryData(at: tempOvRBaseURL)
         print("\n🏁 OvR分類トレーニングバッチが完了しました。")
-        
+
         if individualTrainingResults.isEmpty {
             print("  このバッチで正常にトレーニングされたOvRモデルはありませんでした。")
             return nil
         }
-        
+
         print("  正常にトレーニングされた個別OvRモデルの総数: \(individualTrainingResults.count)")
         print("  このバッチのすべての出力は次の場所にあります: \(mainOutputRunURL.path)")
-        
+
         let batchResult = OvRBatchResult(
             batchVersion: version,
             individualResults: individualTrainingResults,
             mainOutputDirectoryPath: mainOutputRunURL.path
         )
-        
-        batchResult.saveLog(trainer: self, modelAuthor: author, modelDescription: shortDescription, modelVersion: version)
+
+        batchResult.saveLog(
+            trainer: self,
+            modelAuthor: author,
+            modelDescription: shortDescription,
+            modelVersion: version
+        )
 
         return batchResult
     }
@@ -169,25 +189,33 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
         tempOvRBaseURL: URL,
         author: String,
         shortDescription: String,
-        version: String
+        version: String,
+        pairIndex: Int
     ) async -> OvRTrainingResult? {
         let originalOneLabelName = oneLabelSourceDirURL.lastPathComponent
         let upperCamelCaseOneLabelName = toUpperCamelCase(fromSnakeCase: originalOneLabelName)
-        
+
         print("\n--- ラベルのOvR処理を開始: \(originalOneLabelName) (\(upperCamelCaseOneLabelName)として) ---")
 
-        let ovrPairOutputDir = mainRunURL.appendingPathComponent("\(upperCamelCaseOneLabelName)_vs_Rest")
+        let ovrPairOutputDir = mainRunURL
+            .appendingPathComponent("OvR_Result_\(pairIndex)")
         do {
-            try Self.fileManager.createDirectory(at: ovrPairOutputDir, withIntermediateDirectories: true, attributes: nil)
+            try Self.fileManager.createDirectory(
+                at: ovrPairOutputDir,
+                withIntermediateDirectories: true,
+                attributes: nil
+            )
         } catch {
-            print("  ❌ OvRペアの出力ディレクトリ作成エラー \(upperCamelCaseOneLabelName): \(ovrPairOutputDir.path) - \(error.localizedDescription)")
+            print(
+                "  ❌ OvRペアの出力ディレクトリ作成エラー \(upperCamelCaseOneLabelName): \(ovrPairOutputDir.path) - \(error.localizedDescription)"
+            )
             return nil
         }
-        
+
         // 1. OvRペアごとの一時的な訓練ルートディレクトリを作成
         let tempOvRPairRootName = "\(upperCamelCaseOneLabelName)_vs_Rest_TrainingData"
         let tempOvRPairRootURL = tempOvRBaseURL.appendingPathComponent(tempOvRPairRootName)
-        
+
         // 2. その下に "PositiveLabel" (実際のラベル名) と "Rest" のサブディレクトリを作成
         let tempPositiveDataDirForML = tempOvRPairRootURL.appendingPathComponent(upperCamelCaseOneLabelName)
         let tempRestDataDirForML = tempOvRPairRootURL.appendingPathComponent("Rest")
@@ -197,8 +225,16 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
             if Self.fileManager.fileExists(atPath: tempOvRPairRootURL.path) {
                 try Self.fileManager.removeItem(at: tempOvRPairRootURL)
             }
-            try Self.fileManager.createDirectory(at: tempPositiveDataDirForML, withIntermediateDirectories: true, attributes: nil)
-            try Self.fileManager.createDirectory(at: tempRestDataDirForML, withIntermediateDirectories: true, attributes: nil)
+            try Self.fileManager.createDirectory(
+                at: tempPositiveDataDirForML,
+                withIntermediateDirectories: true,
+                attributes: nil
+            )
+            try Self.fileManager.createDirectory(
+                at: tempRestDataDirForML,
+                withIntermediateDirectories: true,
+                attributes: nil
+            )
         } catch {
             print("  ❌ \(originalOneLabelName)の一時データディレクトリ作成エラー: \(error.localizedDescription)")
             return nil
@@ -212,10 +248,15 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
         do {
             let positiveSourceFiles = try getFilesInDirectory(oneLabelSourceDirURL)
             for fileURL in positiveSourceFiles {
-                try Self.fileManager.copyItem(at: fileURL, to: tempPositiveDataDirForML.appendingPathComponent(fileURL.lastPathComponent))
+                try Self.fileManager.copyItem(
+                    at: fileURL,
+                    to: tempPositiveDataDirForML.appendingPathComponent(fileURL.lastPathComponent)
+                )
             }
             positiveSamplesCount = positiveSourceFiles.count
-            print("  ポジティブサンプル('\(upperCamelCaseOneLabelName)\')を準備中: \(tempPositiveDataDirForML.path) - 数: \(positiveSamplesCount)")
+            print(
+                "  ポジティブサンプル('\(upperCamelCaseOneLabelName)\')を準備中: \(tempPositiveDataDirForML.path) - 数: \(positiveSamplesCount)"
+            )
         } catch {
             print("  ❌ \(originalOneLabelName)のポジティブデータ準備エラー: \(error.localizedDescription)")
             // Attempt to clean up the pair-specific temp directory on error
@@ -226,11 +267,14 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
         // 4. ネガティブサンプルの準備 (tempRestDataDirForML へコピー)
         do {
             let globalRestDirURL = ovrResourcesURL.appendingPathComponent("rest")
-            
+
             if Self.fileManager.fileExists(atPath: globalRestDirURL.path) {
                 let negativeSourceFiles = try getFilesInDirectory(globalRestDirURL)
                 for fileURL in negativeSourceFiles {
-                     try Self.fileManager.copyItem(at: fileURL, to: tempRestDataDirForML.appendingPathComponent(fileURL.lastPathComponent))
+                    try Self.fileManager.copyItem(
+                        at: fileURL,
+                        to: tempRestDataDirForML.appendingPathComponent(fileURL.lastPathComponent)
+                    )
                 }
                 negativeSamplesCount = negativeSourceFiles.count
                 if negativeSamplesCount > 0 {
@@ -240,33 +284,35 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
                 print("  ⚠️ グローバルRestディレクトリが見つかりません: \(globalRestDirURL.path)")
                 // Consider if this is an error or acceptable. For now, count remains 0.
             }
-            
+
             print("  ネガティブサンプル(\'Rest\')を準備中: \(tempRestDataDirForML.path) - 数: \(negativeSamplesCount)")
             if !restLabelNamesForThisPair.isEmpty {
-                 print("    (ネガティブデータのソース: \(restLabelNamesForThisPair.sorted().joined(separator: ", ")))")
+                print("    (ネガティブデータのソース: \(restLabelNamesForThisPair.sorted().joined(separator: ", ")))")
             }
         } catch {
-             print("  ❌ \(originalOneLabelName)のネガティブデータ準備エラー: \(error.localizedDescription)")
+            print("  ❌ \(originalOneLabelName)のネガティブデータ準備エラー: \(error.localizedDescription)")
             try? Self.fileManager.removeItem(at: tempOvRPairRootURL)
             return nil
         }
 
         if positiveSamplesCount == 0 || negativeSamplesCount == 0 {
-            print("  ⚠️ データ準備後、ポジティブ(\(positiveSamplesCount))またはネガティブ(\(negativeSamplesCount))サンプルがないため、'\(originalOneLabelName)\'をスキップします。")
+            print(
+                "  ⚠️ データ準備後、ポジティブ(\(positiveSamplesCount))またはネガティブ(\(negativeSamplesCount))サンプルがないため、'\(originalOneLabelName)\'をスキップします。"
+            )
             try? Self.fileManager.removeItem(at: tempOvRPairRootURL)
             return nil
         }
-        
+
         var singleOvRTrainingResult: OvRTrainingResult?
 
         // 5. MLトレーニングの実行
         do {
             print("  ⏳ CreateMLイメージ分類器ジョブを開始中 (\(upperCamelCaseOneLabelName) vs Rest)...")
             let trainingStartTime = Date()
-            
+
             // データソースの指定を簡略化
             let trainingDataSource = MLImageClassifier.DataSource.labeledDirectories(at: tempOvRPairRootURL) // ★ 変更点
-            
+
             var parameters = MLImageClassifier.ModelParameters()
             parameters.featureExtractor = .scenePrint(revision: 1)
             parameters.validation = .split(strategy: .automatic)
@@ -277,9 +323,11 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
                 trainingData: trainingDataSource,
                 parameters: parameters
             )
-            
+
             let trainingTimeInSeconds = Date().timeIntervalSince(trainingStartTime)
-            print("  ⏱️ CreateMLジョブ完了 (\(upperCamelCaseOneLabelName))。時間: \(String(format: "%.2f", trainingTimeInSeconds))秒")
+            print(
+                "  ⏱️ CreateMLジョブ完了 (\(upperCamelCaseOneLabelName))。時間: \(String(format: "%.2f", trainingTimeInSeconds))秒"
+            )
 
             // Swift Concurrency compatible way to get the first (and expected only) value from the publisher
             var iterator = job.result.values.makeAsyncIterator()
@@ -298,15 +346,15 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
 
             let modelFileName = "\(upperCamelCaseOneLabelName)_OvR_\(version).mlmodel"
             let modelOutputPath = ovrPairOutputDir.appendingPathComponent(modelFileName).path
-            let reportFileName = "\(upperCamelCaseOneLabelName)_OvR_\(version)_Report.md"
+            let reportFileName = "\(upperCamelCaseOneLabelName)_OvR_\(version)_Report_Pair\(pairIndex).md"
             let reportPath = ovrPairOutputDir.appendingPathComponent(reportFileName).path
-            
+
             let metadata = MLModelMetadata(
                 author: author,
                 shortDescription: "\(shortDescription) — Binary classification for '\(upperCamelCaseOneLabelName)\' vs Rest.",
                 version: version
             )
-            
+
             try classifier.write(to: URL(fileURLWithPath: modelOutputPath), metadata: metadata)
             print("  ✅ (\(upperCamelCaseOneLabelName)) モデルを保存しました: \(modelOutputPath)")
 
@@ -325,20 +373,25 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
                 trainingDuration: trainingTimeInSeconds,
                 trainingDataPath: tempOvRPairRootURL.path
             )
-            
-            singleOvRTrainingResult?.saveLog(trainer: self, modelAuthor: author, modelDescription: shortDescription, modelVersion: version)
+
+            singleOvRTrainingResult?.saveLog(
+                trainer: self,
+                modelAuthor: author,
+                modelDescription: shortDescription,
+                modelVersion: version
+            )
 
         } catch {
             print("  ❌ (\(upperCamelCaseOneLabelName)) 不明なトレーニングエラー: \(error.localizedDescription)")
             return nil
         }
-        
+
         print("  --- ラベルのOvR処理完了: \(originalOneLabelName) ---")
         return singleOvRTrainingResult
     }
 
     private func getFilesInDirectory(_ directoryURL: URL) throws -> [URL] {
-        return try Self.fileManager.contentsOfDirectory(
+        try Self.fileManager.contentsOfDirectory(
             at: directoryURL,
             includingPropertiesForKeys: [.isRegularFileKey],
             options: .skipsHiddenFiles

@@ -1,5 +1,5 @@
 import Foundation
-import SCSInterface 
+import SCSInterface
 
 /// 特定のラベルに対する評価
 public struct LabelMetrics {
@@ -30,7 +30,12 @@ public struct MultiClassTrainingResult: TrainingResultProtocol {
     /// 各ラベルごとの詳細なメトリクス (オプション)
     public let perLabelMetrics: [String: LabelMetrics]?
 
-    public func saveLog(trainer: any ScreeningTrainerProtocol, modelAuthor: String, modelDescription: String, modelVersion: String) {
+    public func saveLog(
+        trainer: any ScreeningTrainerProtocol,
+        modelAuthor: String,
+        modelDescription: String,
+        modelVersion: String
+    ) {
         let modelName = trainer.modelName
 
         let dateFormatter = DateFormatter()
@@ -65,7 +70,7 @@ public struct MultiClassTrainingResult: TrainingResultProtocol {
         検証誤分類率 (学習時自動検証) : \(validationErrStr)%
         """
 
-        if let perLabelMetrics = perLabelMetrics, !perLabelMetrics.isEmpty {
+        if let perLabelMetrics, !perLabelMetrics.isEmpty {
             markdownText += "\n\n        ## パフォーマンス指標 (各ラベル別 - 手動検証セット)"
             markdownText += "\n        | ラベル名 | 適合率 (Precision) | 再現率 (Recall) | F1スコア | サポート数 (Support) |\n"
             markdownText += "        |:-------|:-----------------:|:--------------:|:--------:|:-----------------:|\n"

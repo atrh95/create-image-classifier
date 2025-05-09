@@ -5,7 +5,6 @@ import Foundation
 import SCSInterface
 
 public class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
-    
     public typealias TrainingResultType = MultiLabelTrainingResult
 
     struct ManifestEntry: Decodable {
@@ -15,7 +14,7 @@ public class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
 
     public var modelName: String { "ScaryCatScreeningML_MultiLabel" }
     public var customOutputDirPath: String { "MultiLabelClassification/OutputModels" }
-    
+
     public var manifestFileName: String { "multilabel_cat_annotations.json" }
 
     public var resourcesDirectoryPath: String {
@@ -27,13 +26,14 @@ public class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
 
     public init() {}
 
-    public func train(author: String, shortDescription: String, version: String) async -> MultiLabelTrainingResult? {
+    public func train(author: String, shortDescription _: String, version: String) async -> MultiLabelTrainingResult? {
         do {
             let resourcesDir = URL(fileURLWithPath: resourcesDirectoryPath)
             let manifestURL = resourcesDir.appendingPathComponent(manifestFileName)
 
             guard let jsonData = try? Data(contentsOf: manifestURL),
-                  let entries = try? JSONDecoder().decode([ManifestEntry].self, from: jsonData) else {
+                  let entries = try? JSONDecoder().decode([ManifestEntry].self, from: jsonData)
+            else {
                 print("❌ Error: Failed to load or parse manifest file at \(manifestURL.path)")
                 return nil
             }
@@ -45,7 +45,7 @@ public class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
                 )
             }
 
-            let labels = Set(annotatedFeatures.flatMap { $0.annotation }).sorted()
+            let labels = Set(annotatedFeatures.flatMap(\.annotation)).sorted()
             guard !labels.isEmpty else {
                 print("❌ Error: No labels found in the training data.")
                 return nil
@@ -61,23 +61,32 @@ public class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
             let duration = Date().timeIntervalSince(start)
 
             var projectRootURL = URL(fileURLWithPath: #filePath)
-            projectRootURL.deleteLastPathComponent() // MultiLabelClassificationSources
-            projectRootURL.deleteLastPathComponent() // MultiLabelClassification
-            projectRootURL.deleteLastPathComponent() // プロジェクトルート
+            projectRootURL.deleteLastPathComponent() // .../MultiLabelClassificationSources/MultiLabelClassificationTrainer.swift
+            projectRootURL.deleteLastPathComponent() // .../MultiLabelClassificationSources/
+            projectRootURL.deleteLastPathComponent() // .../MultiLabelClassification/
+            projectRootURL.deleteLastPathComponent() // プロジェクトルートへ
 
             let baseTargetOutputDir = projectRootURL.appendingPathComponent(customOutputDirPath)
-            try FileManager.default.createDirectory(at: baseTargetOutputDir, withIntermediateDirectories: true, attributes: nil)
+            try FileManager.default.createDirectory(
+                at: baseTargetOutputDir,
+                withIntermediateDirectories: true,
+                attributes: nil
+            )
             print("📂 Base output directory: \(baseTargetOutputDir.path)")
 
             var resultCounter = 1
-            let resultDirPrefix = "multilabel_result_"
+            let resultDirPrefix = "MultiLabel_Result_"
             var finalOutputDir: URL!
             repeat {
                 let resultDirName = "\(resultDirPrefix)\(resultCounter)"
                 finalOutputDir = baseTargetOutputDir.appendingPathComponent(resultDirName)
                 resultCounter += 1
             } while FileManager.default.fileExists(atPath: finalOutputDir.path)
-            try FileManager.default.createDirectory(at: finalOutputDir, withIntermediateDirectories: false, attributes: nil)
+            try FileManager.default.createDirectory(
+                at: finalOutputDir,
+                withIntermediateDirectories: false,
+                attributes: nil
+            )
             print("💾 Result directory: \(finalOutputDir.path)")
 
             let modelURL = finalOutputDir.appendingPathComponent("\(modelName)_\(version).mlmodel")

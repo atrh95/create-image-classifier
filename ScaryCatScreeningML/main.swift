@@ -1,9 +1,9 @@
 import BinaryClassification
+import Foundation
 import MultiClassClassification
 import MultiLabelClassification
 import OvRClassification
 import SCSInterface
-import Foundation
 
 // --- トレーナータイプ ---
 enum TrainerType {
@@ -14,7 +14,7 @@ enum TrainerType {
 }
 
 // --- トレーニング設定 ---
-let currentTrainerType: TrainerType = .ovr
+let currentTrainerType: TrainerType = .multiClass
 
 // --- メタデータ定義 ---
 let modelAuthor = "akitora"
@@ -28,38 +28,38 @@ let trainer: any ScreeningTrainerProtocol
 var trainingResult: Any?
 
 switch currentTrainerType {
-case .binary:
-    let binaryTrainer = BinaryClassificationTrainer()
-    trainer = binaryTrainer
-    trainingResult = await binaryTrainer.train(
-        author: modelAuthor,
-        shortDescription: "Binary Classification: \(modelShortDescription)",
-        version: modelVersion
-    )
-case .multiClass:
-    let multiClassTrainer = MultiClassClassificationTrainer()
-    trainer = multiClassTrainer
-    trainingResult = await multiClassTrainer.train(
-        author: modelAuthor,
-        shortDescription: "Multi-Class Classification: \(modelShortDescription)",
-        version: modelVersion
-    )
-case .multiLabel:
-    let multiLabelTrainer = MultiLabelClassificationTrainer()
-    trainer = multiLabelTrainer
-    trainingResult = await multiLabelTrainer.train(
-        author: modelAuthor,
-        shortDescription: "Multi-Label Classification: \(modelShortDescription)",
-        version: modelVersion
-    )
-case .ovr:
-    let ovrTrainer = OvRClassificationTrainer()
-    trainer = ovrTrainer
-    trainingResult = await ovrTrainer.train(
-        author: modelAuthor,
-        shortDescription: "One-vs-Rest (OvR) Batch: \(modelShortDescription)",
-        version: modelVersion
-    )
+    case .binary:
+        let binaryTrainer = BinaryClassificationTrainer()
+        trainer = binaryTrainer
+        trainingResult = await binaryTrainer.train(
+            author: modelAuthor,
+            shortDescription: "Binary Classification: \(modelShortDescription)",
+            version: modelVersion
+        )
+    case .multiClass:
+        let multiClassTrainer = MultiClassClassificationTrainer()
+        trainer = multiClassTrainer
+        trainingResult = await multiClassTrainer.train(
+            author: modelAuthor,
+            shortDescription: "Multi-Class Classification: \(modelShortDescription)",
+            version: modelVersion
+        )
+    case .multiLabel:
+        let multiLabelTrainer = MultiLabelClassificationTrainer()
+        trainer = multiLabelTrainer
+        trainingResult = await multiLabelTrainer.train(
+            author: modelAuthor,
+            shortDescription: "Multi-Label Classification: \(modelShortDescription)",
+            version: modelVersion
+        )
+    case .ovr:
+        let ovrTrainer = OvRClassificationTrainer()
+        trainer = ovrTrainer
+        trainingResult = await ovrTrainer.train(
+            author: modelAuthor,
+            shortDescription: "One-vs-Rest (OvR) Batch: \(modelShortDescription)",
+            version: modelVersion
+        )
 }
 
 // 結果の処理

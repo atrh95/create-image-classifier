@@ -39,11 +39,11 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
         var finalOutputDir: URL!
 
         do {
-            var playgroundRoot = URL(fileURLWithPath: #filePath)
-            playgroundRoot.deleteLastPathComponent()
-            playgroundRoot.deleteLastPathComponent()
-            var baseOutputDir = playgroundRoot
-            baseOutputDir.deleteLastPathComponent()
+            var projectRoot = URL(fileURLWithPath: #filePath) // .../MultiClassClassificationSources/MultiClassClassificationTrainer.swift
+            projectRoot.deleteLastPathComponent() // .../MultiClassClassificationSources/
+            projectRoot.deleteLastPathComponent() // .../MultiClassClassification/
+            projectRoot.deleteLastPathComponent() // プロジェクトルートへ
+            let baseOutputDir = projectRoot
 
             let customPath = customOutputDirPath
             if !customPath.isEmpty {
@@ -58,7 +58,7 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
             print("📂 ベース出力ディレクトリ: \(baseTargetOutputDir.path)")
 
             var resultCounter = 1
-            let resultDirPrefix = "multiclass_result_"
+            let resultDirPrefix = "MultiClass_Result_"
             repeat {
                 let resultDirName = "\(resultDirPrefix)\(resultCounter)"
                 finalOutputDir = baseTargetOutputDir.appendingPathComponent(resultDirName)

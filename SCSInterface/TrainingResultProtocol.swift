@@ -9,5 +9,10 @@ public protocol TrainingResultProtocol {
     ///   - modelAuthor: モデルの作成者
     ///   - modelDescription: モデルの簡単な説明
     ///   - modelVersion: モデルのバージョン
-    func saveLog(trainer: any ScreeningTrainerProtocol, modelAuthor: String, modelDescription: String, modelVersion: String)
-} 
+    func saveLog(
+        trainer: any ScreeningTrainerProtocol,
+        modelAuthor: String,
+        modelDescription: String,
+        modelVersion: String
+    )
+}

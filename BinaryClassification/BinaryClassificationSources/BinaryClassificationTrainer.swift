@@ -24,10 +24,11 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
         let trainingDataParentDir = resourcesDir
 
         // --- Output Directory Setup ---
-        var playgroundRoot = URL(fileURLWithPath: #filePath)
-        playgroundRoot.deleteLastPathComponent()
-        playgroundRoot.deleteLastPathComponent()
-        let baseOutputDir = playgroundRoot
+        var projectRoot = URL(fileURLWithPath: #filePath) // .../BinaryClassificationSources/BinaryClassificationTrainer.swift
+        projectRoot.deleteLastPathComponent() // .../BinaryClassificationSources/
+        projectRoot.deleteLastPathComponent() // .../BinaryClassification/
+        projectRoot.deleteLastPathComponent() // プロジェクトルートへ
+        let baseOutputDir = projectRoot
 
         let baseTargetOutputDir: URL
         let customPath = customOutputDirPath
@@ -55,7 +56,7 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
 
         var resultCounter = 1
         var finalOutputDir: URL
-        let resultDirPrefix = "binary_result_"
+        let resultDirPrefix = "Binary_Result_"
 
         repeat {
             let resultDirName = "\(resultDirPrefix)\(resultCounter)"

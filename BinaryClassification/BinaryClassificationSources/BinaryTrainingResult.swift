@@ -20,7 +20,12 @@ public struct BinaryTrainingResult: TrainingResultProtocol {
     /// 検出されたクラスラベルのリスト
     public let classLabels: [String]
 
-    public func saveLog(trainer: any ScreeningTrainerProtocol, modelAuthor: String, modelDescription: String, modelVersion: String) {
+    public func saveLog(
+        trainer: any ScreeningTrainerProtocol,
+        modelAuthor: String,
+        modelDescription: String,
+        modelVersion: String
+    ) {
         // ファイル生成日時フォーマッタ
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss Z"

@@ -19,4 +19,4 @@ public protocol ScreeningTrainerProtocol {
     ///   - version: モデルのバージョン
     /// - Returns: トレーニング結果 (成功時) または nil (失敗時)
     func train(author: String, shortDescription: String, version: String) async -> TrainingResultType?
-} 
+}

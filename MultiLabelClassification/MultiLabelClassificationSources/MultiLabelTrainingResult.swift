@@ -20,7 +20,12 @@ public struct MultiLabelTrainingResult: TrainingResultProtocol {
     /// 検出された全ユニーククラスラベルのリスト
     public let classLabels: [String]
 
-    public func saveLog(trainer: any ScreeningTrainerProtocol, modelAuthor: String, modelDescription: String, modelVersion: String) {
+    public func saveLog(
+        trainer: any ScreeningTrainerProtocol,
+        modelAuthor: String,
+        modelDescription: String,
+        modelVersion: String
+    ) {
         let modelName = trainer.modelName
 
         let dateFormatter = DateFormatter()
@@ -74,4 +79,4 @@ public struct MultiLabelTrainingResult: TrainingResultProtocol {
             print("--- ここまで --- ")
         }
     }
-} 
+}
