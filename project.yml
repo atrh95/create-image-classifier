@@ -1,0 +1,77 @@
+# $ mint run xcodegen
+
+name: ScaryCatScreeningML
+options:
+  bundleIdPrefix: com.akitorahayashi
+  deploymentTarget:
+    macOS: "15.4"
+targets:
+  ScaryCatScreeningML:
+    type: tool
+    platform: macOS
+    sources:
+      - path: ScaryCatScreeningML
+    dependencies:
+      - target: BinaryClassification
+      - target: MultiClassClassification
+      - target: MultiLabelClassification
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.ScaryCatScreeningML
+        MACOSX_DEPLOYMENT_TARGET: "15.4"
+
+  SCSInterface:
+    type: framework
+    platform: macOS
+    sources:
+      - path: SCSInterface
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.SCSInterface
+        MACOSX_DEPLOYMENT_TARGET: "15.4"
+        DEFINES_MODULE: "YES"
+
+  BinaryClassification:
+    type: framework
+    platform: macOS
+    sources:
+      - path: BinaryClassification/BinaryClassificationSources
+    resources:
+      - path: BinaryClassification/Resources
+    dependencies:
+      - target: SCSInterface
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.BinaryClassification
+        MACOSX_DEPLOYMENT_TARGET: "15.4"
+        DEFINES_MODULE: "YES"
+
+  MultiClassClassification:
+    type: framework
+    platform: macOS
+    sources:
+      - path: MultiClassClassification/MultiClassClassificationSources
+    resources:
+      - path: MultiClassClassification/Resources
+    dependencies:
+      - target: SCSInterface
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.MultiClassClassification
+        MACOSX_DEPLOYMENT_TARGET: "15.4"
+        DEFINES_MODULE: "YES"
+
+  MultiLabelClassification:
+    type: framework
+    platform: macOS
+    sources:
+      - path: MultiLabelClassification/MultiLabelClassificationSources
+    resources:
+      - path: MultiLabelClassification/Resources
+    dependencies:
+      - target: SCSInterface
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.MultiLabelClassification
+        MACOSX_DEPLOYMENT_TARGET: "15.4"
+        DEFINES_MODULE: "YES"
