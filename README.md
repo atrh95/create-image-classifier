@@ -8,7 +8,7 @@ Core ML Create を使用して画像分類モデル (`.mlmodel`) を作成する
 
 *   `TrainCatScreeningML/main.swift`: メインのトレーニング実行スクリプト。
 *   `BinaryClassification/`: 2項分類タスク関連のモジュール。
-    *   `Sources/`: トレーニングロジック。
+    *   `BinaryClassificationSources/`: トレーニングロジック。
     *   `Resources/`: 学習用画像データセット。
     *   `OutputModels/`: 学習済み `.mlmodel` ファイルの出力先。
 *   `Package.swift`: プロジェクト定義と依存関係。
@@ -27,7 +27,7 @@ Core ML Create を使用して画像分類モデル (`.mlmodel`) を作成する
 │   ├── OutputModels
 │   ├── Resources
 │   │   └── ScaryCatScreenerData # データセット例
-│   └── Sources
+│   └── BinaryClassificationSources
 └── TrainCatScreeningML
 ```
 *(注: `CatScreeningML.playground` ディレクトリは古い構成のものです)*
@@ -42,7 +42,7 @@ Core ML Create を使用して画像分類モデル (`.mlmodel`) を作成する
 ## トレーニング設定
 
 *   モデルのメタデータ (作成者、バージョン等) は `TrainCatScreeningML/main.swift` で設定します。
-*   トレーニング固有のパラメータ (モデル名、データパス、学習パラメータ等) は、主に `BinaryClassification/Sources/` 内のトレーナークラス (例: `ScaryCatScreenerTrainer.swift`) で定義されています。適宜編集してください。
+*   トレーニング固有のパラメータ (モデル名、データパス、学習パラメータ等) は、主に `BinaryClassification/BinaryClassificationSources/` 内のトレーナークラス (例: `ScaryCatScreenerTrainer.swift`) で定義されています。適宜編集してください。
 
 ## トレーニングデータ
 

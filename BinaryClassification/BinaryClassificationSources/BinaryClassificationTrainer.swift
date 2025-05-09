@@ -24,7 +24,8 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
         let trainingDataParentDir = resourcesDir
 
         // --- Output Directory Setup ---
-        var projectRoot = URL(fileURLWithPath: #filePath) // .../BinaryClassificationSources/BinaryClassificationTrainer.swift
+        var projectRoot =
+            URL(fileURLWithPath: #filePath) // .../BinaryClassificationSources/BinaryClassificationTrainer.swift
         projectRoot.deleteLastPathComponent() // .../BinaryClassificationSources/
         projectRoot.deleteLastPathComponent() // .../BinaryClassification/
         projectRoot.deleteLastPathComponent() // プロジェクトルートへ
@@ -111,21 +112,21 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
             let model = try MLImageClassifier(trainingData: trainingDataSource)
 
             let endTime = Date()
-            let duration = endTime.timeIntervalSince(startTime)
+            let trainingDurationInSeconds = endTime.timeIntervalSince(startTime)
 
-            print("🎉 \(modelName)のトレーニングに成功しました！ (所要時間: \(String(format: "%.2f", duration))秒)")
+            print("🎉 \(modelName)のトレーニングに成功しました！ (所要時間: \(String(format: "%.2f", trainingDurationInSeconds))秒)")
 
-            let trainingError = model.trainingMetrics.classificationError
-            let trainingAccuracy = (1.0 - trainingError) * 100
-            let trainingErrorStr = String(format: "%.2f", trainingError * 100)
-            let trainingAccStr = String(format: "%.2f", trainingAccuracy)
-            print("  📊 トレーニングエラー率: \(trainingErrorStr)% (正解率: \(trainingAccStr)%)")
+            let trainingDataMisclassificationRate = model.trainingMetrics.classificationError
+            let trainingDataAccuracyPercentage = (1.0 - trainingDataMisclassificationRate) * 100
+            let trainingErrorStr = String(format: "%.2f", trainingDataMisclassificationRate * 100)
+            let trainingAccStr = String(format: "%.2f", trainingDataAccuracyPercentage)
+            print("  📊 トレーニングデータ正解率: \(trainingAccStr)%")
 
-            let validationError = model.validationMetrics.classificationError
-            let validationAccuracy = (1.0 - validationError) * 100
-            let validationErrorStr = String(format: "%.2f", validationError * 100)
-            let validationAccStr = String(format: "%.2f", validationAccuracy)
-            print("  📈 検証エラー率: \(validationErrorStr)% (正解率: \(validationAccStr)%)")
+            let validationDataMisclassificationRate = model.validationMetrics.classificationError
+            let validationDataAccuracyPercentage = (1.0 - validationDataMisclassificationRate) * 100
+            let validationErrorStr = String(format: "%.2f", validationDataMisclassificationRate * 100)
+            let validationAccStr = String(format: "%.2f", validationDataAccuracyPercentage)
+            print("  📈 検証データ正解率: \(validationAccStr)%")
             // --- End Training and Evaluation ---
 
             let metadata = MLModelMetadata(
@@ -141,7 +142,7 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
             try model.write(to: outputModelURL, metadata: metadata)
             print("✅ \(modelName) (\(version)) は正常に保存されました。")
 
-            // --- Get Class Labels ---
+            // Get Class Labels
             let classLabels: [String]
             do {
                 let contents = try FileManager.default.contentsOfDirectory(atPath: trainingDataParentDir.path)
@@ -154,19 +155,19 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
                 }.sorted()
             } catch {
                 print("⚠️ クラスラベルの取得に失敗しました: \(trainingDataParentDir.path) - \(error.localizedDescription)")
-                classLabels = [] // エラー時は空配列
+                classLabels = []
             }
-            // --- End Get Class Labels ---
 
             return BinaryTrainingResult(
-                trainingAccuracy: trainingAccuracy,
-                validationAccuracy: validationAccuracy,
-                trainingError: trainingError,
-                validationError: validationError,
-                trainingDuration: duration,
-                modelOutputPath: outputModelURL.path,
-                trainingDataPath: trainingDataParentDir.path,
-                classLabels: classLabels
+                modelName: modelName,
+                trainingDataAccuracyPercentage: trainingDataAccuracyPercentage,
+                validationDataAccuracyPercentage: validationDataAccuracyPercentage,
+                trainingDataMisclassificationRate: trainingDataMisclassificationRate,
+                validationDataMisclassificationRate: validationDataMisclassificationRate,
+                trainingDurationInSeconds: trainingDurationInSeconds,
+                trainedModelFilePath: outputModelURL.path,
+                sourceTrainingDataDirectoryPath: trainingDataParentDir.path,
+                detectedClassLabelsList: classLabels
             )
 
         } catch let error as CreateML.MLCreateError {

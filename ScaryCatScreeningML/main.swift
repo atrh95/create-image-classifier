@@ -14,7 +14,7 @@ enum TrainerType {
 }
 
 // --- トレーニング設定 ---
-let currentTrainerType: TrainerType = .multiClass
+let currentTrainerType: TrainerType = .ovr
 
 // --- メタデータ定義 ---
 let modelAuthor = "akitora"
@@ -69,7 +69,6 @@ if let result = trainingResult {
     // 結果をログに保存 (TrainingResultDataプロトコルのsaveLogメソッドを利用)
     if let resultData = result as? any TrainingResultProtocol {
         resultData.saveLog(
-            trainer: trainer,
             modelAuthor: modelAuthor,
             modelDescription: modelShortDescription,
             modelVersion: modelVersion
