@@ -2,7 +2,7 @@ import Foundation
 import SCSInterface
 
 /// 画像分類モデルのトレーニング結果（マルチラベル用）を格納する構造体
-public struct MultiLabelTrainingResult: TrainingResultData {
+public struct MultiLabelTrainingResult: TrainingResultProtocol {
     /// トレーニングデータでの正解率 (0.0 ~ 100.0)
     public let trainingAccuracy: Double
     /// 検証データでの正解率 (0.0 ~ 100.0)

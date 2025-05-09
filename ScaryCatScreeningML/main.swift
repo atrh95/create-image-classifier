@@ -67,7 +67,7 @@ if let result = trainingResult {
     print("🎉 トレーニングが正常に完了しました。")
 
     // 結果をログに保存 (TrainingResultDataプロトコルのsaveLogメソッドを利用)
-    if let resultData = result as? any TrainingResultData {
+    if let resultData = result as? any TrainingResultProtocol {
         resultData.saveLog(
             trainer: trainer,
             modelAuthor: modelAuthor,
