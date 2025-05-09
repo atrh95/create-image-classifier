@@ -3,7 +3,7 @@
 ## モデル詳細
 - **個別モデル名**: Sphynx_OvR_v1.mlmodel 
 - **保存先モデルパス**: /Users/akitora.hayashi/iOS Projects/ScaryCatScreeningML/OvRClassification/OutputModels/OvR_Run_v1/OvR_Result_1/Sphynx_OvR_v1.mlmodel
-- **レポート生成日時**: 2025-05-09 12:51:49 +0900
+- **レポート生成日時**: 2025-05-09 18:54:24 +0900
 
 ## トレーニング設定
 - **ターゲットラベル (One)**: Sphynx (66 サンプル)
@@ -11,7 +11,7 @@
 - **このOvRペアで考慮された全ラベル**: Rest, Sphynx
 
 ## パフォーマンス指標
-- **トレーニング所要時間**: 0.13 秒
+- **トレーニング所要時間**: 0.12 秒
 - **トレーニング正解率**: 0.00%
 - **トレーニングエラー率**: 0.00%
 - **検証データ正解率**: 0.00%

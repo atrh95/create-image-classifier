@@ -3,7 +3,7 @@
 ## モデル詳細
 - **個別モデル名**: BlackAndWhite_OvR_v1.mlmodel 
 - **保存先モデルパス**: /Users/akitora.hayashi/iOS Projects/ScaryCatScreeningML/OvRClassification/OutputModels/OvR_Run_v1/OvR_Result_3/BlackAndWhite_OvR_v1.mlmodel
-- **レポート生成日時**: 2025-05-09 12:51:53 +0900
+- **レポート生成日時**: 2025-05-09 18:54:29 +0900
 
 ## トレーニング設定
 - **ターゲットラベル (One)**: BlackAndWhite (90 サンプル)

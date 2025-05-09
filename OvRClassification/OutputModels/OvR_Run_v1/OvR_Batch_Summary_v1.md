@@ -3,7 +3,7 @@
 ## バッチ詳細
 - **バッチコーディネーターモデル名**: OvR_BatchCoordinator 
 - **バッチバージョン**: v1
-- **レポート生成日時**: 2025-05-09 12:51:56 +0900
+- **レポート生成日時**: 2025-05-09 18:54:31 +0900
 - **トレーニング済みOvRモデル総数**: 4
 - **メイン出力ディレクトリ**: /Users/akitora.hayashi/iOS Projects/ScaryCatScreeningML/OvRClassification/OutputModels/OvR_Run_v1
 
