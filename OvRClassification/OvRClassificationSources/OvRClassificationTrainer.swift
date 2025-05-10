@@ -296,6 +296,10 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
             let trainingAccuracy = 1.0 - trainingErrorRate
             let validationAccuracy = 1.0 - validationErrorRate
 
+            print("✅ トレーニング完了: \(modelFileName)")
+            print("  トレーニングデータ正解率: \(String(format: "%.4f", trainingAccuracy))")
+            print("  検証データ正解率: \(String(format: "%.4f", validationAccuracy))")
+
             return OvRPairTrainingResult(
                 modelPath: modelOutputPath,
                 trainingAccuracy: trainingAccuracy,
