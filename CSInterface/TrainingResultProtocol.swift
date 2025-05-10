@@ -1,4 +1,4 @@
-import CSInterface 
+import CSInterface
 
 public protocol TrainingResultProtocol {
     /// トレーニング結果をMarkdownファイルとして保存する

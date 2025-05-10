@@ -1,9 +1,9 @@
 import BinaryClassification
+import CSInterface
 import Foundation
 import MultiClassClassification
 import MultiLabelClassification
 import OvRClassification
-import CSInterface
 
 // --- トレーナータイプ ---
 enum TrainerType {
@@ -14,10 +14,10 @@ enum TrainerType {
 
     var definedVersion: String {
         switch self {
-        case .binary: return "v2"
-        case .multiClass: return "v2"
-        case .multiLabel: return "v1"
-        case .ovr: return "v4"
+            case .binary: "v2"
+            case .multiClass: "v2"
+            case .multiLabel: "v1"
+            case .ovr: "v4"
         }
     }
 }

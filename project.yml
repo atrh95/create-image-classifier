@@ -10,7 +10,7 @@ targets:
     type: tool
     platform: macOS
     sources:
-      - path: ScaryCatScreeningML
+      - path: CatScreeningML
     dependencies:
       - target: BinaryClassification
       - target: MultiClassClassification

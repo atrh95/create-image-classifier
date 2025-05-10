@@ -1,60 +1,62 @@
-# TrainCatScreeningML
+# CatScreeningML
 
 ## 概要
 
-Core ML Create を使用して画像分類モデル (`.mlmodel`) を作成するSwiftコマンドラインプロジェクトです。
+CatScreeningML は、AppleのCoreMLおよびCreateMLフレームワークを利用して猫の画像を分類するための機械学習ツールです。
+このシステムは、猫の画像内のさまざまな特徴や属性に基づいてカテゴリ分けするための、複数種類の分類モデルのトレーニングを可能にします。
 
-## プロジェクト構成
+主な目的は、猫の画像が特定の特徴（例 口を開けているか、人間の手が写っているかなど）を持つかどうかを識別する機械学習モデルのトレーニングのための構造化されたフレームワークを提供することです。
 
-*   `TrainCatScreeningML/main.swift`: メインのトレーニング実行スクリプト。
-*   `BinaryClassification/`: 2項分類タスク関連のモジュール。
-    *   `BinaryClassificationSources/`: トレーニングロジック。
-    *   `Resources/`: 学習用画像データセット。
-    *   `OutputModels/`: 学習済み `.mlmodel` ファイルの出力先。
-*   `Package.swift`: プロジェクト定義と依存関係。
+<a href="https://deepwiki.com/terrio32/cat-screening-ml"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki"></a>
 
-## セットアップ
+## 設計方針
 
-プロジェクトの依存関係は `Package.swift` で管理されています。
-外部ライブラリを追加・変更した場合は、ターミナルで `swift package resolve` を実行してください。
-詳細は `Package.swift` をご確認ください。
+CatScreeningMLは、Swiftアプリケーションに典型的なモジュラーでプロトコル指向の設計パターンを採用しています。
+システムは、`main.swift`から4つの分類フレームワークのいずれかを選択して実行します。各フレームワークは特化した分類アプローチを実装しつつ、共通のプロトコルとインターフェースについては`SCSInterface`フレームワークに依存しています。
 
-## ディレクトリ構造 (主要部分)
+このアーキテクチャにより、異なる分類アプローチ間で一貫性を保ちながら、それぞれの特化した実装が可能になります。
 
-```bash
-.
-├── BinaryClassification
-│   ├── OutputModels
-│   ├── Resources
-│   │   └── ScaryCatScreenerData # データセット例
-│   └── BinaryClassificationSources
-└── TrainCatScreeningML
+主要なプロトコルとして以下が定義されています。
+*   `ScreeningTrainerProtocol` 全てのトレーナー実装のためのインターフェースを定義します。
+*   `TrainingResultProtocol` トレーニング結果がどのように処理され、記録されるかを標準化します。
+
+## ディレクトリ構成
+
 ```
-*(注: `CatScreeningML.playground` ディレクトリは古い構成のものです)*
+.
+├── CatScreeningML
+│   └── main.swift
+├── CSInterface/
+├── BinaryClassification/
+├── MultiClassClassification/
+├── MultiLabelClassification/
+├── OvRClassification/
+├── .gitignore
+├── Mintfile
+├── .swiftformat
+├── .swiftlint.yml
+├── project.yml
+└── README.md
+```
 
-## トレーニングの実行
+プロジェクトの構成管理には `project.yml` が使用されています。
 
-1.  ターミナルでプロジェクトのルートディレクトリに移動します。
-2.  コマンド `swift run TrainCatScreeningML` を実行します。
-    (またはXcodeで `Package.swift` を開き、`TrainCatScreeningML` スキームを実行)
-3.  トレーニングの進捗や結果はコンソールに出力されます。
+## 技術スタック / 依存パッケージ
 
-## トレーニング設定
+*   **言語** Swift
+*   **フレームワーク** Apple CoreML, Apple CreateML
+*   **インターフェース** `CSInterface`
+*   **プロジェクト管理** `project.yml` を使用
 
-*   モデルのメタデータ (作成者、バージョン等) は `TrainCatScreeningML/main.swift` で設定します。
-*   トレーニング固有のパラメータ (モデル名、データパス、学習パラメータ等) は、主に `BinaryClassification/BinaryClassificationSources/` 内のトレーナークラス (例: `ScaryCatScreenerTrainer.swift`) で定義されています。適宜編集してください。
+## 主要機能
 
-## トレーニングデータ
+CatScreeningMLは、以下の4つの異なる分類アプローチをサポートします。
 
-学習データは `BinaryClassification/Resources/{データセット名}/{クラス名}/` の形式で配置してください。
-(例: `BinaryClassification/Resources/ScaryCatScreenerData/Scary/`)
-データがプロジェクトに正しくバンドルされるよう、必要に応じて `Package.swift` の `resources` 設定もご確認ください。
+| 分類タイプ                  | 説明                                                                 | ユースケース                                                                   |
+| --------------------------- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| **二値分類**                | 画像を2つのカテゴリのいずれかに分類します                            | 画像が特定の特徴を含むかどうかを判断する（例 「スフィンクスか、そうでないか」）         |
+| **マルチクラス分類**          | 画像を相互に排他的ないくつかのカテゴリの1つに分類します                | 画像内の主要な特性を識別する                                                     |
+| **マルチラベル分類**          | 単一の画像に複数のラベルを割り当てます                                 | 1つの画像に共存しうる複数の特徴を検出する                                        |
+| **One-vs-Rest (OvR) 分類** | 各カテゴリに対して1つずつ、複数の二値分類器をトレーニングします        | 各カテゴリに対する特化した検出器を作成する                                       |
 
-## 出力モデルの使用
-
-トレーニングが成功すると、`BinaryClassification/OutputModels/result_N/` ディレクトリに `.mlmodel` ファイルが生成されます (Nは実行ごとの番号)。
-このモデルファイルを、推論を行うアプリケーションやライブラリで使用してください。
-
-## 精度改善
-
-モデルの精度を改善するための一般的なヒント (データの量や質、ハイパーパラメータ調整など) は、機械学習のベストプラクティスを参照してください。
+トレーニングのプロセスでは、選択された分類タイプのトレーナーが初期化され、モデルのメタデータ（作成者、説明、バージョン）と共に`train()`メソッドが呼び出されます。トレーナーは画像データを処理し、CoreML/CreateMLを使用してモデルをトレーニングし、パフォーマンスを評価して結果を返します。最後に、トレーニングプロセスとモデルのメトリクスを文書化するマークダウンレポートが生成されます。

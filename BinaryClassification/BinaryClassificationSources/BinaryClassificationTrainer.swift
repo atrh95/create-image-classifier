@@ -1,7 +1,7 @@
 import CoreML
 import CreateML
-import Foundation
 import CSInterface
+import Foundation
 
 public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
     public typealias TrainingResultType = BinaryTrainingResult
@@ -30,7 +30,7 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
         do {
             finalOutputDir = try setupVersionedRunOutputDirectory(
                 version: version,
-                trainerFilePath: #filePath 
+                trainerFilePath: #filePath
             )
         } catch {
             print("❌ エラー: 出力ディレクトリの設定に失敗しました - \(error.localizedDescription)")

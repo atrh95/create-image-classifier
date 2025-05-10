@@ -1,8 +1,8 @@
 import CoreML
 import CreateML
 import CreateMLComponents
-import Foundation
 import CSInterface
+import Foundation
 
 public class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
     public typealias TrainingResultType = MultiLabelTrainingResult
@@ -39,7 +39,7 @@ public class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
             print("❌ Error: Failed to set up output directory - \(error.localizedDescription)")
             return nil
         }
-        
+
         do {
             let resourcesDir = URL(fileURLWithPath: resourcesDirectoryPath)
             let manifestURL = resourcesDir.appendingPathComponent(manifestFileName)

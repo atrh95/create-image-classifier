@@ -1,7 +1,7 @@
 import Combine
 import CreateML
-import Foundation
 import CSInterface
+import Foundation
 import TabularData
 
 private struct OvRPairTrainingResult {
@@ -15,7 +15,6 @@ private struct OvRPairTrainingResult {
 }
 
 public class OvRClassificationTrainer: ScreeningTrainerProtocol {
-    
     public typealias TrainingResultType = OvRTrainingResult
 
     public var modelName: String {
@@ -44,7 +43,7 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
         let mainOutputRunURL: URL
         do {
             mainOutputRunURL = try setupVersionedRunOutputDirectory(
-                version: version, 
+                version: version,
                 trainerFilePath: #filePath
             )
         } catch {
@@ -69,7 +68,8 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
         if Self.fileManager.fileExists(atPath: tempOvRBaseURL.path) {
             try? Self.fileManager.removeItem(at: tempOvRBaseURL)
         }
-        guard (try? Self.fileManager.createDirectory(at: tempOvRBaseURL, withIntermediateDirectories: true)) != nil else {
+        guard (try? Self.fileManager.createDirectory(at: tempOvRBaseURL, withIntermediateDirectories: true)) != nil
+        else {
             print("🛑 一時ディレクトリ \(tempOvRBaseURL.path) の作成に失敗しました。処理を中止します。")
             return nil
         }
@@ -124,12 +124,16 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
             return nil
         }
 
-        let avgTrainingAccuracy = allTrainingResults.map { $0.trainingAccuracy }.reduce(0, +) / Double(allTrainingResults.count)
-        let avgValidationAccuracy = allTrainingResults.map { $0.validationAccuracy }.reduce(0, +) / Double(allTrainingResults.count)
-        let avgTrainingErrorRate = allTrainingResults.map { $0.trainingErrorRate }.reduce(0, +) / Double(allTrainingResults.count)
-        let avgValidationErrorRate = allTrainingResults.map { $0.validationErrorRate }.reduce(0, +) / Double(allTrainingResults.count)
-        let avgTrainingTime = allTrainingResults.map { $0.trainingTime }.reduce(0, +) / Double(allTrainingResults.count)
-        let trainingDataPaths = allTrainingResults.map { $0.trainingDataPath }.joined(separator: ", ")
+        let avgTrainingAccuracy = allTrainingResults.map(\.trainingAccuracy)
+            .reduce(0, +) / Double(allTrainingResults.count)
+        let avgValidationAccuracy = allTrainingResults.map(\.validationAccuracy)
+            .reduce(0, +) / Double(allTrainingResults.count)
+        let avgTrainingErrorRate = allTrainingResults.map(\.trainingErrorRate)
+            .reduce(0, +) / Double(allTrainingResults.count)
+        let avgValidationErrorRate = allTrainingResults.map(\.validationErrorRate)
+            .reduce(0, +) / Double(allTrainingResults.count)
+        let avgTrainingTime = allTrainingResults.map(\.trainingTime).reduce(0, +) / Double(allTrainingResults.count)
+        let trainingDataPaths = allTrainingResults.map(\.trainingDataPath).joined(separator: ", ")
 
         let representativeModelPath = allTrainingResults.first?.modelPath ?? mainOutputRunURL.path
 
@@ -149,16 +153,16 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
     private func trainSingleOvRPair(
         oneLabelSourceDirURL: URL,
         allLabelSourceDirs: [URL],
-        ovrResourcesURL: URL,
+        ovrResourcesURL _: URL,
         mainRunURL: URL,
         tempOvRBaseURL: URL,
         author: String,
-        shortDescription: String,
+        shortDescription _: String,
         version: String,
-        pairIndex: Int
+        pairIndex _: Int
     ) async -> OvRPairTrainingResult? {
         let originalOneLabelName = oneLabelSourceDirURL.lastPathComponent
-        let upperCamelCaseOneLabelName = originalOneLabelName.split(separator: "_").map { $0.capitalized }.joined()
+        let upperCamelCaseOneLabelName = originalOneLabelName.split(separator: "_").map(\.capitalized).joined()
 
         let tempOvRPairRootName = "\(upperCamelCaseOneLabelName)_vs_Rest_TrainingData_\(version)"
         let tempOvRPairRootURL = tempOvRBaseURL.appendingPathComponent(tempOvRPairRootName)
@@ -174,12 +178,19 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
 
         if let positiveSourceFiles = try? getFilesInDirectory(oneLabelSourceDirURL) {
             for fileURL in positiveSourceFiles {
-                try? Self.fileManager.copyItem(at: fileURL, to: tempPositiveDataDirForML.appendingPathComponent(fileURL.lastPathComponent))
+                try? Self.fileManager.copyItem(
+                    at: fileURL,
+                    to: tempPositiveDataDirForML.appendingPathComponent(fileURL.lastPathComponent)
+                )
             }
         }
 
-        guard let positiveSourceFilesForCount = try? getFilesInDirectory(oneLabelSourceDirURL), !positiveSourceFilesForCount.isEmpty else {
-            print("⚠️ ポジティブサンプルが見つからないか空です: \(oneLabelSourceDirURL.lastPathComponent)。ペア \(originalOneLabelName) vs Rest の学習をスキップします。")
+        guard let positiveSourceFilesForCount = try? getFilesInDirectory(oneLabelSourceDirURL),
+              !positiveSourceFilesForCount.isEmpty
+        else {
+            print(
+                "⚠️ ポジティブサンプルが見つからないか空です: \(oneLabelSourceDirURL.lastPathComponent)。ペア \(originalOneLabelName) vs Rest の学習をスキップします。"
+            )
             return nil
         }
         let positiveSamplesCount = positiveSourceFilesForCount.count
@@ -187,16 +198,20 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
         let safeDirName = "safe"
         let otherDirsForNegativeSampling = allLabelSourceDirs.filter { dirURL in
             let dirNameLowercased = dirURL.lastPathComponent.lowercased()
-            let isCurrentPositiveDir = dirURL.resolvingSymlinksInPath().standardizedFileURL == oneLabelSourceDirURL.resolvingSymlinksInPath().standardizedFileURL
+            let isCurrentPositiveDir = dirURL.resolvingSymlinksInPath().standardizedFileURL == oneLabelSourceDirURL
+                .resolvingSymlinksInPath().standardizedFileURL
             return !isCurrentPositiveDir
         }
 
         if otherDirsForNegativeSampling.isEmpty {
-            print("ℹ️ ネガティブサンプリング対象の他のディレクトリがありません (safeディレクトリ以外に、現在のラベル \(originalOneLabelName) と比較できるものがありません)。このペアの学習はスキップされます。")
+            print(
+                "ℹ️ ネガティブサンプリング対象の他のディレクトリがありません (safeディレクトリ以外に、現在のラベル \(originalOneLabelName) と比較できるものがありません)。このペアの学習はスキップされます。"
+            )
             return nil
         }
-        
-        let numFilesToCollectPerOtherDir = Int(ceil(Double(positiveSamplesCount) / Double(otherDirsForNegativeSampling.count)))
+
+        let numFilesToCollectPerOtherDir =
+            Int(ceil(Double(positiveSamplesCount) / Double(otherDirsForNegativeSampling.count)))
 
         var collectedNegativeFilesCount = 0
         for otherDirURL in otherDirsForNegativeSampling {
@@ -204,28 +219,45 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
                 print("ℹ️ ディレクトリ \(otherDirURL.lastPathComponent) は空かアクセス不能なため、ネガティブサンプル収集からスキップします。")
                 continue
             }
-            
+
             let filesToCopy = filesInOtherDir.shuffled().prefix(numFilesToCollectPerOtherDir)
             for fileURL in filesToCopy {
                 let sourceDirNamePrefix = otherDirURL.lastPathComponent
-                let sanitizedSourceDirNamePrefix = sourceDirNamePrefix.replacingOccurrences(of: "[^a-zA-Z0-9_.-]", with: "_", options: .regularExpression)
-                let sanitizedOriginalFileName = fileURL.lastPathComponent.replacingOccurrences(of: "[^a-zA-Z0-9_.-]", with: "_", options: .regularExpression)
+                let sanitizedSourceDirNamePrefix = sourceDirNamePrefix.replacingOccurrences(
+                    of: "[^a-zA-Z0-9_.-]",
+                    with: "_",
+                    options: .regularExpression
+                )
+                let sanitizedOriginalFileName = fileURL.lastPathComponent.replacingOccurrences(
+                    of: "[^a-zA-Z0-9_.-]",
+                    with: "_",
+                    options: .regularExpression
+                )
                 let newFileName = "\(sanitizedSourceDirNamePrefix)_\(sanitizedOriginalFileName)"
-                
+
                 do {
-                    try Self.fileManager.copyItem(at: fileURL, to: tempRestDataDirForML.appendingPathComponent(newFileName))
+                    try Self.fileManager.copyItem(
+                        at: fileURL,
+                        to: tempRestDataDirForML.appendingPathComponent(newFileName)
+                    )
                     collectedNegativeFilesCount += 1
                 } catch {
-                    print("⚠️ ファイルコピーに失敗: \(fileURL.path) から \(tempRestDataDirForML.appendingPathComponent(newFileName).path) へ。エラー: \(error.localizedDescription)")
+                    print(
+                        "⚠️ ファイルコピーに失敗: \(fileURL.path) から \(tempRestDataDirForML.appendingPathComponent(newFileName).path) へ。エラー: \(error.localizedDescription)"
+                    )
                 }
             }
         }
 
         if collectedNegativeFilesCount == 0 {
-            print("🛑 ネガティブサンプルを1つも収集できませんでした。ポジティブサンプル数: \(positiveSamplesCount), 他カテゴリ数: \(otherDirsForNegativeSampling.count), 各カテゴリからの目標収集数: \(numFilesToCollectPerOtherDir)。ペア \(originalOneLabelName) vs Rest の学習をスキップします。")
+            print(
+                "🛑 ネガティブサンプルを1つも収集できませんでした。ポジティブサンプル数: \(positiveSamplesCount), 他カテゴリ数: \(otherDirsForNegativeSampling.count), 各カテゴリからの目標収集数: \(numFilesToCollectPerOtherDir)。ペア \(originalOneLabelName) vs Rest の学習をスキップします。"
+            )
             return nil
         }
-        print("ℹ️ \(originalOneLabelName) vs Rest: \(collectedNegativeFilesCount) 枚のネガティブサンプルを \(otherDirsForNegativeSampling.count) カテゴリから収集しました (目標 各\(numFilesToCollectPerOtherDir)枚)。")
+        print(
+            "ℹ️ \(originalOneLabelName) vs Rest: \(collectedNegativeFilesCount) 枚のネガティブサンプルを \(otherDirsForNegativeSampling.count) カテゴリから収集しました (目標 各\(numFilesToCollectPerOtherDir)枚)。"
+        )
 
         do {
             let trainingDataSource = MLImageClassifier.DataSource.labeledDirectories(at: tempOvRPairRootURL)

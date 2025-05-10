@@ -46,10 +46,12 @@ public extension ScreeningTrainerProtocol {
         projectRootURL.deleteLastPathComponent() // Trainer.swift -> Sources dir
         projectRootURL.deleteLastPathComponent() // Sources dir -> Module dir
         // OvRClassificationTrainer の場合、さらに1つ上
-        if trainerFilePath.contains("OvRClassification") || trainerFilePath.contains("MultiLabelClassification") || trainerFilePath.contains("MultiClassClassification") || trainerFilePath.contains("BinaryClassification") {
-             projectRootURL.deleteLastPathComponent() // Module dir -> Project Root
+        if trainerFilePath.contains("OvRClassification") || trainerFilePath
+            .contains("MultiLabelClassification") || trainerFilePath
+            .contains("MultiClassClassification") || trainerFilePath.contains("BinaryClassification")
+        {
+            projectRootURL.deleteLastPathComponent() // Module dir -> Project Root
         }
-
 
         // ベース出力ディレクトリ (例: OvRClassification/OutputModels)
         let baseOutputDirURL = projectRootURL.appendingPathComponent(customOutputDirPath)
@@ -60,7 +62,11 @@ public extension ScreeningTrainerProtocol {
         print("📂 バージョン別出力ディレクトリ: \(versionedOutputDirURL.path)")
 
         // バージョン別ディレクトリ内の既存の実行をリスト
-        let existingRuns = (try? fileManager.contentsOfDirectory(at: versionedOutputDirURL, includingPropertiesForKeys: [.isDirectoryKey], options: .skipsHiddenFiles)) ?? []
+        let existingRuns = (try? fileManager.contentsOfDirectory(
+            at: versionedOutputDirURL,
+            includingPropertiesForKeys: [.isDirectoryKey],
+            options: .skipsHiddenFiles
+        )) ?? []
 
         // 実行名のプレフィックス (例: "OvR_v1_Result_")
         let runNamePrefixWithVersion = "\(outputRunNamePrefix)_\(version)_Result_"
@@ -77,7 +83,8 @@ public extension ScreeningTrainerProtocol {
         // 最終的な実行出力ディレクトリURLを構築 (例: OvRClassification/OutputModels/v1/OvR_v1_Result_1)
         let finalOutputRunURL = versionedOutputDirURL.appendingPathComponent("\(runNamePrefixWithVersion)\(nextIndex)")
 
-        try fileManager.createDirectory(at: finalOutputRunURL, withIntermediateDirectories: true, attributes: nil) // ここを true に変更
+        try fileManager
+            .createDirectory(at: finalOutputRunURL, withIntermediateDirectories: true, attributes: nil) // ここを true に変更
         print("💾 結果保存ディレクトリ: \(finalOutputRunURL.path)")
 
         return finalOutputRunURL
