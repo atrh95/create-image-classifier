@@ -12,6 +12,7 @@ public struct BinaryTrainingResult: TrainingResultProtocol {
     public let trainedModelFilePath: String
     public let sourceTrainingDataDirectoryPath: String
     public let detectedClassLabelsList: [String]
+    public let maxIterations: Int
 
     public func saveLog(
         modelAuthor: String,
@@ -40,6 +41,7 @@ public struct BinaryTrainingResult: TrainingResultProtocol {
         ## モデル詳細
         モデル名           : \(modelName)
         ファイル生成日時   : \(generatedDateString)
+        最大反復回数     : \(maxIterations)
 
         ## トレーニング設定
         使用されたクラスラベル : \(classLabelsString)

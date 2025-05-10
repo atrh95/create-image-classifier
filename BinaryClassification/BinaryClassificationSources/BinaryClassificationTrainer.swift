@@ -20,7 +20,12 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
 
     public init() {}
 
-    public func train(author: String, shortDescription: String, version: String, maxIterations: Int) async -> BinaryTrainingResult? {
+    public func train(
+        author: String,
+        shortDescription: String,
+        version: String,
+        maxIterations: Int
+    ) async -> BinaryTrainingResult? {
         let resourcesPath = resourcesDirectoryPath
         let resourcesDir = URL(fileURLWithPath: resourcesPath)
         let trainingDataParentDir = resourcesDir
@@ -86,13 +91,14 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
 
             print("🎉 \(modelName)のトレーニングに成功しました！ (所要時間: \(String(format: "%.2f", trainingDurationInSeconds))秒)")
 
-            let trainingDataMisclassificationRate = model.trainingMetrics.classificationError
-            let trainingDataAccuracyPercentage = (1.0 - trainingDataMisclassificationRate) * 100
+            let trainingMetrics = model.trainingMetrics
+            let validationMetrics = model.validationMetrics
+
+            let trainingDataAccuracyPercentage = (1.0 - trainingMetrics.classificationError) * 100.0
             let trainingAccStr = String(format: "%.2f", trainingDataAccuracyPercentage)
             print("  📊 トレーニングデータ正解率: \(trainingAccStr)%")
 
-            let validationDataMisclassificationRate = model.validationMetrics.classificationError
-            let validationDataAccuracyPercentage = (1.0 - validationDataMisclassificationRate) * 100
+            let validationDataAccuracyPercentage = (1.0 - validationMetrics.classificationError) * 100.0
             let validationAccStr = String(format: "%.2f", validationDataAccuracyPercentage)
             print("  📈 検証データ正解率: \(validationAccStr)%")
             // --- End Training and Evaluation ---
@@ -130,12 +136,13 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
                 modelName: modelName,
                 trainingDataAccuracyPercentage: trainingDataAccuracyPercentage,
                 validationDataAccuracyPercentage: validationDataAccuracyPercentage,
-                trainingDataMisclassificationRate: trainingDataMisclassificationRate,
-                validationDataMisclassificationRate: validationDataMisclassificationRate,
+                trainingDataMisclassificationRate: trainingMetrics.classificationError,
+                validationDataMisclassificationRate: validationMetrics.classificationError,
                 trainingDurationInSeconds: trainingDurationInSeconds,
                 trainedModelFilePath: outputModelURL.path,
                 sourceTrainingDataDirectoryPath: trainingDataParentDir.path,
-                detectedClassLabelsList: classLabels
+                detectedClassLabelsList: classLabels,
+                maxIterations: maxIterations
             )
 
         } catch let error as CreateML.MLCreateError {

@@ -22,7 +22,8 @@ public protocol ScreeningTrainerProtocol {
     ///   - version: モデルのバージョン
     ///   - maxIterations: トレーニングの反復数
     /// - Returns: トレーニング結果 (成功時) または nil (失敗時)
-    func train(author: String, shortDescription: String, version: String, maxIterations: Int) async -> TrainingResultType?
+    func train(author: String, shortDescription: String, version: String, maxIterations: Int) async
+        -> TrainingResultType?
 }
 
 public extension ScreeningTrainerProtocol {

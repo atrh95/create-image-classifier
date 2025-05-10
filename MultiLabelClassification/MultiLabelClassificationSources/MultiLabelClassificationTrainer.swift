@@ -28,7 +28,12 @@ public class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
 
     public init() {}
 
-    public func train(author: String, shortDescription _: String, version: String, maxIterations: Int) async -> MultiLabelTrainingResult? {
+    public func train(
+        author: String,
+        shortDescription _: String,
+        version: String,
+        maxIterations: Int
+    ) async -> MultiLabelTrainingResult? {
         let finalOutputDir: URL
         do {
             finalOutputDir = try setupVersionedRunOutputDirectory(
@@ -95,7 +100,8 @@ public class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
                 trainingDuration: duration,
                 modelOutputPath: modelURL.path,
                 trainingDataPath: manifestURL.path,
-                classLabels: labels
+                classLabels: labels,
+                maxIterations: maxIterations
             )
         } catch let error as CreateML.MLCreateError {
             print("  ❌ Model [\(modelName)] training or saving error (CreateML): \(error.localizedDescription)")

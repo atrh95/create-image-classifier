@@ -39,7 +39,12 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
     static let fileManager = FileManager.default
     static let tempBaseDirName = "TempOvRTrainingData"
 
-    public func train(author: String, shortDescription: String, version: String, maxIterations: Int) async -> OvRTrainingResult? {
+    public func train(
+        author: String,
+        shortDescription: String,
+        version: String,
+        maxIterations: Int
+    ) async -> OvRTrainingResult? {
         let mainOutputRunURL: URL
         do {
             mainOutputRunURL = try setupVersionedRunOutputDirectory(
@@ -155,6 +160,7 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
             validationDataErrorRate: avgValidationErrorRate,
             trainingTimeInSeconds: avgTrainingTime,
             trainingDataPath: trainingDataPaths,
+            maxIterations: maxIterations,
             individualReports: individualReports
         )
 
@@ -277,7 +283,7 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
             parameters.featureExtractor = .scenePrint(revision: 1)
             parameters.validation = .split(strategy: .automatic)
             parameters.maxIterations = maxIterations
-            parameters.augmentationOptions = [.crop, .rotation, .blur]
+            parameters.augmentationOptions = []
 
             let startTime = Date()
             let job = try MLImageClassifier.train(

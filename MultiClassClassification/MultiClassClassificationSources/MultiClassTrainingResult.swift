@@ -11,6 +11,7 @@ public struct MultiClassTrainingResult: TrainingResultProtocol {
     public let modelOutputPath: String
     public let trainingDataPath: String
     public let classLabels: [String]
+    public let maxIterations: Int
 
     public func saveLog(
         modelAuthor: String,
@@ -35,6 +36,7 @@ public struct MultiClassTrainingResult: TrainingResultProtocol {
         ## モデル詳細
         モデル名           : \(modelName)
         ファイル生成日時   : \(generatedDateString)
+        最大反復回数     : \(maxIterations)
 
         ## トレーニング設定
         使用されたクラスラベル : \(classLabelsString)

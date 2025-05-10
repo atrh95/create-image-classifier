@@ -73,13 +73,14 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
             let duration = endTime.timeIntervalSince(startTime)
             print("🎉 [\(modelName)] のトレーニングに成功しました！ (所要時間: \(String(format: "%.2f", duration))秒)")
 
-            let trainingDataMisclassificationRate = model.trainingMetrics.classificationError
-            let trainingDataAccuracyPercentage = (1.0 - trainingDataMisclassificationRate) * 100
+            let trainingEvaluation = model.trainingMetrics
+            let validationEvaluation = model.validationMetrics
+
+            let trainingDataAccuracyPercentage = (1.0 - trainingEvaluation.classificationError) * 100
             let trainingAccStr = String(format: "%.2f", trainingDataAccuracyPercentage)
             print("  📊 トレーニングデータ正解率: \(trainingAccStr)%")
 
-            let validationDataMisclassificationRate = model.validationMetrics.classificationError
-            let validationDataAccuracyPercentage = (1.0 - validationDataMisclassificationRate) * 100
+            let validationDataAccuracyPercentage = (1.0 - validationEvaluation.classificationError) * 100
             let validationAccStr = String(format: "%.2f", validationDataAccuracyPercentage)
             print("  📈 検証データ正解率: \(validationAccStr)%")
 
@@ -99,12 +100,13 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
                 modelName: modelName,
                 trainingDataAccuracy: trainingDataAccuracyPercentage,
                 validationDataAccuracy: validationDataAccuracyPercentage,
-                trainingDataErrorRate: trainingDataMisclassificationRate,
-                validationDataErrorRate: validationDataMisclassificationRate,
+                trainingDataErrorRate: trainingEvaluation.classificationError,
+                validationDataErrorRate: validationEvaluation.classificationError,
                 trainingTimeInSeconds: duration,
                 modelOutputPath: outputModelURL.path,
                 trainingDataPath: trainingDataParentDir.path,
-                classLabels: classLabels
+                classLabels: classLabels,
+                maxIterations: maxIterations
             )
 
         } catch let error as CreateML.MLCreateError {

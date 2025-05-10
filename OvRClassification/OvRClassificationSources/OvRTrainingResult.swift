@@ -15,6 +15,7 @@ public struct OvRTrainingResult: TrainingResultProtocol {
     public let validationDataErrorRate: Double
     public let trainingTimeInSeconds: TimeInterval
     public let trainingDataPath: String
+    public let maxIterations: Int
     public let individualReports: [IndividualModelReport]
 
     public func saveLog(modelAuthor: String, modelDescription: String, modelVersion: String) {
@@ -32,6 +33,7 @@ public struct OvRTrainingResult: TrainingResultProtocol {
 
         ## モデル詳細
         ファイル生成日時   : \(generatedDateString)
+        最大反復回数     : \(maxIterations)
 
         ## パフォーマンス指標 (全体平均)
         トレーニング所要時間              : \(String(format: "%.2f", trainingTimeInSeconds)) 秒
@@ -45,14 +47,24 @@ public struct OvRTrainingResult: TrainingResultProtocol {
             markdownText += """
 
             ## 個別モデルのパフォーマンス指標
-            | モデル名                        | 訓練データ正解率 | 検証データ正解率 |
-            |---------------------------------|--------------------|--------------------|
+            | モデル名                        | 訓練データ正解率 | 検証データ正解率 | 最大反復回数 |
+            |---------------------------------|--------------------|--------------------|--------------|
             """
+            let iterationsStr = "\(self.maxIterations)"
             for report in individualReports {
                 let modelFileName = report.modelName
-                let trainingAccStr = String(format: "%.4f (%.2f%%)", report.trainingAccuracy, report.trainingAccuracy * 100)
-                let validationAccStr = String(format: "%.4f (%.2f%%)", report.validationAccuracy, report.validationAccuracy * 100)
-                markdownText += "\n| \(modelFileName.padding(toLength: 30, withPad: " ", startingAt: 0)) | \(trainingAccStr.padding(toLength: 18, withPad: " ", startingAt: 0)) | \(validationAccStr.padding(toLength: 18, withPad: " ", startingAt: 0)) |"
+                let trainingAccStr = String(
+                    format: "%.4f (%.2f%%)",
+                    report.trainingAccuracy,
+                    report.trainingAccuracy * 100
+                )
+                let validationAccStr = String(
+                    format: "%.4f (%.2f%%)",
+                    report.validationAccuracy,
+                    report.validationAccuracy * 100
+                )
+                markdownText +=
+                    "\n| \(modelFileName.padding(toLength: 30, withPad: " ", startingAt: 0)) | \(trainingAccStr.padding(toLength: 18, withPad: " ", startingAt: 0)) | \(validationAccStr.padding(toLength: 18, withPad: " ", startingAt: 0)) | \(iterationsStr.padding(toLength: 12, withPad: " ", startingAt: 0)) |"
             }
             markdownText += "\n"
         }
