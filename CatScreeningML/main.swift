@@ -17,13 +17,13 @@ enum TrainerType {
             case .binary: "v2"
             case .multiClass: "v2"
             case .multiLabel: "v1"
-            case .ovr: "v4"
+            case .ovr: "v5"
         }
     }
 }
 
 // --- トレーニング設定 ---
-let currentTrainerType: TrainerType = .multiClass
+let currentTrainerType: TrainerType = .ovr
 
 // --- メタデータ定義 ---
 let modelAuthor = "akitora"
