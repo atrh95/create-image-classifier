@@ -67,25 +67,39 @@ public class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
             projectRootURL.deleteLastPathComponent() // .../MultiLabelClassification/
             projectRootURL.deleteLastPathComponent() // プロジェクトルートへ
 
-            let baseTargetOutputDir = projectRootURL.appendingPathComponent(customOutputDirPath)
+            // Base output directory (e.g., MultiLabelClassification/OutputModels)
+            let baseOutputDirURL = projectRootURL.appendingPathComponent(customOutputDirPath)
+
+            // Create the version-specific directory (e.g., MultiLabelClassification/OutputModels/v1)
+            let versionedOutputDirURL = baseOutputDirURL.appendingPathComponent(version)
             try FileManager.default.createDirectory(
-                at: baseTargetOutputDir,
+                at: versionedOutputDirURL,
                 withIntermediateDirectories: true,
                 attributes: nil
             )
-            print("📂 Base output directory: \(baseTargetOutputDir.path)")
+            print("📂 Versioned output directory: \(versionedOutputDirURL.path)")
 
-            var resultCounter = 1
-            let resultDirPrefix = "MultiLabel_Result_"
-            var finalOutputDir: URL!
-            repeat {
-                let resultDirName = "\(resultDirPrefix)\(resultCounter)"
-                finalOutputDir = baseTargetOutputDir.appendingPathComponent(resultDirName)
-                resultCounter += 1
-            } while FileManager.default.fileExists(atPath: finalOutputDir.path)
+            // List existing runs within the version-specific directory
+            let existingRuns = (try? FileManager.default.contentsOfDirectory(at: versionedOutputDirURL, includingPropertiesForKeys: nil)) ?? []
+            
+            // Define the prefix for run names, including the version
+            let runNamePrefix = "MultiLabel_\(version)_Result_"
+            
+            // Calculate the next run index
+            let nextIndex = (existingRuns.compactMap { url -> Int? in
+                let runName = url.lastPathComponent
+                if runName.hasPrefix(runNamePrefix) {
+                    return Int(runName.replacingOccurrences(of: runNamePrefix, with: ""))
+                }
+                return nil
+            }.max() ?? 0) + 1
+            
+            // Construct the main output run URL with the version in its name
+            let finalOutputDir = versionedOutputDirURL.appendingPathComponent("\(runNamePrefix)\(nextIndex)")
+            
             try FileManager.default.createDirectory(
                 at: finalOutputDir,
-                withIntermediateDirectories: false,
+                withIntermediateDirectories: false, // This should be true if a parent might not exist, but versionedOutputDirURL creation handles it
                 attributes: nil
             )
             print("💾 Result directory: \(finalOutputDir.path)")

@@ -20,13 +20,12 @@ Packages/
 Package.resolved
 *.swiftpm
 
-# Playgrounds
-*.playground/playground.xcworkspace/
-*.playground/xcuserdata/
-
 # Mint
 Mintfile.lock
 mint_packages/
 
 # Cursor
 .cursor/
+
+# Temporary training data
+TempOvRTrainingData/

@@ -24,7 +24,6 @@ public struct OvRTrainingResult: TrainingResultProtocol {
         # モデルトレーニング情報
 
         ## モデル詳細
-        保存先モデルパス   : \(modelOutputPath)
         ファイル生成日時   : \(generatedDateString)
 
         ## パフォーマンス指標 (全体)

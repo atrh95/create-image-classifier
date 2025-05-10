@@ -42,16 +42,36 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
         let baseProjectURL = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
             .deletingLastPathComponent()
 
-        let batchRootURL = baseProjectURL.appendingPathComponent(customOutputDirPath)
-        guard (try? Self.fileManager.createDirectory(at: batchRootURL, withIntermediateDirectories: true)) != nil else {
+        // Base output directory (e.g., OvRClassification/OutputModels)
+        let baseOutputDirURL = baseProjectURL.appendingPathComponent(customOutputDirPath)
+
+        // Create the version-specific directory (e.g., OvRClassification/OutputModels/v1)
+        let versionedOutputDirURL = baseOutputDirURL.appendingPathComponent(version)
+        guard (try? Self.fileManager.createDirectory(at: versionedOutputDirURL, withIntermediateDirectories: true)) != nil else {
+            print("🛑 バージョン別出力ディレクトリ \(versionedOutputDirURL.path) の作成に失敗しました。")
             return nil
         }
 
-        let existingRuns = (try? Self.fileManager.contentsOfDirectory(at: batchRootURL, includingPropertiesForKeys: nil)) ?? []
-        let nextIndex = (existingRuns.compactMap { Int($0.lastPathComponent.replacingOccurrences(of: "OvR_Result_", with: "")) }.max() ?? 0) + 1
-        let mainOutputRunURL = batchRootURL.appendingPathComponent("OvR_Result_\(nextIndex)")
+        // List existing runs within the version-specific directory
+        let existingRuns = (try? Self.fileManager.contentsOfDirectory(at: versionedOutputDirURL, includingPropertiesForKeys: nil)) ?? []
+        
+        // Define the prefix for run names, including the version
+        let runNamePrefix = "OvR_\(version)_Result_"
+        
+        // Calculate the next run index
+        let nextIndex = (existingRuns.compactMap { url -> Int? in
+            let runName = url.lastPathComponent
+            if runName.hasPrefix(runNamePrefix) {
+                return Int(runName.replacingOccurrences(of: runNamePrefix, with: ""))
+            }
+            return nil
+        }.max() ?? 0) + 1
+        
+        // Construct the main output run URL with the version in its name
+        let mainOutputRunURL = versionedOutputDirURL.appendingPathComponent("\(runNamePrefix)\(nextIndex)")
 
         guard (try? Self.fileManager.createDirectory(at: mainOutputRunURL, withIntermediateDirectories: true)) != nil else {
+            print("🛑 メイン出力ランディレクトリ \(mainOutputRunURL.path) の作成に失敗しました。")
             return nil
         }
 

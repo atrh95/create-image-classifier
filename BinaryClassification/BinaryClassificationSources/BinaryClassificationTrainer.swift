@@ -31,39 +31,52 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
         projectRoot.deleteLastPathComponent() // プロジェクトルートへ
         let baseOutputDir = projectRoot
 
-        let baseTargetOutputDir: URL
+        // Base output directory (e.g., BinaryClassification/OutputModels)
+        let baseTargetOutputDirURL: URL
         let customPath = customOutputDirPath
         if !customPath.isEmpty {
             let customURL = URL(fileURLWithPath: customPath)
             if customURL.isFileURL, customPath.hasPrefix("/") {
-                baseTargetOutputDir = customURL
+                baseTargetOutputDirURL = customURL
             } else {
-                baseTargetOutputDir = baseOutputDir.appendingPathComponent(customPath)
+                baseTargetOutputDirURL = baseOutputDir.appendingPathComponent(customPath)
             }
         } else {
             print("⚠️ 警告: customOutputDirPathが空です。デフォルトのOutputModelsを使用します。")
-            baseTargetOutputDir = baseOutputDir.appendingPathComponent("OutputModels")
+            baseTargetOutputDirURL = baseOutputDir.appendingPathComponent("OutputModels")
         }
 
         let fileManager = FileManager.default
+        var finalOutputDir: URL! // Declare finalOutputDir here to be usable in the whole scope
 
         do {
-            try fileManager.createDirectory(at: baseTargetOutputDir, withIntermediateDirectories: true, attributes: nil)
-            print("📂 ベース出力ディレクトリ: \(baseTargetOutputDir.path)")
+            // Create the version-specific directory (e.g., BinaryClassification/OutputModels/v1)
+            let versionedOutputDirURL = baseTargetOutputDirURL.appendingPathComponent(version)
+            try fileManager.createDirectory(at: versionedOutputDirURL, withIntermediateDirectories: true, attributes: nil)
+            print("📂 Versioned output directory: \(versionedOutputDirURL.path)")
+
+            // List existing runs within the version-specific directory
+            let existingRuns = (try? fileManager.contentsOfDirectory(at: versionedOutputDirURL, includingPropertiesForKeys: nil)) ?? []
+            
+            // Define the prefix for run names, including the version
+            let runNamePrefix = "Binary_\(version)_Result_"
+            
+            // Calculate the next run index
+            let nextIndex = (existingRuns.compactMap { url -> Int? in
+                let runName = url.lastPathComponent
+                if runName.hasPrefix(runNamePrefix) {
+                    return Int(runName.replacingOccurrences(of: runNamePrefix, with: ""))
+                }
+                return nil
+            }.max() ?? 0) + 1
+            
+            // Construct the main output run URL with the version in its name
+            finalOutputDir = versionedOutputDirURL.appendingPathComponent("\(runNamePrefix)\(nextIndex)")
+
         } catch {
-            print("❌ エラー: ベース出力ディレクトリの作成に失敗しました: \(baseTargetOutputDir.path) - \(error.localizedDescription)")
+            print("❌ エラー: バージョン別出力ディレクトリまたは結果ディレクトリの準備に失敗しました - \(error.localizedDescription)")
             return nil
         }
-
-        var resultCounter = 1
-        var finalOutputDir: URL
-        let resultDirPrefix = "Binary_Result_"
-
-        repeat {
-            let resultDirName = "\(resultDirPrefix)\(resultCounter)"
-            finalOutputDir = baseTargetOutputDir.appendingPathComponent(resultDirName)
-            resultCounter += 1
-        } while fileManager.fileExists(atPath: finalOutputDir.path)
 
         do {
             try fileManager.createDirectory(at: finalOutputDir, withIntermediateDirectories: false, attributes: nil)
