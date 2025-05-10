@@ -23,7 +23,7 @@ enum TrainerType {
 }
 
 // --- トレーニング設定 ---
-let currentTrainerType: TrainerType = .ovr
+let currentTrainerType: TrainerType = .multiClass
 
 // --- メタデータ定義 ---
 let modelAuthor = "akitora"
