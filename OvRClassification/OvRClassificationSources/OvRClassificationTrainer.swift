@@ -58,9 +58,9 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
             if Self.fileManager.fileExists(atPath: tempOvRBaseURL.path) {
                 do {
                     try Self.fileManager.removeItem(at: tempOvRBaseURL)
-                    print("🗑️ 一時ディレクトリ \\(tempOvRBaseURL.path) をクリーンアップしました。")
+                    print("🗑️ 一時ディレクトリ \(tempOvRBaseURL.path) をクリーンアップしました。")
                 } catch {
-                    print("⚠️ 一時ディレクトリ \\(tempOvRBaseURL.path) のクリーンアップに失敗しました: \\(error.localizedDescription)")
+                    print("⚠️ 一時ディレクトリ \(tempOvRBaseURL.path) のクリーンアップに失敗しました: \(error.localizedDescription)")
                 }
             }
         } // ここまでコメントアウトを解除
@@ -135,6 +135,15 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
         let avgTrainingTime = allTrainingResults.map(\.trainingTime).reduce(0, +) / Double(allTrainingResults.count)
         let trainingDataPaths = allTrainingResults.map(\.trainingDataPath).joined(separator: ", ")
 
+        // OvRPairTrainingResultからIndividualModelReportに変換
+        let individualReports: [IndividualModelReport] = allTrainingResults.map { result in
+            IndividualModelReport(
+                modelName: URL(fileURLWithPath: result.modelPath).lastPathComponent,
+                trainingAccuracy: result.trainingAccuracy,
+                validationAccuracy: result.validationAccuracy
+            )
+        }
+
         let representativeModelPath = allTrainingResults.first?.modelPath ?? mainOutputRunURL.path
 
         let trainingResult = OvRTrainingResult(
@@ -144,7 +153,8 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
             trainingDataErrorRate: avgTrainingErrorRate,
             validationDataErrorRate: avgValidationErrorRate,
             trainingTimeInSeconds: avgTrainingTime,
-            trainingDataPath: trainingDataPaths
+            trainingDataPath: trainingDataPaths,
+            individualReports: individualReports
         )
 
         return trainingResult
