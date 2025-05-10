@@ -56,16 +56,16 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
         }
 
         let tempOvRBaseURL = baseProjectURL.appendingPathComponent(Self.tempBaseDirName)
-        defer {
+        defer { // この行からコメントアウトを解除
             if Self.fileManager.fileExists(atPath: tempOvRBaseURL.path) {
                 do {
                     try Self.fileManager.removeItem(at: tempOvRBaseURL)
-                    print("🗑️ 一時ディレクトリ \(tempOvRBaseURL.path) をクリーンアップしました。")
+                    print("🗑️ 一時ディレクトリ \\(tempOvRBaseURL.path) をクリーンアップしました。")
                 } catch {
-                    print("⚠️ 一時ディレクトリ \(tempOvRBaseURL.path) のクリーンアップに失敗しました: \(error.localizedDescription)")
+                    print("⚠️ 一時ディレクトリ \\(tempOvRBaseURL.path) のクリーンアップに失敗しました: \\(error.localizedDescription)")
                 }
             }
-        }
+        } // ここまでコメントアウトを解除
 
         if Self.fileManager.fileExists(atPath: tempOvRBaseURL.path) {
             try? Self.fileManager.removeItem(at: tempOvRBaseURL)
@@ -189,7 +189,7 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
         let otherDirsForNegativeSampling = allLabelSourceDirs.filter { dirURL in
             let dirNameLowercased = dirURL.lastPathComponent.lowercased()
             let isCurrentPositiveDir = dirURL.resolvingSymlinksInPath().standardizedFileURL == oneLabelSourceDirURL.resolvingSymlinksInPath().standardizedFileURL
-            return !isCurrentPositiveDir && dirNameLowercased != safeDirName
+            return !isCurrentPositiveDir
         }
 
         if otherDirsForNegativeSampling.isEmpty {
