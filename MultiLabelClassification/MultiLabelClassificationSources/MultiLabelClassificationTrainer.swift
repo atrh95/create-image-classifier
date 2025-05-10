@@ -28,7 +28,7 @@ public class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
 
     public init() {}
 
-    public func train(author: String, shortDescription _: String, version: String) async -> MultiLabelTrainingResult? {
+    public func train(author: String, shortDescription _: String, version: String, maxIterations: Int) async -> MultiLabelTrainingResult? {
         let finalOutputDir: URL
         do {
             finalOutputDir = try setupVersionedRunOutputDirectory(

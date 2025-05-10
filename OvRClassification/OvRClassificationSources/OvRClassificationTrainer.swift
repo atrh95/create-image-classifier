@@ -39,7 +39,7 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
     static let fileManager = FileManager.default
     static let tempBaseDirName = "TempOvRTrainingData"
 
-    public func train(author: String, shortDescription: String, version: String) async -> OvRTrainingResult? {
+    public func train(author: String, shortDescription: String, version: String, maxIterations: Int) async -> OvRTrainingResult? {
         let mainOutputRunURL: URL
         do {
             mainOutputRunURL = try setupVersionedRunOutputDirectory(
@@ -114,7 +114,8 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
                 author: author,
                 shortDescription: shortDescription,
                 version: version,
-                pairIndex: index
+                pairIndex: index,
+                maxIterations: maxIterations
             ) {
                 allTrainingResults.append(result)
             }
@@ -169,7 +170,8 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
         author: String,
         shortDescription _: String,
         version: String,
-        pairIndex _: Int
+        pairIndex _: Int,
+        maxIterations: Int
     ) async -> OvRPairTrainingResult? {
         let originalOneLabelName = oneLabelSourceDirURL.lastPathComponent
         let upperCamelCaseOneLabelName = originalOneLabelName.split(separator: "_").map(\.capitalized).joined()
@@ -274,7 +276,7 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
             var parameters = MLImageClassifier.ModelParameters()
             parameters.featureExtractor = .scenePrint(revision: 1)
             parameters.validation = .split(strategy: .automatic)
-            parameters.maxIterations = 25
+            parameters.maxIterations = maxIterations
             parameters.augmentationOptions = [.crop, .rotation, .blur]
 
             let startTime = Date()

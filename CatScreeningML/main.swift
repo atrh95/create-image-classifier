@@ -17,13 +17,14 @@ enum TrainerType {
             case .binary: "v2"
             case .multiClass: "v2"
             case .multiLabel: "v1"
-            case .ovr: "v5"
+            case .ovr: "v6"
         }
     }
 }
 
 // --- トレーニング設定 ---
 let currentTrainerType: TrainerType = .ovr
+let maxTrainingIterations = 5
 
 // --- メタデータ定義 ---
 let modelAuthor = "akitora"
@@ -43,7 +44,8 @@ switch currentTrainerType {
         trainingResult = await binaryTrainer.train(
             author: modelAuthor,
             shortDescription: "Binary Classification: \(modelShortDescription)",
-            version: modelVersion
+            version: modelVersion,
+            maxIterations: maxTrainingIterations
         )
     case .multiClass:
         let multiClassTrainer = MultiClassClassificationTrainer()
@@ -51,7 +53,8 @@ switch currentTrainerType {
         trainingResult = await multiClassTrainer.train(
             author: modelAuthor,
             shortDescription: "Multi-Class Classification: \(modelShortDescription)",
-            version: modelVersion
+            version: modelVersion,
+            maxIterations: maxTrainingIterations
         )
     case .multiLabel:
         let multiLabelTrainer = MultiLabelClassificationTrainer()
@@ -59,7 +62,8 @@ switch currentTrainerType {
         trainingResult = await multiLabelTrainer.train(
             author: modelAuthor,
             shortDescription: "Multi-Label Classification: \(modelShortDescription)",
-            version: modelVersion
+            version: modelVersion,
+            maxIterations: maxTrainingIterations
         )
     case .ovr:
         let ovrTrainer = OvRClassificationTrainer()
@@ -67,7 +71,8 @@ switch currentTrainerType {
         trainingResult = await ovrTrainer.train(
             author: modelAuthor,
             shortDescription: "One-vs-Rest (OvR) Batch: \(modelShortDescription)",
-            version: modelVersion
+            version: modelVersion,
+            maxIterations: maxTrainingIterations
         )
 }
 

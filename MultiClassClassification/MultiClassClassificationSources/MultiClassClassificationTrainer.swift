@@ -23,7 +23,8 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
     public func train(
         author: String,
         shortDescription: String,
-        version: String
+        version: String,
+        maxIterations: Int
     )
         async -> MultiClassTrainingResult?
     {
@@ -61,9 +62,13 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
             print("\n🚀 多クラス分類モデル [\(modelName)] のトレーニングを開始します...")
             let trainingDataSource = MLImageClassifier.DataSource.labeledDirectories(at: trainingDataParentDir)
 
+            var parameters = MLImageClassifier.ModelParameters()
+            parameters.maxIterations = maxIterations
+            parameters.validation = .split(strategy: .automatic)
+
             let startTime = Date()
             let model =
-                try MLImageClassifier(trainingData: trainingDataSource)
+                try MLImageClassifier(trainingData: trainingDataSource, parameters: parameters)
             let endTime = Date()
             let duration = endTime.timeIntervalSince(startTime)
             print("🎉 [\(modelName)] のトレーニングに成功しました！ (所要時間: \(String(format: "%.2f", duration))秒)")

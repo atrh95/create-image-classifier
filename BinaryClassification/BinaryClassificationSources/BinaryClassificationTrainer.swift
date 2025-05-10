@@ -20,7 +20,7 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
 
     public init() {}
 
-    public func train(author: String, shortDescription: String, version: String) async -> BinaryTrainingResult? {
+    public func train(author: String, shortDescription: String, version: String, maxIterations: Int) async -> BinaryTrainingResult? {
         let resourcesPath = resourcesDirectoryPath
         let resourcesDir = URL(fileURLWithPath: resourcesPath)
         let trainingDataParentDir = resourcesDir
@@ -45,7 +45,8 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
             outputDir: finalOutputDir,
             author: author,
             shortDescription: shortDescription,
-            version: version
+            version: version,
+            maxIterations: maxIterations
         )
     }
 
@@ -54,7 +55,8 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
         outputDir: URL,
         author: String,
         shortDescription: String,
-        version: String
+        version: String,
+        maxIterations: Int
     ) async -> BinaryTrainingResult? {
         guard FileManager.default.fileExists(atPath: trainingDataParentDir.path) else {
             print("❌ エラー: \(modelName)のトレーニングデータ親ディレクトリが見つかりません: \(trainingDataParentDir.path)")
@@ -73,7 +75,11 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
             // --- Training and Evaluation ---
             let startTime = Date()
 
-            let model = try MLImageClassifier(trainingData: trainingDataSource)
+            var parameters = MLImageClassifier.ModelParameters()
+            parameters.maxIterations = maxIterations
+            parameters.validation = .split(strategy: .automatic)
+
+            let model = try MLImageClassifier(trainingData: trainingDataSource, parameters: parameters)
 
             let endTime = Date()
             let trainingDurationInSeconds = endTime.timeIntervalSince(startTime)
