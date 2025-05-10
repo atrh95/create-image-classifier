@@ -1,4 +1,5 @@
 import CSInterface
+import Foundation
 
 public struct OvRTrainingResult: TrainingResultProtocol {
     public let modelOutputPath: String
@@ -40,9 +41,9 @@ public struct OvRTrainingResult: TrainingResultProtocol {
 
         do {
             try markdownText.write(to: reportURL, atomically: true, encoding: .utf8)
-            print("✅ OvR個別モデルレポートを保存しました: \(reportURL.path)")
+            print("✅ OvRレポートを保存しました: \(reportURL.path)")
         } catch {
-            print("❌ OvR個別モデルレポートの保存エラー: \(error.localizedDescription) (Path: \(reportURL.path))")
+            print("❌ OvRレポートの保存エラー: \(error.localizedDescription) (Path: \(reportURL.path))")
         }
     }
 }

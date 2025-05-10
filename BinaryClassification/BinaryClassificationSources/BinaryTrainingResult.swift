@@ -1,4 +1,5 @@
 import CSInterface
+import Foundation
 
 /// 画像分類モデルのトレーニング結果を格納する構造体
 public struct BinaryTrainingResult: TrainingResultProtocol {

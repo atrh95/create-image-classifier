@@ -1,4 +1,5 @@
 import CSInterface
+import Foundation
 
 public struct MultiClassTrainingResult: TrainingResultProtocol {
     public let modelName: String
