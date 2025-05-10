@@ -82,9 +82,10 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
             return nil
         }
 
-        let primaryLabelSourceDirs = allLabelSourceDirectories.filter { $0.lastPathComponent.lowercased() != "rest" }
+        let primaryLabelSourceDirs = allLabelSourceDirectories.filter { $0.lastPathComponent.lowercased() != "safe" }
 
         if primaryLabelSourceDirs.isEmpty {
+            print("🛑 プライマリトレーニングターゲットとなるディレクトリが見つかりません ('safe' ディレクトリを除く)。処理を中止します。")
             return nil
         }
 
@@ -95,6 +96,7 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
         for (index, dir) in primaryLabelSourceDirs.enumerated() {
             if let result = await trainSingleOvRPair(
                 oneLabelSourceDirURL: dir,
+                allLabelSourceDirs: allLabelSourceDirectories,
                 ovrResourcesURL: ovrResourcesURL,
                 mainRunURL: mainOutputRunURL,
                 tempOvRBaseURL: tempOvRBaseURL,
@@ -135,6 +137,7 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
 
     private func trainSingleOvRPair(
         oneLabelSourceDirURL: URL,
+        allLabelSourceDirs: [URL],
         ovrResourcesURL: URL,
         mainRunURL: URL,
         tempOvRBaseURL: URL,
@@ -164,13 +167,54 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
             }
         }
 
-        let globalRestDirURL = ovrResourcesURL.appendingPathComponent("rest")
-        if Self.fileManager.fileExists(atPath: globalRestDirURL.path),
-           let negativeSourceFiles = try? getFilesInDirectory(globalRestDirURL) {
-            for fileURL in negativeSourceFiles {
-                try? Self.fileManager.copyItem(at: fileURL, to: tempRestDataDirForML.appendingPathComponent(fileURL.lastPathComponent))
+        guard let positiveSourceFilesForCount = try? getFilesInDirectory(oneLabelSourceDirURL), !positiveSourceFilesForCount.isEmpty else {
+            print("⚠️ ポジティブサンプルが見つからないか空です: \(oneLabelSourceDirURL.lastPathComponent)。ペア \(originalOneLabelName) vs Rest の学習をスキップします。")
+            return nil
+        }
+        let positiveSamplesCount = positiveSourceFilesForCount.count
+
+        let safeDirName = "safe"
+        let otherDirsForNegativeSampling = allLabelSourceDirs.filter { dirURL in
+            let dirNameLowercased = dirURL.lastPathComponent.lowercased()
+            let isCurrentPositiveDir = dirURL.resolvingSymlinksInPath().standardizedFileURL == oneLabelSourceDirURL.resolvingSymlinksInPath().standardizedFileURL
+            return !isCurrentPositiveDir && dirNameLowercased != safeDirName
+        }
+
+        if otherDirsForNegativeSampling.isEmpty {
+            print("ℹ️ ネガティブサンプリング対象の他のディレクトリがありません (safeディレクトリ以外に、現在のラベル \(originalOneLabelName) と比較できるものがありません)。このペアの学習はスキップされます。")
+            return nil
+        }
+        
+        let numFilesToCollectPerOtherDir = Int(ceil(Double(positiveSamplesCount) / Double(otherDirsForNegativeSampling.count)))
+
+        var collectedNegativeFilesCount = 0
+        for otherDirURL in otherDirsForNegativeSampling {
+            guard let filesInOtherDir = try? getFilesInDirectory(otherDirURL), !filesInOtherDir.isEmpty else {
+                print("ℹ️ ディレクトリ \(otherDirURL.lastPathComponent) は空かアクセス不能なため、ネガティブサンプル収集からスキップします。")
+                continue
+            }
+            
+            let filesToCopy = filesInOtherDir.shuffled().prefix(numFilesToCollectPerOtherDir)
+            for fileURL in filesToCopy {
+                let sourceDirNamePrefix = otherDirURL.lastPathComponent
+                let sanitizedSourceDirNamePrefix = sourceDirNamePrefix.replacingOccurrences(of: "[^a-zA-Z0-9_.-]", with: "_", options: .regularExpression)
+                let sanitizedOriginalFileName = fileURL.lastPathComponent.replacingOccurrences(of: "[^a-zA-Z0-9_.-]", with: "_", options: .regularExpression)
+                let newFileName = "\(sanitizedSourceDirNamePrefix)_\(sanitizedOriginalFileName)"
+                
+                do {
+                    try Self.fileManager.copyItem(at: fileURL, to: tempRestDataDirForML.appendingPathComponent(newFileName))
+                    collectedNegativeFilesCount += 1
+                } catch {
+                    print("⚠️ ファイルコピーに失敗: \(fileURL.path) から \(tempRestDataDirForML.appendingPathComponent(newFileName).path) へ。エラー: \(error.localizedDescription)")
+                }
             }
         }
+
+        if collectedNegativeFilesCount == 0 {
+            print("🛑 ネガティブサンプルを1つも収集できませんでした。ポジティブサンプル数: \(positiveSamplesCount), 他カテゴリ数: \(otherDirsForNegativeSampling.count), 各カテゴリからの目標収集数: \(numFilesToCollectPerOtherDir)。ペア \(originalOneLabelName) vs Rest の学習をスキップします。")
+            return nil
+        }
+        print("ℹ️ \(originalOneLabelName) vs Rest: \(collectedNegativeFilesCount) 枚のネガティブサンプルを \(otherDirsForNegativeSampling.count) カテゴリから収集しました (目標 各\(numFilesToCollectPerOtherDir)枚)。")
 
         do {
             let trainingDataSource = MLImageClassifier.DataSource.labeledDirectories(at: tempOvRPairRootURL)

@@ -19,7 +19,7 @@ let currentTrainerType: TrainerType = .ovr
 // --- メタデータ定義 ---
 let modelAuthor = "akitora"
 let modelShortDescription = "ScaryCatScreener Training"
-let modelVersion = "v1"
+let modelVersion = "v2"
 
 print("🚀 トレーニングを開始します... 設定タイプ: \(currentTrainerType)")
 
