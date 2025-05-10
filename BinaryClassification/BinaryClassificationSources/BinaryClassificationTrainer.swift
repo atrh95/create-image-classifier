@@ -9,6 +9,8 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
     public var modelName: String { "ScaryCatScreeningML_Binary" }
     public var customOutputDirPath: String { "BinaryClassification/OutputModels" }
 
+    public var outputRunNamePrefix: String { "Binary" }
+
     public var resourcesDirectoryPath: String {
         var dir = URL(fileURLWithPath: #filePath)
         dir.deleteLastPathComponent()
@@ -24,52 +26,14 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
         let trainingDataParentDir = resourcesDir
 
         // --- Output Directory Setup ---
-        var projectRoot =
-            URL(fileURLWithPath: #filePath) // .../BinaryClassificationSources/BinaryClassificationTrainer.swift
-        projectRoot.deleteLastPathComponent() // .../BinaryClassificationSources/
-        projectRoot.deleteLastPathComponent() // .../BinaryClassification/
-        projectRoot.deleteLastPathComponent() // プロジェクトルートへ
-        let baseOutputDir = projectRoot
-
-        let baseTargetOutputDir: URL
-        let customPath = customOutputDirPath
-        if !customPath.isEmpty {
-            let customURL = URL(fileURLWithPath: customPath)
-            if customURL.isFileURL, customPath.hasPrefix("/") {
-                baseTargetOutputDir = customURL
-            } else {
-                baseTargetOutputDir = baseOutputDir.appendingPathComponent(customPath)
-            }
-        } else {
-            print("⚠️ 警告: customOutputDirPathが空です。デフォルトのOutputModelsを使用します。")
-            baseTargetOutputDir = baseOutputDir.appendingPathComponent("OutputModels")
-        }
-
-        let fileManager = FileManager.default
-
+        let finalOutputDir: URL
         do {
-            try fileManager.createDirectory(at: baseTargetOutputDir, withIntermediateDirectories: true, attributes: nil)
-            print("📂 ベース出力ディレクトリ: \(baseTargetOutputDir.path)")
+            finalOutputDir = try setupVersionedRunOutputDirectory(
+                version: version,
+                trainerFilePath: #filePath 
+            )
         } catch {
-            print("❌ エラー: ベース出力ディレクトリの作成に失敗しました: \(baseTargetOutputDir.path) - \(error.localizedDescription)")
-            return nil
-        }
-
-        var resultCounter = 1
-        var finalOutputDir: URL
-        let resultDirPrefix = "Binary_Result_"
-
-        repeat {
-            let resultDirName = "\(resultDirPrefix)\(resultCounter)"
-            finalOutputDir = baseTargetOutputDir.appendingPathComponent(resultDirName)
-            resultCounter += 1
-        } while fileManager.fileExists(atPath: finalOutputDir.path)
-
-        do {
-            try fileManager.createDirectory(at: finalOutputDir, withIntermediateDirectories: false, attributes: nil)
-            print("💾 結果保存ディレクトリ: \(finalOutputDir.path)")
-        } catch {
-            print("❌ エラー: 結果保存ディレクトリの作成に失敗しました: \(finalOutputDir.path) - \(error.localizedDescription)")
+            print("❌ エラー: 出力ディレクトリの設定に失敗しました - \(error.localizedDescription)")
             return nil
         }
         // --- End Output Directory Setup ---

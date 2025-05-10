@@ -9,6 +9,8 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
     public var modelName: String { "ScaryCatScreeningML_MultiClass" }
     public var customOutputDirPath: String { "MultiClassClassification/OutputModels" }
 
+    public var outputRunNamePrefix: String { "MultiClass" }
+
     public var resourcesDirectoryPath: String {
         var dir = URL(fileURLWithPath: #filePath)
         dir.deleteLastPathComponent() // Sourcesディレクトリへ
@@ -35,38 +37,14 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
         }
 
         let fileManager = FileManager.default
-        let baseTargetOutputDir: URL
-        var finalOutputDir: URL!
+        let finalOutputDir: URL
 
         do {
-            var projectRoot =
-                URL(fileURLWithPath: #filePath) // .../MultiClassClassificationSources/MultiClassClassificationTrainer.swift
-            projectRoot.deleteLastPathComponent() // .../MultiClassClassificationSources/
-            projectRoot.deleteLastPathComponent() // .../MultiClassClassification/
-            projectRoot.deleteLastPathComponent() // プロジェクトルートへ
-            let baseOutputDir = projectRoot
-
-            let customPath = customOutputDirPath
-            if !customPath.isEmpty {
-                let customURL = URL(fileURLWithPath: customPath)
-                baseTargetOutputDir = customURL.isFileURL && customPath.hasPrefix("/") ? customURL : baseOutputDir
-                    .appendingPathComponent(customPath)
-            } else {
-                print("⚠️ 警告: customOutputDirPathが空です。デフォルトのOutputModelsを使用します。")
-                baseTargetOutputDir = baseOutputDir.appendingPathComponent("OutputModels")
-            }
-            try fileManager.createDirectory(at: baseTargetOutputDir, withIntermediateDirectories: true, attributes: nil)
-            print("📂 ベース出力ディレクトリ: \(baseTargetOutputDir.path)")
-
-            var resultCounter = 1
-            let resultDirPrefix = "MultiClass_Result_"
-            repeat {
-                let resultDirName = "\(resultDirPrefix)\(resultCounter)"
-                finalOutputDir = baseTargetOutputDir.appendingPathComponent(resultDirName)
-                resultCounter += 1
-            } while fileManager.fileExists(atPath: finalOutputDir.path)
-            try fileManager.createDirectory(at: finalOutputDir, withIntermediateDirectories: false, attributes: nil)
-            print("💾 結果保存ディレクトリ: \(finalOutputDir.path)")
+            finalOutputDir = try setupVersionedRunOutputDirectory(
+                version: version,
+                fileManager: fileManager,
+                trainerFilePath: #filePath
+            )
 
             let contents = try fileManager.contentsOfDirectory(
                 at: trainingDataParentDir,

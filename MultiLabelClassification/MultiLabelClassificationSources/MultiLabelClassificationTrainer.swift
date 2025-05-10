@@ -15,6 +15,8 @@ public class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
     public var modelName: String { "ScaryCatScreeningML_MultiLabel" }
     public var customOutputDirPath: String { "MultiLabelClassification/OutputModels" }
 
+    public var outputRunNamePrefix: String { "MultiLabel" }
+
     public var manifestFileName: String { "multilabel_cat_annotations.json" }
 
     public var resourcesDirectoryPath: String {
@@ -27,6 +29,17 @@ public class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
     public init() {}
 
     public func train(author: String, shortDescription _: String, version: String) async -> MultiLabelTrainingResult? {
+        let finalOutputDir: URL
+        do {
+            finalOutputDir = try setupVersionedRunOutputDirectory(
+                version: version,
+                trainerFilePath: #filePath
+            )
+        } catch {
+            print("❌ Error: Failed to set up output directory - \(error.localizedDescription)")
+            return nil
+        }
+        
         do {
             let resourcesDir = URL(fileURLWithPath: resourcesDirectoryPath)
             let manifestURL = resourcesDir.appendingPathComponent(manifestFileName)
@@ -59,36 +72,6 @@ public class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
             let start = Date()
             let model = try await pipeline.fitted(to: train, validateOn: val)
             let duration = Date().timeIntervalSince(start)
-
-            var projectRootURL = URL(fileURLWithPath: #filePath)
-            projectRootURL
-                .deleteLastPathComponent() // .../MultiLabelClassificationSources/MultiLabelClassificationTrainer.swift
-            projectRootURL.deleteLastPathComponent() // .../MultiLabelClassificationSources/
-            projectRootURL.deleteLastPathComponent() // .../MultiLabelClassification/
-            projectRootURL.deleteLastPathComponent() // プロジェクトルートへ
-
-            let baseTargetOutputDir = projectRootURL.appendingPathComponent(customOutputDirPath)
-            try FileManager.default.createDirectory(
-                at: baseTargetOutputDir,
-                withIntermediateDirectories: true,
-                attributes: nil
-            )
-            print("📂 Base output directory: \(baseTargetOutputDir.path)")
-
-            var resultCounter = 1
-            let resultDirPrefix = "MultiLabel_Result_"
-            var finalOutputDir: URL!
-            repeat {
-                let resultDirName = "\(resultDirPrefix)\(resultCounter)"
-                finalOutputDir = baseTargetOutputDir.appendingPathComponent(resultDirName)
-                resultCounter += 1
-            } while FileManager.default.fileExists(atPath: finalOutputDir.path)
-            try FileManager.default.createDirectory(
-                at: finalOutputDir,
-                withIntermediateDirectories: false,
-                attributes: nil
-            )
-            print("💾 Result directory: \(finalOutputDir.path)")
 
             let modelURL = finalOutputDir.appendingPathComponent("\(modelName)_\(version).mlmodel")
 
