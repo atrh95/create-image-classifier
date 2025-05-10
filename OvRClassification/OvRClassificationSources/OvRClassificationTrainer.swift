@@ -1,7 +1,7 @@
 import Combine
 import CreateML
 import Foundation
-import SCSInterface
+import CSInterface
 import TabularData
 
 private struct OvRPairTrainingResult {

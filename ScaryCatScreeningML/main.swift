@@ -3,7 +3,7 @@ import Foundation
 import MultiClassClassification
 import MultiLabelClassification
 import OvRClassification
-import SCSInterface
+import CSInterface
 
 // --- トレーナータイプ ---
 enum TrainerType {

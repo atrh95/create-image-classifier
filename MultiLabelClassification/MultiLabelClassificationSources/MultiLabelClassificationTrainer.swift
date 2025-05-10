@@ -2,7 +2,7 @@ import CoreML
 import CreateML
 import CreateMLComponents
 import Foundation
-import SCSInterface
+import CSInterface
 
 public class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
     public typealias TrainingResultType = MultiLabelTrainingResult

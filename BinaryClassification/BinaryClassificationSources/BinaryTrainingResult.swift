@@ -1,5 +1,4 @@
-import Foundation
-import SCSInterface // For TrainingResultData and ScreeningTrainerProtocol
+import CSInterface
 
 /// 画像分類モデルのトレーニング結果を格納する構造体
 public struct BinaryTrainingResult: TrainingResultProtocol {

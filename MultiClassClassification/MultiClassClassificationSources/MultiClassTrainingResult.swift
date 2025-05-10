@@ -1,5 +1,4 @@
-import Foundation
-import SCSInterface
+import CSInterface
 
 public struct MultiClassTrainingResult: TrainingResultProtocol {
     public let modelName: String

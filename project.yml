@@ -1,12 +1,12 @@
 # $ mint run xcodegen
 
-name: ScaryCatScreeningML
+name: CatScreeningML
 options:
   bundleIdPrefix: com.akitorahayashi
   deploymentTarget:
     macOS: "15.2"
 targets:
-  ScaryCatScreeningML:
+  CatScreeningML:
     type: tool
     platform: macOS
     sources:
@@ -18,17 +18,17 @@ targets:
       - target: OvRClassification
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.ScaryCatScreeningML
+        PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.CatScreeningML
         MACOSX_DEPLOYMENT_TARGET: "15.2"
 
-  SCSInterface:
+  CSInterface:
     type: framework
     platform: macOS
     sources:
-      - path: SCSInterface
+      - path: CSInterface
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.SCSInterface
+        PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.CSInterface
         MACOSX_DEPLOYMENT_TARGET: "15.2"
         DEFINES_MODULE: "YES"
 
@@ -40,7 +40,7 @@ targets:
     resources:
       - path: BinaryClassification/Resources
     dependencies:
-      - target: SCSInterface
+      - target: CSInterface
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.BinaryClassification
@@ -55,7 +55,7 @@ targets:
     resources:
       - path: MultiClassClassification/Resources
     dependencies:
-      - target: SCSInterface
+      - target: CSInterface
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.MultiClassClassification
@@ -70,7 +70,7 @@ targets:
     resources:
       - path: MultiLabelClassification/Resources
     dependencies:
-      - target: SCSInterface
+      - target: CSInterface
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.MultiLabelClassification
@@ -85,7 +85,7 @@ targets:
     resources:
       - path: OvRClassification/Resources
     dependencies:
-      - target: SCSInterface
+      - target: CSInterface
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.OvRClassification

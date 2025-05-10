@@ -1,7 +1,7 @@
 import CoreML
 import CreateML
 import Foundation
-import SCSInterface
+import CSInterface
 
 public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
     public typealias TrainingResultType = MultiClassTrainingResult

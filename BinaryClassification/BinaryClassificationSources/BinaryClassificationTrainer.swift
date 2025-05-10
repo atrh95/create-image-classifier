@@ -1,7 +1,7 @@
 import CoreML
 import CreateML
 import Foundation
-import SCSInterface
+import CSInterface
 
 public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
     public typealias TrainingResultType = BinaryTrainingResult

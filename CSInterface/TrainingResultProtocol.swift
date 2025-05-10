@@ -1,7 +1,5 @@
-import Foundation
-import SCSInterface // To access ScreeningTrainerProtocol
+import CSInterface 
 
-/// 画像分類モデルの共通トレーニング結果データプロトコル
 public protocol TrainingResultProtocol {
     /// トレーニング結果をMarkdownファイルとして保存する
     /// - Parameters:

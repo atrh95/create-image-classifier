@@ -1,5 +1,4 @@
-import Foundation
-import SCSInterface
+import CSInterface
 
 public struct OvRTrainingResult: TrainingResultProtocol {
     public let modelOutputPath: String
