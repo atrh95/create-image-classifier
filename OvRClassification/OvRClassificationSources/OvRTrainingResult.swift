@@ -20,7 +20,7 @@ public struct OvRTrainingResult: TrainingResultProtocol {
         let modelDir = URL(fileURLWithPath: modelOutputPath).standardizedFileURL.deletingLastPathComponent()
         let reportURL = modelDir.appendingPathComponent(reportFileName)
 
-        var markdownText = """
+        let markdownText = """
         # モデルトレーニング情報
 
         ## モデル詳細

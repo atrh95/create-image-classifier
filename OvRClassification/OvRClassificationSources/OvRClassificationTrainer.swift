@@ -197,7 +197,6 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
 
         let safeDirName = "safe"
         let otherDirsForNegativeSampling = allLabelSourceDirs.filter { dirURL in
-            let dirNameLowercased = dirURL.lastPathComponent.lowercased()
             let isCurrentPositiveDir = dirURL.resolvingSymlinksInPath().standardizedFileURL == oneLabelSourceDirURL
                 .resolvingSymlinksInPath().standardizedFileURL
             return !isCurrentPositiveDir

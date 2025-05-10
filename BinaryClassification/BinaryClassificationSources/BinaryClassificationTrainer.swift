@@ -82,13 +82,11 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
 
             let trainingDataMisclassificationRate = model.trainingMetrics.classificationError
             let trainingDataAccuracyPercentage = (1.0 - trainingDataMisclassificationRate) * 100
-            let trainingErrorStr = String(format: "%.2f", trainingDataMisclassificationRate * 100)
             let trainingAccStr = String(format: "%.2f", trainingDataAccuracyPercentage)
             print("  📊 トレーニングデータ正解率: \(trainingAccStr)%")
 
             let validationDataMisclassificationRate = model.validationMetrics.classificationError
             let validationDataAccuracyPercentage = (1.0 - validationDataMisclassificationRate) * 100
-            let validationErrorStr = String(format: "%.2f", validationDataMisclassificationRate * 100)
             let validationAccStr = String(format: "%.2f", validationDataAccuracyPercentage)
             print("  📈 検証データ正解率: \(validationAccStr)%")
             // --- End Training and Evaluation ---

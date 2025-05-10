@@ -68,16 +68,14 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
             let duration = endTime.timeIntervalSince(startTime)
             print("🎉 [\(modelName)] のトレーニングに成功しました！ (所要時間: \(String(format: "%.2f", duration))秒)")
 
-            let trainingError = model.trainingMetrics.classificationError
-            let trainingAccuracy = (1.0 - trainingError) * 100
-            let trainingErrorStr = String(format: "%.2f", trainingError * 100)
-            let trainingAccStr = String(format: "%.2f", trainingAccuracy)
+            let trainingDataMisclassificationRate = model.trainingMetrics.classificationError
+            let trainingDataAccuracyPercentage = (1.0 - trainingDataMisclassificationRate) * 100
+            let trainingAccStr = String(format: "%.2f", trainingDataAccuracyPercentage)
             print("  📊 トレーニングデータ正解率: \(trainingAccStr)%")
 
-            let validationError = model.validationMetrics.classificationError
-            let validationAccuracy = (1.0 - validationError) * 100
-            let validationErrorStr = String(format: "%.2f", validationError * 100)
-            let validationAccStr = String(format: "%.2f", validationAccuracy)
+            let validationDataMisclassificationRate = model.validationMetrics.classificationError
+            let validationDataAccuracyPercentage = (1.0 - validationDataMisclassificationRate) * 100
+            let validationAccStr = String(format: "%.2f", validationDataAccuracyPercentage)
             print("  📈 検証データ正解率: \(validationAccStr)%")
 
             let metadata = MLModelMetadata(
@@ -94,10 +92,10 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
 
             return MultiClassTrainingResult(
                 modelName: modelName,
-                trainingDataAccuracy: trainingAccuracy,
-                validationDataAccuracy: validationAccuracy,
-                trainingDataErrorRate: trainingError,
-                validationDataErrorRate: validationError,
+                trainingDataAccuracy: trainingDataAccuracyPercentage,
+                validationDataAccuracy: validationDataAccuracyPercentage,
+                trainingDataErrorRate: trainingDataMisclassificationRate,
+                validationDataErrorRate: validationDataMisclassificationRate,
                 trainingTimeInSeconds: duration,
                 modelOutputPath: outputModelURL.path,
                 trainingDataPath: trainingDataParentDir.path,
