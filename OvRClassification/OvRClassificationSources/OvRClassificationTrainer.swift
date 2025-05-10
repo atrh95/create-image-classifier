@@ -56,10 +56,22 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
         }
 
         let tempOvRBaseURL = baseProjectURL.appendingPathComponent(Self.tempBaseDirName)
+        defer {
+            if Self.fileManager.fileExists(atPath: tempOvRBaseURL.path) {
+                do {
+                    try Self.fileManager.removeItem(at: tempOvRBaseURL)
+                    print("🗑️ 一時ディレクトリ \(tempOvRBaseURL.path) をクリーンアップしました。")
+                } catch {
+                    print("⚠️ 一時ディレクトリ \(tempOvRBaseURL.path) のクリーンアップに失敗しました: \(error.localizedDescription)")
+                }
+            }
+        }
+
         if Self.fileManager.fileExists(atPath: tempOvRBaseURL.path) {
             try? Self.fileManager.removeItem(at: tempOvRBaseURL)
         }
         guard (try? Self.fileManager.createDirectory(at: tempOvRBaseURL, withIntermediateDirectories: true)) != nil else {
+            print("🛑 一時ディレクトリ \(tempOvRBaseURL.path) の作成に失敗しました。処理を中止します。")
             return nil
         }
 

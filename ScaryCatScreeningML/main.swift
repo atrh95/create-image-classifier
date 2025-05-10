@@ -11,6 +11,15 @@ enum TrainerType {
     case multiClass
     case multiLabel
     case ovr
+
+    var definedVersion: String {
+        switch self {
+        case .binary: return "v2"
+        case .multiClass: return "v2"
+        case .multiLabel: return "v1"
+        case .ovr: return "v4"
+        }
+    }
 }
 
 // --- トレーニング設定 ---
@@ -19,9 +28,9 @@ let currentTrainerType: TrainerType = .ovr
 // --- メタデータ定義 ---
 let modelAuthor = "akitora"
 let modelShortDescription = "ScaryCatScreener Training"
-let modelVersion = "v2"
+let modelVersion = currentTrainerType.definedVersion
 
-print("🚀 トレーニングを開始します... 設定タイプ: \(currentTrainerType)")
+print("🚀 トレーニングを開始します... 設定タイプ: \(currentTrainerType), バージョン: \(modelVersion)")
 
 // トレーナーの選択と実行
 let trainer: any ScreeningTrainerProtocol
