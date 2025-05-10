@@ -17,7 +17,7 @@ enum TrainerType {
         case .binary: return "v2"
         case .multiClass: return "v2"
         case .multiLabel: return "v1"
-        case .ovr: return "v3"
+        case .ovr: return "v4"
         }
     }
 }
