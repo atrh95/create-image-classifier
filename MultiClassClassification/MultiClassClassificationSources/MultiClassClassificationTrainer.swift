@@ -9,6 +9,8 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
     public var modelName: String { "ScaryCatScreeningML_MultiClass" }
     public var customOutputDirPath: String { "MultiClassClassification/OutputModels" }
 
+    public var outputRunNamePrefix: String { "MultiClass" }
+
     public var resourcesDirectoryPath: String {
         var dir = URL(fileURLWithPath: #filePath)
         dir.deleteLastPathComponent() // Sourcesディレクトリへ
@@ -35,53 +37,14 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
         }
 
         let fileManager = FileManager.default
-        let baseTargetOutputDirURL: URL
-        var finalOutputDir: URL!
+        let finalOutputDir: URL
 
         do {
-            var projectRoot =
-                URL(fileURLWithPath: #filePath) // .../MultiClassClassificationSources/MultiClassClassificationTrainer.swift
-            projectRoot.deleteLastPathComponent() // .../MultiClassClassificationSources/
-            projectRoot.deleteLastPathComponent() // .../MultiClassClassification/
-            projectRoot.deleteLastPathComponent() // プロジェクトルートへ
-            let baseOutputDir = projectRoot
-
-            let customPath = customOutputDirPath
-            // Base output directory (e.g., MultiClassClassification/OutputModels)
-            if !customPath.isEmpty {
-                let customURL = URL(fileURLWithPath: customPath)
-                baseTargetOutputDirURL = customURL.isFileURL && customPath.hasPrefix("/") ? customURL : baseOutputDir
-                    .appendingPathComponent(customPath)
-            } else {
-                print("⚠️ 警告: customOutputDirPathが空です。デフォルトのOutputModelsを使用します。")
-                baseTargetOutputDirURL = baseOutputDir.appendingPathComponent("OutputModels")
-            }
-
-            // Create the version-specific directory (e.g., MultiClassClassification/OutputModels/v1)
-            let versionedOutputDirURL = baseTargetOutputDirURL.appendingPathComponent(version)
-            try fileManager.createDirectory(at: versionedOutputDirURL, withIntermediateDirectories: true, attributes: nil)
-            print("📂 Versioned output directory: \(versionedOutputDirURL.path)")
-
-            // List existing runs within the version-specific directory
-            let existingRuns = (try? fileManager.contentsOfDirectory(at: versionedOutputDirURL, includingPropertiesForKeys: nil)) ?? []
-            
-            // Define the prefix for run names, including the version
-            let runNamePrefix = "MultiClass_\(version)_Result_"
-            
-            // Calculate the next run index
-            let nextIndex = (existingRuns.compactMap { url -> Int? in
-                let runName = url.lastPathComponent
-                if runName.hasPrefix(runNamePrefix) {
-                    return Int(runName.replacingOccurrences(of: runNamePrefix, with: ""))
-                }
-                return nil
-            }.max() ?? 0) + 1
-            
-            // Construct the main output run URL with the version in its name
-            finalOutputDir = versionedOutputDirURL.appendingPathComponent("\(runNamePrefix)\(nextIndex)")
-
-            try fileManager.createDirectory(at: finalOutputDir, withIntermediateDirectories: false, attributes: nil)
-            print("💾 結果保存ディレクトリ: \(finalOutputDir.path)")
+            finalOutputDir = try setupVersionedRunOutputDirectory(
+                version: version,
+                fileManager: fileManager,
+                trainerFilePath: #filePath
+            )
 
             let contents = try fileManager.contentsOfDirectory(
                 at: trainingDataParentDir,

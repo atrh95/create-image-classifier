@@ -26,6 +26,8 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
         "OvRClassification/OutputModels"
     }
 
+    public var outputRunNamePrefix: String { "OvR" }
+
     public var resourcesDirectoryPath: String {
         var dir = URL(fileURLWithPath: #filePath)
         dir.deleteLastPathComponent()
@@ -39,42 +41,19 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
     static let tempBaseDirName = "TempOvRTrainingData"
 
     public func train(author: String, shortDescription: String, version: String) async -> OvRTrainingResult? {
+        let mainOutputRunURL: URL
+        do {
+            mainOutputRunURL = try setupVersionedRunOutputDirectory(
+                version: version, 
+                trainerFilePath: #filePath
+            )
+        } catch {
+            print("🛑 出力ディレクトリの設定に失敗しました: \(error.localizedDescription)")
+            return nil
+        }
+
         let baseProjectURL = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
             .deletingLastPathComponent()
-
-        // Base output directory (e.g., OvRClassification/OutputModels)
-        let baseOutputDirURL = baseProjectURL.appendingPathComponent(customOutputDirPath)
-
-        // Create the version-specific directory (e.g., OvRClassification/OutputModels/v1)
-        let versionedOutputDirURL = baseOutputDirURL.appendingPathComponent(version)
-        guard (try? Self.fileManager.createDirectory(at: versionedOutputDirURL, withIntermediateDirectories: true)) != nil else {
-            print("🛑 バージョン別出力ディレクトリ \(versionedOutputDirURL.path) の作成に失敗しました。")
-            return nil
-        }
-
-        // List existing runs within the version-specific directory
-        let existingRuns = (try? Self.fileManager.contentsOfDirectory(at: versionedOutputDirURL, includingPropertiesForKeys: nil)) ?? []
-        
-        // Define the prefix for run names, including the version
-        let runNamePrefix = "OvR_\(version)_Result_"
-        
-        // Calculate the next run index
-        let nextIndex = (existingRuns.compactMap { url -> Int? in
-            let runName = url.lastPathComponent
-            if runName.hasPrefix(runNamePrefix) {
-                return Int(runName.replacingOccurrences(of: runNamePrefix, with: ""))
-            }
-            return nil
-        }.max() ?? 0) + 1
-        
-        // Construct the main output run URL with the version in its name
-        let mainOutputRunURL = versionedOutputDirURL.appendingPathComponent("\(runNamePrefix)\(nextIndex)")
-
-        guard (try? Self.fileManager.createDirectory(at: mainOutputRunURL, withIntermediateDirectories: true)) != nil else {
-            print("🛑 メイン出力ランディレクトリ \(mainOutputRunURL.path) の作成に失敗しました。")
-            return nil
-        }
-
         let tempOvRBaseURL = baseProjectURL.appendingPathComponent(Self.tempBaseDirName)
         defer { // この行からコメントアウトを解除
             if Self.fileManager.fileExists(atPath: tempOvRBaseURL.path) {

@@ -15,6 +15,8 @@ public class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
     public var modelName: String { "ScaryCatScreeningML_MultiLabel" }
     public var customOutputDirPath: String { "MultiLabelClassification/OutputModels" }
 
+    public var outputRunNamePrefix: String { "MultiLabel" }
+
     public var manifestFileName: String { "multilabel_cat_annotations.json" }
 
     public var resourcesDirectoryPath: String {
@@ -27,6 +29,17 @@ public class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
     public init() {}
 
     public func train(author: String, shortDescription _: String, version: String) async -> MultiLabelTrainingResult? {
+        let finalOutputDir: URL
+        do {
+            finalOutputDir = try setupVersionedRunOutputDirectory(
+                version: version,
+                trainerFilePath: #filePath
+            )
+        } catch {
+            print("❌ Error: Failed to set up output directory - \(error.localizedDescription)")
+            return nil
+        }
+        
         do {
             let resourcesDir = URL(fileURLWithPath: resourcesDirectoryPath)
             let manifestURL = resourcesDir.appendingPathComponent(manifestFileName)
@@ -59,50 +72,6 @@ public class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
             let start = Date()
             let model = try await pipeline.fitted(to: train, validateOn: val)
             let duration = Date().timeIntervalSince(start)
-
-            var projectRootURL = URL(fileURLWithPath: #filePath)
-            projectRootURL
-                .deleteLastPathComponent() // .../MultiLabelClassificationSources/MultiLabelClassificationTrainer.swift
-            projectRootURL.deleteLastPathComponent() // .../MultiLabelClassificationSources/
-            projectRootURL.deleteLastPathComponent() // .../MultiLabelClassification/
-            projectRootURL.deleteLastPathComponent() // プロジェクトルートへ
-
-            // Base output directory (e.g., MultiLabelClassification/OutputModels)
-            let baseOutputDirURL = projectRootURL.appendingPathComponent(customOutputDirPath)
-
-            // Create the version-specific directory (e.g., MultiLabelClassification/OutputModels/v1)
-            let versionedOutputDirURL = baseOutputDirURL.appendingPathComponent(version)
-            try FileManager.default.createDirectory(
-                at: versionedOutputDirURL,
-                withIntermediateDirectories: true,
-                attributes: nil
-            )
-            print("📂 Versioned output directory: \(versionedOutputDirURL.path)")
-
-            // List existing runs within the version-specific directory
-            let existingRuns = (try? FileManager.default.contentsOfDirectory(at: versionedOutputDirURL, includingPropertiesForKeys: nil)) ?? []
-            
-            // Define the prefix for run names, including the version
-            let runNamePrefix = "MultiLabel_\(version)_Result_"
-            
-            // Calculate the next run index
-            let nextIndex = (existingRuns.compactMap { url -> Int? in
-                let runName = url.lastPathComponent
-                if runName.hasPrefix(runNamePrefix) {
-                    return Int(runName.replacingOccurrences(of: runNamePrefix, with: ""))
-                }
-                return nil
-            }.max() ?? 0) + 1
-            
-            // Construct the main output run URL with the version in its name
-            let finalOutputDir = versionedOutputDirURL.appendingPathComponent("\(runNamePrefix)\(nextIndex)")
-            
-            try FileManager.default.createDirectory(
-                at: finalOutputDir,
-                withIntermediateDirectories: false, // This should be true if a parent might not exist, but versionedOutputDirURL creation handles it
-                attributes: nil
-            )
-            print("💾 Result directory: \(finalOutputDir.path)")
 
             let modelURL = finalOutputDir.appendingPathComponent("\(modelName)_\(version).mlmodel")
 
