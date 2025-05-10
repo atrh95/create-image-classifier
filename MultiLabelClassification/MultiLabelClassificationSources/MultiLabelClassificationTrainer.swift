@@ -91,6 +91,10 @@ public class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
                 labels: Set(labels)
             )
 
+            var parameters = MLImageClassifier.ModelParameters()
+            parameters.featureExtractor = .scenePrint(revision: 1)
+            parameters.maxIterations = maxIterations
+
             return MultiLabelTrainingResult(
                 modelName: modelName,
                 trainingDataAccuracy: 0.0,

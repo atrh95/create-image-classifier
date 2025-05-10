@@ -283,7 +283,7 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
             parameters.featureExtractor = .scenePrint(revision: 1)
             parameters.validation = .split(strategy: .automatic)
             parameters.maxIterations = maxIterations
-            parameters.augmentationOptions = []
+            // parameters.augmentationOptions = []
 
             let startTime = Date()
             let job = try MLImageClassifier.train(

@@ -81,6 +81,7 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
             let startTime = Date()
 
             var parameters = MLImageClassifier.ModelParameters()
+            parameters.featureExtractor = .scenePrint(revision: 1)
             parameters.maxIterations = maxIterations
             parameters.validation = .split(strategy: .automatic)
 

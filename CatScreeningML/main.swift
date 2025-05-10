@@ -1,6 +1,8 @@
 import BinaryClassification
 import CSInterface
 import Foundation
+import CreateMLComponents
+import CreateML
 import MultiClassClassification
 import MultiLabelClassification
 import OvRClassification
@@ -17,14 +19,14 @@ enum TrainerType {
             case .binary: "v5"
             case .multiClass: "v3"
             case .multiLabel: "v1"
-            case .ovr: "v4"
+            case .ovr: "v16"
         }
     }
 }
 
 // --- トレーニング設定 ---
 let currentTrainerType: TrainerType = .ovr
-let maxTrainingIterations = 15
+let maxTrainingIterations = 5
 
 // --- メタデータ定義 ---
 let modelAuthor = "akitora"
@@ -36,45 +38,33 @@ print("🚀 トレーニングを開始します... 設定タイプ: \(currentTr
 // トレーナーの選択と実行
 let trainer: any ScreeningTrainerProtocol
 var trainingResult: Any?
+let shortDescription: String
 
 switch currentTrainerType {
     case .binary:
         let binaryTrainer = BinaryClassificationTrainer()
         trainer = binaryTrainer
-        trainingResult = await binaryTrainer.train(
-            author: modelAuthor,
-            shortDescription: "Binary Classification: \(modelShortDescription)",
-            version: modelVersion,
-            maxIterations: maxTrainingIterations
-        )
+        shortDescription = "Binary Classification: \(modelShortDescription)"
     case .multiClass:
         let multiClassTrainer = MultiClassClassificationTrainer()
         trainer = multiClassTrainer
-        trainingResult = await multiClassTrainer.train(
-            author: modelAuthor,
-            shortDescription: "Multi-Class Classification: \(modelShortDescription)",
-            version: modelVersion,
-            maxIterations: maxTrainingIterations
-        )
+        shortDescription = "Multi-Class Classification: \(modelShortDescription)"
     case .multiLabel:
         let multiLabelTrainer = MultiLabelClassificationTrainer()
         trainer = multiLabelTrainer
-        trainingResult = await multiLabelTrainer.train(
-            author: modelAuthor,
-            shortDescription: "Multi-Label Classification: \(modelShortDescription)",
-            version: modelVersion,
-            maxIterations: maxTrainingIterations
-        )
+        shortDescription = "Multi-Label Classification: \(modelShortDescription)"
     case .ovr:
         let ovrTrainer = OvRClassificationTrainer()
         trainer = ovrTrainer
-        trainingResult = await ovrTrainer.train(
-            author: modelAuthor,
-            shortDescription: "One-vs-Rest (OvR) Batch: \(modelShortDescription)",
-            version: modelVersion,
-            maxIterations: maxTrainingIterations
-        )
+        shortDescription = "One-vs-Rest (OvR) Batch: \(modelShortDescription)"
 }
+
+trainingResult = await trainer.train(
+    author: modelAuthor,
+    shortDescription: shortDescription,
+    version: modelVersion,
+    maxIterations: maxTrainingIterations
+)
 
 // 結果の処理
 if let result = trainingResult {

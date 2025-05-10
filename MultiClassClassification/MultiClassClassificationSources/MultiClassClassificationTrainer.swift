@@ -63,6 +63,7 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
             let trainingDataSource = MLImageClassifier.DataSource.labeledDirectories(at: trainingDataParentDir)
 
             var parameters = MLImageClassifier.ModelParameters()
+            parameters.featureExtractor = .scenePrint(revision: 1)
             parameters.maxIterations = maxIterations
             parameters.validation = .split(strategy: .automatic)
 
