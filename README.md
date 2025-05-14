@@ -7,7 +7,7 @@ CatScreeningML は、AppleのCoreMLおよびCreateMLフレームワークを利�
 
 主な目的は、猫の画像が特定の特徴（例 口を開けているか、人間の手が写っているかなど）を持つかどうかを識別する機械学習モデルのトレーニングのための構造化されたフレームワークを提供することです。
 
-<a href="https://deepwiki.com/terrio32/cat-screening-ml"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki"></a>
+<a href="https://deepwiki.com/aktrh/cat-screening-ml"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki"></a>
 
 ## 設計方針
 
