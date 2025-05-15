@@ -308,7 +308,7 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
                     guard
                         let actual = row["True Label"]?.stringValue,
                         let predicted = row["Predicted"]?.stringValue,
-                        let cnt = row["count"]?.intValue
+                        let cnt = row["Count"]?.intValue
                     else { continue }
 
                     if actual == positiveClassNameForModel, predicted == positiveClassNameForModel {
