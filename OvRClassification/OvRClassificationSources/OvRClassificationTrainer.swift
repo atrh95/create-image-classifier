@@ -53,7 +53,7 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
                 trainerFilePath: #filePath
             )
         } catch {
-            print("🛑 出力ディレクトリの設定に失敗しました: \(error.localizedDescription)")
+            print("🛑 エラー: 出力ディレクトリ設定失敗: \(error.localizedDescription)")
             return nil
         }
 
@@ -64,9 +64,9 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
             if Self.fileManager.fileExists(atPath: tempOvRBaseURL.path) {
                 do {
                     try Self.fileManager.removeItem(at: tempOvRBaseURL)
-                    print("🗑️ 一時ディレクトリ \(tempOvRBaseURL.path) をクリーンアップしました。")
+                    print("🗑️ 一時ディレクトリ \(tempOvRBaseURL.path) クリーンアップ完了")
                 } catch {
-                    print("⚠️ 一時ディレクトリ \(tempOvRBaseURL.path) のクリーンアップに失敗しました: \(error.localizedDescription)")
+                    print("⚠️ 一時ディレクトリ \(tempOvRBaseURL.path) クリーンアップ失敗: \(error.localizedDescription)")
                 }
             }
         }
@@ -76,13 +76,13 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
         }
         guard (try? Self.fileManager.createDirectory(at: tempOvRBaseURL, withIntermediateDirectories: true)) != nil
         else {
-            print("🛑 一時ディレクトリ \(tempOvRBaseURL.path) の作成に失敗しました。処理を中止します。")
+            print("🛑 エラー: 一時ディレクトリ \(tempOvRBaseURL.path) 作成失敗。処理中止。")
             return nil
         }
 
         let ovrResourcesURL = URL(fileURLWithPath: resourcesDirectoryPath)
 
-        print("🚀 OvRトレーニングを開始します: バージョン \(version)")
+        print("🚀 OvRトレーニング開始 (バージョン: \(version))...")
 
         let allLabelSourceDirectories: [URL]
         do {
@@ -96,22 +96,23 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
                 return isDirectory.boolValue && !url.lastPathComponent.hasPrefix(".")
             }
         } catch {
-            print("🛑 リソースディレクトリ内のラベルディレクトリの取得に失敗しました: \(error.localizedDescription)")
+            print("🛑 エラー: リソースディレクトリ内ラベルディレクトリ取得失敗: \(error.localizedDescription)")
             return nil
         }
 
         let primaryLabelSourceDirs = allLabelSourceDirectories.filter { $0.lastPathComponent.lowercased() != "safe" }
 
         if primaryLabelSourceDirs.isEmpty {
-            print("🛑 プライマリトレーニングターゲットとなるディレクトリが見つかりません ('safe' ディレクトリを除く)。処理を中止します。")
+            print("🛑 エラー: プライマリトレーニング対象ディレクトリが見つかりません ('safe'除く)。処理中止。")
             return nil
         }
 
-        print("  処理対象となる主要ラベル数 (safeを除く): \(primaryLabelSourceDirs.count)")
+        print("  処理対象主要ラベル数 ('safe'除く): \(primaryLabelSourceDirs.count)")
 
         var allPairTrainingResults: [OvRPairTrainingResult] = []
 
         for (index, dir) in primaryLabelSourceDirs.enumerated() {
+            print("🔄 OvRペア \(index + 1)/\(primaryLabelSourceDirs.count): [\(dir.lastPathComponent)] vs Rest トレーニング開始...")
             if let result = await trainSingleOvRPair(
                 oneLabelSourceDirURL: dir,
                 allLabelSourceDirs: allLabelSourceDirectories,
@@ -123,11 +124,14 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
                 maxIterations: maxIterations
             ) {
                 allPairTrainingResults.append(result)
+                print("  ✅ OvRペア [\(dir.lastPathComponent)] vs Rest トレーニング成功")
+            } else {
+                print("  ⚠️ OvRペア [\(dir.lastPathComponent)] vs Rest トレーニング失敗またはスキップ")
             }
         }
 
         guard !allPairTrainingResults.isEmpty else {
-            print("🛑 有効なOvRペアトレーニングが一つも完了しませんでした。処理を中止します。")
+            print("🛑 エラー: 有効なOvRペアトレーニングが一つも完了しませんでした。処理中止。")
             return nil
         }
 
@@ -146,6 +150,8 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
         let trainingDataPaths = allPairTrainingResults.map(\.trainingDataPath).joined(separator: "; ")
 
         let finalRunOutputPath = mainOutputRunURL.path
+
+        print("🎉 OvRトレーニング全体完了。結果出力先: \(finalRunOutputPath)")
 
         let trainingResult = OvRTrainingResult(
             modelName: outputRunNamePrefix,
@@ -172,8 +178,10 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
         let positiveClassNameForModel = originalOneLabelName.components(separatedBy: CharacterSet(charactersIn: "_-"))
                                              .map { $0.capitalized }
                                              .joined()
+                                             .replacingOccurrences(of: "[^a-zA-Z0-9]", with: "", options: .regularExpression)
 
-        let tempOvRPairRootName = "OvR_\(positiveClassNameForModel)_vs_Rest_TempData_v\(version)_idx\(pairIndex)"
+        let modelFileNameBase = "\(outputRunNamePrefix)_\(positiveClassNameForModel)_vs_Rest_v\(version)_idx\(pairIndex)"
+        let tempOvRPairRootName = "\(modelFileNameBase)_TempData"
         let tempOvRPairRootURL = tempOvRBaseURL.appendingPathComponent(tempOvRPairRootName)
 
         let tempPositiveDataDirForML = tempOvRPairRootURL.appendingPathComponent(positiveClassNameForModel)
@@ -186,11 +194,11 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
             try Self.fileManager.createDirectory(at: tempPositiveDataDirForML, withIntermediateDirectories: true)
             try Self.fileManager.createDirectory(at: tempRestDataDirForML, withIntermediateDirectories: true)
         } catch {
-            print("🛑 OvRペア [\(positiveClassNameForModel)] の一時学習ディレクトリ作成に失敗: \(error.localizedDescription)")
+            print("🛑 エラー: OvRペア [\(positiveClassNameForModel)] 一時学習ディレクトリ作成失敗: \(error.localizedDescription)")
             return nil
         }
         
-        // Copy positive samples
+        var positiveSamplesCount = 0
         if let positiveSourceFiles = try? getFilesInDirectory(oneLabelSourceDirURL) {
             for fileURL in positiveSourceFiles {
                 try? Self.fileManager.copyItem(
@@ -198,224 +206,182 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
                     to: tempPositiveDataDirForML.appendingPathComponent(fileURL.lastPathComponent)
                 )
             }
+            positiveSamplesCount = (try? getFilesInDirectory(tempPositiveDataDirForML).count) ?? 0
         }
-        // Count positive samples from the destination directory
-        guard let positiveSamplesCount = try? getFilesInDirectory(tempPositiveDataDirForML).count, positiveSamplesCount > 0 else {
-            print("⚠️ OvRペア [\(positiveClassNameForModel)]: ポジティブサンプルが見つからないか空です。学習をスキップ。 Path: \(tempPositiveDataDirForML.path)")
+        
+        guard positiveSamplesCount > 0 else {
+            print("⚠️ OvRペア [\(positiveClassNameForModel)]: ポジティブサンプルなし。学習スキップ。 Path: \(tempPositiveDataDirForML.path)")
             return nil
         }
 
-        // Start: Logic for collecting balanced "Rest" samples (from user-provided older code)
-        let otherDirsForNegativeSampling = allLabelSourceDirs.filter { dirURL in
-            // Ensure we are not comparing standardizedFileURLs if one of them might not be standardized yet
-            // Direct path comparison should be fine if oneLabelSourceDirURL is from allLabelSourceDirs
-            return dirURL.path != oneLabelSourceDirURL.path
-        }
+        let otherDirsForNegativeSampling = allLabelSourceDirs.filter { $0.path != oneLabelSourceDirURL.path }
 
         if otherDirsForNegativeSampling.isEmpty {
-            print("ℹ️ OvRペア [\(positiveClassNameForModel)]: ネガティブサンプリング対象の他のディレクトリがありません。このペアの学習はスキップされます。")
+            print("ℹ️ OvRペア [\(positiveClassNameForModel)]: ネガティブサンプリング対象の他ディレクトリなし。学習スキップ。")
             return nil
         }
 
-        let numFilesToCollectPerOtherDir =
-            Int(ceil(Double(positiveSamplesCount) / Double(otherDirsForNegativeSampling.count)))
+        let numFilesToCollectPerOtherDir = Int(ceil(Double(positiveSamplesCount) / Double(otherDirsForNegativeSampling.count)))
+        var totalNegativeSamplesCollected = 0
 
-        var collectedNegativeFilesCount = 0
         for otherDirURL in otherDirsForNegativeSampling {
             guard let filesInOtherDir = try? getFilesInDirectory(otherDirURL), !filesInOtherDir.isEmpty else {
-                print("ℹ️ OvRペア [\(positiveClassNameForModel)]: ディレクトリ \(otherDirURL.lastPathComponent) は空かアクセス不能なため、ネガティブサンプル収集からスキップします。")
+                print("ℹ️ OvRペア [\(positiveClassNameForModel)]: ディレクトリ \(otherDirURL.lastPathComponent) 空またはアクセス不可。ネガティブサンプル収集からスキップ。")
                 continue
             }
 
             let filesToCopy = filesInOtherDir.shuffled().prefix(numFilesToCollectPerOtherDir)
             for fileURL in filesToCopy {
                 let sourceDirNamePrefix = otherDirURL.lastPathComponent
-                // Sanitize names as in the provided older code
-                let sanitizedSourceDirNamePrefix = sourceDirNamePrefix.replacingOccurrences(
-                    of: "[^a-zA-Z0-9_.-]",
-                    with: "_",
-                    options: .regularExpression
-                )
-                let sanitizedOriginalFileName = fileURL.lastPathComponent.replacingOccurrences(
-                    of: "[^a-zA-Z0-9_.-]",
-                    with: "_",
-                    options: .regularExpression
-                )
-                let newFileName = "\(sanitizedSourceDirNamePrefix)_\(sanitizedOriginalFileName)"
+                                           .replacingOccurrences(of: "[^a-zA-Z0-9_.-]", with: "_", options: .regularExpression)
+                let originalFileName = fileURL.lastPathComponent
+                                          .replacingOccurrences(of: "[^a-zA-Z0-9_.-]", with: "_", options: .regularExpression)
+                let newFileName = "\(sourceDirNamePrefix)_\(originalFileName)"
 
                 do {
                     try Self.fileManager.copyItem(
                         at: fileURL,
                         to: tempRestDataDirForML.appendingPathComponent(newFileName)
                     )
-                    collectedNegativeFilesCount += 1
+                    totalNegativeSamplesCollected += 1
                 } catch {
-                    print("⚠️ OvRペア [\(positiveClassNameForModel)]: ファイルコピーに失敗: \(fileURL.path) から \(tempRestDataDirForML.appendingPathComponent(newFileName).path) へ。エラー: \(error.localizedDescription)")
+                    print("⚠️ OvRペア [\(positiveClassNameForModel)]: \(fileURL.path) から \(newFileName) へのコピー失敗: \(error.localizedDescription)")
                 }
             }
         }
-        // End: Logic for collecting balanced "Rest" samples
-
-        // Ensure collectedNegativeFilesCount is the actual count from the directory, not just the sum of successful copies
-        let actualRestSamplesCount = (try? getFilesInDirectory(tempRestDataDirForML).count) ?? 0
-
-        if actualRestSamplesCount == 0 {
-             print("🛑 OvRペア [\(positiveClassNameForModel)]: ネガティブサンプルを1つも収集できませんでした。ポジティブサンプル数: \(positiveSamplesCount), 他カテゴリ数: \(otherDirsForNegativeSampling.count), 各カテゴリからの目標収集数: \(numFilesToCollectPerOtherDir)。学習をスキップします。")
+        
+        guard totalNegativeSamplesCollected > 0 else {
+            print("⚠️ OvRペア [\(positiveClassNameForModel)]: ネガティブサンプル収集失敗。学習スキップ。")
             return nil
         }
+
+        print("  OvRペア [\(positiveClassNameForModel)]: 学習データ準備完了 (ポジティブ: \(positiveSamplesCount)枚, ネガティブ: \(totalNegativeSamplesCollected)枚)")
         
-        print("  🔄 OvRペア [\(positiveClassNameForModel) vs Rest] のトレーニングを開始 (サンプル数: Pos \(positiveSamplesCount), Rest \(actualRestSamplesCount))...")
+        let trainingDataSource = MLImageClassifier.DataSource.labeledDirectories(at: tempOvRPairRootURL)
+        let modelForPairName = "\(outputRunNamePrefix)_\(positiveClassNameForModel)_vs_Rest"
 
-        let trainingDataSource: MLImageClassifier.DataSource
         do {
-            trainingDataSource = .labeledDirectories(at: tempOvRPairRootURL)
-        } catch {
-             print("    ❌ OvRペア [\(positiveClassNameForModel) vs Rest] のデータソース作成エラー: \(error.localizedDescription)")
-            return nil
-        }
-        
-        var parameters = MLImageClassifier.ModelParameters()
-        parameters.featureExtractor = .scenePrint(revision: 1)
-        parameters.maxIterations = maxIterations
-        parameters.validation = .split(strategy: .automatic)
+            let trainingStartTime = Date()
+            var modelParameters = MLImageClassifier.ModelParameters()
+            modelParameters.featureExtractor = .scenePrint(revision: 1)
+            modelParameters.maxIterations = maxIterations
+            modelParameters.validation = .split(strategy: .automatic)
 
-        let startTime = Date()
-        do {
-            let model = try MLImageClassifier(trainingData: trainingDataSource, parameters: parameters)
-            let endTime = Date()
-            let trainingDurationSeconds = endTime.timeIntervalSince(startTime)
-
-            let trainingMetrics = model.trainingMetrics
-            let validationMetrics = model.validationMetrics
+            print("  ⏳ OvRペア [\(positiveClassNameForModel)] モデルトレーニング実行中 (最大反復: \(maxIterations)回)...")
+            let imageClassifier = try MLImageClassifier(trainingData: trainingDataSource, parameters: modelParameters)
+            print("  ✅ OvRペア [\(positiveClassNameForModel)] モデルトレーニング完了")
             
-            let pairTrainingAccuracyRate = (1.0 - trainingMetrics.classificationError)
-            let pairValidationAccuracyRate = (1.0 - validationMetrics.classificationError)
+            let trainingEndTime = Date()
+            let trainingDurationSeconds = trainingEndTime.timeIntervalSince(trainingStartTime)
 
-            var pairRecallRate: Double = 0.0
-            var pairPrecisionRate: Double = 0.0
+            let trainingMetrics = imageClassifier.trainingMetrics
+            let validationMetrics = imageClassifier.validationMetrics
             
-            // Mirroring BinaryClassificationTrainer.swift logic for confusion matrix
-            let confusionValue = validationMetrics.confusion
+            let trainingAccuracy = (1.0 - trainingMetrics.classificationError) * 100.0
+            let validationAccuracy = (1.0 - validationMetrics.classificationError) * 100.0
 
-            if let confusionTable = confusionValue as? MLDataTable {
+            var recall: Double = 0.0
+            var precision: Double = 0.0
+
+            let confusionMatrix = validationMetrics.confusion
+            print("  デバッグ [\(positiveClassNameForModel)]: 混同行列の内容: \(confusionMatrix.description)")
+            print("  デバッグ [\(positiveClassNameForModel)]: 混同行列の列名: \(confusionMatrix.columnNames)")
+
+            var labelSet = Set<String>()
+            var rowCount = 0
+            for row in confusionMatrix.rows {
+                rowCount += 1
+                if let actual = row["True Label"]?.stringValue { labelSet.insert(actual) }
+                if let predicted = row["Predicted"]?.stringValue { labelSet.insert(predicted) }
+            }
+            print("  デバッグ [\(positiveClassNameForModel)]: 混同行列から処理された総行数: \(rowCount)")
+            print("  デバッグ [\(positiveClassNameForModel)]: 混同行列から抽出されたラベルセット: \(labelSet)")
+            
+            let classLabelsFromConfusion = Array(labelSet).sorted()
+
+            if classLabelsFromConfusion.contains(positiveClassNameForModel), classLabelsFromConfusion.contains("Rest") {
                 var truePositives = 0
                 var falsePositives = 0
                 var falseNegatives = 0
-                
-                let ovrPositiveLabel = positiveClassNameForModel
-                let ovrNegativeLabel = "Rest"
 
-                // Exact loop and parsing from BinaryClassificationTrainer
-                for row in confusionTable.rows {
+                for row in confusionMatrix.rows {
                     guard
-                        let actualLabel = row["True Label"]?.stringValue, // Corrected key
-                        let predictedLabel = row["Predicted"]?.stringValue, // Corrected key
-                        let count = row["Count"]?.intValue // Corrected key
-                    else {
-                        print("    ⚠️ OvRペア [\(ovrPositiveLabel)]: 混同行列(MLDataTable)の行の解析に失敗。Row: \(row)")
-                        continue
-                    }
+                        let actual = row["True Label"]?.stringValue,
+                        let predicted = row["Predicted"]?.stringValue,
+                        let cnt = row["count"]?.intValue
+                    else { continue }
 
-                    if actualLabel == ovrPositiveLabel, predictedLabel == ovrPositiveLabel {
-                        truePositives += count
-                    } else if actualLabel == ovrNegativeLabel, predictedLabel == ovrPositiveLabel {
-                        falsePositives += count
-                    } else if actualLabel == ovrPositiveLabel, predictedLabel == ovrNegativeLabel {
-                        falseNegatives += count
+                    if actual == positiveClassNameForModel, predicted == positiveClassNameForModel {
+                        truePositives += cnt
+                    } else if actual == "Rest", predicted == positiveClassNameForModel {
+                        falsePositives += cnt
+                    } else if actual == positiveClassNameForModel, predicted == "Rest" {
+                        falseNegatives += cnt
                     }
                 }
-
                 if (truePositives + falseNegatives) > 0 {
-                    pairRecallRate = Double(truePositives) / Double(truePositives + falseNegatives)
+                    recall = Double(truePositives) / Double(truePositives + falseNegatives)
                 }
                 if (truePositives + falsePositives) > 0 {
-                    pairPrecisionRate = Double(truePositives) / Double(truePositives + falsePositives)
+                    precision = Double(truePositives) / Double(truePositives + falsePositives)
                 }
-
-                if confusionTable.rows.isEmpty {
-                    print("    ℹ️ OvRペア [\(ovrPositiveLabel)]: 混同行列(MLDataTable)が空でした。再現率/適合率は0です。")
-                } else if truePositives == 0 && falsePositives == 0 && falseNegatives == 0 {
-                    // Log if all TP, FP, FN are zero but table was not empty
-                    print("    ℹ️ OvRペア [\(ovrPositiveLabel)]: 混同行列(MLDataTable)からTP,FP,FNが全て0。ラベル名('\(ovrPositiveLabel)','\(ovrNegativeLabel)')やデータを確認。再現率/適合率0。 Table: \(confusionTable.description)")
-                }
-                // Print calculated rates like in Binary Trainer (optional, but good for debug)
-                print("    🔍 OvRペア [\(ovrPositiveLabel)] 検証データ 再現率: \(String(format: "%.2f", pairRecallRate * 100))%")
-                print("    🎯 OvRペア [\(ovrPositiveLabel)] 検証データ 適合率: \(String(format: "%.2f", pairPrecisionRate * 100))%")
-
             } else {
-                print("    ⚠️ OvRペア [\(positiveClassNameForModel)]: 混同行列が期待される MLDataTable 型ではありませんでした (型: \(type(of: confusionValue)))。再現率/適合率は0として扱います。")
+                print("  ⚠️ OvRペア [\(positiveClassNameForModel)]: 混同行列から期待されるラベル ('\(positiveClassNameForModel)', 'Rest') が見つからず、再現率/適合率計算スキップ。")
             }
+            
+            let positiveCountForDesc = (try? getFilesInDirectory(tempPositiveDataDirForML).count) ?? 0
+            let restCountForDesc = (try? getFilesInDirectory(tempRestDataDirForML).count) ?? 0
 
-            let pairModelFileName = "OvR_\(positiveClassNameForModel)_vs_Rest_v\(version).mlmodel"
-            let pairModelOutputURL = mainRunURL.appendingPathComponent(pairModelFileName)
+            var individualDesc = String(format: "訓練正解率: %.1f%%, 検証正解率: %.1f%%", trainingAccuracy, validationAccuracy)
+            individualDesc += String(format: "\n陽性クラス: %@, 再現率: %.1f%%, 適合率: %.1f%%",
+                                     positiveClassNameForModel, recall * 100, precision * 100)
+            individualDesc += String(format: "\nクラス構成: %@: %d枚; Rest: %d枚",
+                                     positiveClassNameForModel, positiveCountForDesc, restCountForDesc)
+            individualDesc += "\n(検証: 自動分割)"
 
-            var individualModelDesc = String(
-                format: "訓練正解率: %.1f%%, 検証正解率: %.1f%%",
-                pairTrainingAccuracyRate * 100,
-                pairValidationAccuracyRate * 100
-            )
-            // Now that we are calculating them (hopefully correctly), include them
-            individualModelDesc += String(
-                format: ", 再現率(%@): %.1f%%, 適合率(%@): %.1f%%",
-                positiveClassNameForModel, pairRecallRate * 100,
-                positiveClassNameForModel, pairPrecisionRate * 100
-            )
-            individualModelDesc += String(format: ". サンプル (陽性/Rest): %d/%d (自動分割)", positiveSamplesCount, actualRestSamplesCount)
-
-            let metadata = MLModelMetadata(
+            let modelMetadata = MLModelMetadata(
                 author: author,
-                shortDescription: individualModelDesc,
+                shortDescription: individualDesc,
                 version: version
             )
             
-            try model.write(to: pairModelOutputURL, metadata: metadata)
-            print("    ✅ OvRペア [\(positiveClassNameForModel) vs Rest] トレーニング成功。モデル保存先: \(pairModelOutputURL.path) (時間: \(String(format: "%.2f", trainingDurationSeconds))秒)")
-            print("      📈 検証正解率: \(String(format: "%.2f", pairValidationAccuracyRate * 100))%, 再現率: \(String(format: "%.2f", pairRecallRate*100))%, 適合率: \(String(format: "%.2f", pairPrecisionRate*100))%")
+            let outputModelFileName = "\(modelFileNameBase).mlmodel"
+            let outputModelFileURL = mainRunURL.appendingPathComponent(outputModelFileName)
+
+            print("  💾 OvRペア [\(positiveClassNameForModel)] モデル保存中: \(outputModelFileURL.path)")
+            try imageClassifier.write(to: outputModelFileURL, metadata: modelMetadata)
+            print("  ✅ OvRペア [\(positiveClassNameForModel)] モデル保存完了")
 
             return OvRPairTrainingResult(
-                modelPath: pairModelOutputURL.path,
-                modelName: pairModelFileName,
+                modelPath: outputModelFileURL.path,
+                modelName: modelForPairName,
                 positiveClassName: positiveClassNameForModel,
-                trainingAccuracyRate: pairTrainingAccuracyRate,
-                validationAccuracyRate: pairValidationAccuracyRate,
+                trainingAccuracyRate: trainingAccuracy,
+                validationAccuracyRate: validationAccuracy,
                 trainingErrorRate: trainingMetrics.classificationError,
                 validationErrorRate: validationMetrics.classificationError,
                 trainingTime: trainingDurationSeconds,
                 trainingDataPath: tempOvRPairRootURL.path,
-                recallRate: pairRecallRate,
-                precisionRate: pairPrecisionRate,
-                individualModelDescription: individualModelDesc
+                recallRate: recall,
+                precisionRate: precision,
+                individualModelDescription: individualDesc
             )
+
+        } catch let createMLError as CreateML.MLCreateError {
+            print("🛑 エラー: OvRペア [\(positiveClassNameForModel)] トレーニング/保存失敗 (CreateML): \(createMLError.localizedDescription)")
+            print("  詳細情報: \(createMLError)")
+            return nil
         } catch {
-            print("    ❌ OvRペア [\(positiveClassNameForModel) vs Rest] のトレーニングまたは保存中にエラー: \(error.localizedDescription)")
-            // Removed specific CreateMLError catch, now using generic error.
-            // For more details, you might need to inspect the `error` object further, e.g., `error as NSError`
+            print("🛑 エラー: OvRペア [\(positiveClassNameForModel)] トレーニング/保存中に予期しないエラー: \(error.localizedDescription)")
             return nil
         }
     }
 
-    // Simplified getFilesInDirectory closer to original working version
     private func getFilesInDirectory(_ directoryURL: URL) throws -> [URL] {
         try Self.fileManager.contentsOfDirectory(
             at: directoryURL,
-            includingPropertiesForKeys: [.isRegularFileKey, .nameKey], // .nameKey can be useful for debugging
+            includingPropertiesForKeys: [.isRegularFileKey],
             options: .skipsHiddenFiles
-        ).filter { url in
-            var isDirectory: ObjCBool = false
-            // Check if it's a directory first
-            if Self.fileManager.fileExists(atPath: url.path, isDirectory: &isDirectory), isDirectory.boolValue {
-                return false // Exclude directories
-            }
-            // Ensure it's not a hidden file (redundant with .skipsHiddenFiles but safe)
-            if url.lastPathComponent.hasPrefix(".") {
-                return false
-            }
-            // Optionally, be more explicit about wanting regular files if symbolic links etc. are an issue
-            // var isRegular: ObjCBool = false
-            // if Self.fileManager.fileExists(atPath: url.path, isDirectory: &isRegular) { // This checks if it IS a directory
-            //    // To check if it's a regular file, more specific attribute check might be needed if problems persist
-            // }
-            return true // If not a directory and not hidden, include it
-        }
+        ).filter { !$0.hasDirectoryPath }
     }
 }

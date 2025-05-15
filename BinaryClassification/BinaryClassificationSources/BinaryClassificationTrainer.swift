@@ -8,66 +8,63 @@ import Foundation
 public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
     public typealias TrainingResultType = BinaryTrainingResult
 
-    // 生成するモデル名
+    // モデル名
     public var modelName: String { "ScaryCatScreeningML_Binary" }
-    // カスタムモデルの出力先ディレクトリパス
+    // カスタムモデル出力先ディレクトリパス
     public var customOutputDirPath: String { "BinaryClassification/OutputModels" }
-    // 実行時の出力名プレフィックス
+    // 実行時出力名プレフィックス
     public var outputRunNamePrefix: String { "Binary" }
 
-    // トレーニング用リソース (画像データなど) が格納されているディレクトリのパス
+    // トレーニングリソース格納ディレクトリパス
     public var resourcesDirectoryPath: String {
-        var dir = URL(fileURLWithPath: #filePath) // このファイルのパスを取得
-        dir.deleteLastPathComponent() // "BinaryClassificationSources" を削除
-        dir.deleteLastPathComponent() // "BinaryClassification" を削除
-        return dir.appendingPathComponent("Resources").path // "Resources" フォルダのパスを返す
+        var dir = URL(fileURLWithPath: #filePath)
+        dir.deleteLastPathComponent() // BinaryClassificationSources 削除
+        dir.deleteLastPathComponent() // BinaryClassification 削除
+        return dir.appendingPathComponent("Resources").path
     }
 
     public init() {}
 
-    /// トレーニング処理を実行します。
+    /// トレーニング処理
     /// - Parameters:
-    ///   - author: モデルの作成者名
-    ///   - version: モデルのバージョン
-    ///   - maxIterations: トレーニングの最大反復回数
-    /// - Returns: トレーニング結果。失敗した場合は nil。
+    ///   - author: モデル作成者名
+    ///   - version: モデルバージョン
+    ///   - maxIterations: トレーニング最大反復回数
+    /// - Returns: トレーニング結果。失敗時は nil。
     public func train(
         author: String,
         version: String,
         maxIterations: Int
     ) async -> BinaryTrainingResult? {
         let resourcesPath = resourcesDirectoryPath
-        let resourcesDirURL = URL(fileURLWithPath: resourcesPath) // リソースディレクトリのURL
+        let resourcesDirURL = URL(fileURLWithPath: resourcesPath)
 
-        // --- 出力ディレクトリの設定 ---
+        // 出力ディレクトリ設定
         let outputDirectoryURL: URL
         do {
-            // バージョン管理された実行結果出力ディレクトリを設定
             outputDirectoryURL = try setupVersionedRunOutputDirectory(
                 version: version,
-                trainerFilePath: #filePath // このファイルのパスを渡して、trainer名を取得
+                trainerFilePath: #filePath
             )
         } catch {
-            print("❌ エラー: 出力ディレクトリの設定に失敗しました \(error.localizedDescription)")
+            print("❌ エラー: 出力ディレクトリ設定に失敗 \(error.localizedDescription)")
             return nil
         }
-        // --- 出力ディレクトリ設定完了 ---
 
-        print("🚀 \(modelName) のトレーニングを開始します...")
+        print("🚀 \(modelName) トレーニング開始...")
 
-        // 主要なトレーニング処理を実行
+        // 主要トレーニング処理実行
         return await executeTrainingCore(
-            trainingDataParentDirURL: resourcesDirURL, // トレーニングデータが格納されている親ディレクトリのURL
-            outputDirURL: outputDirectoryURL, // モデルや結果の出力先ディレクトリURL
+            trainingDataParentDirURL: resourcesDirURL,
+            outputDirURL: outputDirectoryURL,
             author: author,
             version: version,
             maxIterations: maxIterations
         )
     }
 
-    // MARK: - プライベート補助メソッド
 
-    /// 主要なトレーニング処理を実行します。
+    /// 主要なトレーニング処理
     private func executeTrainingCore(
         trainingDataParentDirURL: URL,
         outputDirURL: URL,
@@ -75,80 +72,79 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
         version: String,
         maxIterations: Int
     ) async -> BinaryTrainingResult? {
-        // トレーニングデータの親ディレクトリが存在するか確認
+        // トレーニングデータ親ディレクトリ存在確認
         guard FileManager.default.fileExists(atPath: trainingDataParentDirURL.path) else {
-            print("❌ エラー: \(modelName) のトレーニングデータ親ディレクトリが見つかりません 。 \(trainingDataParentDirURL.path)")
+            print("❌ エラー: \(modelName) トレーニングデータ親ディレクトリが見つかりません: \(trainingDataParentDirURL.path)")
             return nil
         }
 
-        // トレーニングデータの親ディレクトリの内容をリストしようと試みる（デバッグ用）
+        // デバッグ用: トレーニングデータ親ディレクトリ内容表示試行
         do {
             _ = try FileManager.default.contentsOfDirectory(atPath: trainingDataParentDirURL.path)
         } catch {
-            print("⚠️ 警告: トレーニングデータ親ディレクトリの内容をリストできませんでした 。 \(error.localizedDescription)")
-            // ここでは処理を中断せず、続行する
+            print("⚠️ 警告: トレーニングデータ親ディレクトリ内容表示失敗: \(error.localizedDescription)")
+            // 処理続行
         }
 
-        // CreateML用のトレーニングデータソースを作成
-        // trainingDataParentDirURL 内の各サブディレクトリがクラスラベルとなる
+        // サブディレクトリをクラスラベルとしてデータソース作成
         let trainingDataSource = MLImageClassifier.DataSource.labeledDirectories(at: trainingDataParentDirURL)
 
         do {
-            // --- トレーニングと評価 ---
             let trainingStartTime = Date()
 
-            // モデルのパラメータ設定
+            // モデルパラメータ
             var modelParameters = MLImageClassifier.ModelParameters()
-            modelParameters.featureExtractor = .scenePrint(revision: 1) // 特徴抽出器として ScenePrint を使用
-            modelParameters.maxIterations = maxIterations // 最大反復回数
-            modelParameters.validation = .split(strategy: .automatic) // 検証データの分割戦略 (自動)
+            modelParameters.featureExtractor = .scenePrint(revision: 1) // 特徴抽出器
+            modelParameters.maxIterations = maxIterations
+            modelParameters.validation = .split(strategy: .automatic) // 検証データ自動分割
 
-            // モデルのトレーニングを実行
-            print("⏳ \(modelName) のモデルトレーニングを実行中... (最大反復: \(maxIterations)回)")
+            print("⏳ \(modelName) モデルトレーニング実行中 (最大反復: \(maxIterations)回)... ")
             let imageClassifier = try MLImageClassifier(trainingData: trainingDataSource, parameters: modelParameters)
-            print("✅ \(modelName) のモデルトレーニングが完了しました。")
+            print("✅ \(modelName) モデルトレーニング完了")
 
             let trainingEndTime = Date()
             let trainingDurationSeconds = trainingEndTime.timeIntervalSince(trainingStartTime)
 
-            print("🎉 \(modelName) のトレーニングに成功しました！ (所要時間: \(String(format: "%.2f", trainingDurationSeconds))秒)")
+            print("🎉 \(modelName) トレーニング成功 (所要時間: \(String(format: "%.2f", trainingDurationSeconds))秒)")
 
-            // トレーニング結果の評価指標を取得
+            // 評価指標
             let trainingMetrics = imageClassifier.trainingMetrics
             let validationMetrics = imageClassifier.validationMetrics
 
             let trainingAccuracyPercentage = (1.0 - trainingMetrics.classificationError) * 100.0
-            let trainingAccuracyPercentageString = String(format: "%.2f", trainingAccuracyPercentage)
-            print("  📊 トレーニングデータ正解率: \(trainingAccuracyPercentageString)%")
+            print("  📊 トレーニングデータ正解率: \(String(format: "%.2f", trainingAccuracyPercentage))%")
 
             let validationAccuracyPercentage = (1.0 - validationMetrics.classificationError) * 100.0
-            let validationAccuracyPercentageString = String(format: "%.2f", validationAccuracyPercentage)
-            print("  📈 検証データ正解率: \(validationAccuracyPercentageString)%")
+            print("  📈 検証データ正解率: \(String(format: "%.2f", validationAccuracyPercentage))%")
 
-            // 再現率 (Recall) と適合率 (Precision) の計算
             var recallRate = 0.0
             var precisionRate = 0.0
 
-            let confusionMatrix = validationMetrics.confusion // 混同行列を取得
+            let confusionMatrix = validationMetrics.confusion
+            print("デバッグ: 混同行列の内容: \(confusionMatrix.description)")
+            print("デバッグ: 混同行列の列名: \(confusionMatrix.columnNames)")
 
-            // MLDataTable では各行が actualLabel | predictedLabel | count の 3 列構成
+            // MLDataTableの行構成: actualLabel | predictedLabel | count
             var labelSet = Set<String>()
+            var rowCount = 0
             for row in confusionMatrix.rows {
-                if let actual = row["actualLabel"]?.stringValue {
+                rowCount += 1
+                // print("デバッグ: 混同行列の処理中の行: \(row)")
+                if let actual = row["True Label"]?.stringValue {
                     labelSet.insert(actual)
                 }
-                if let predicted = row["predictedLabel"]?.stringValue {
+                if let predicted = row["Predicted"]?.stringValue {
                     labelSet.insert(predicted)
                 }
             }
+            print("デバッグ: 混同行列から処理された総行数: \(rowCount)")
+            print("デバッグ: 混同行列から抽出されたラベルセット: \(labelSet)")
             let classLabelsFromConfusion = Array(labelSet).sorted()
 
-            // 二値分類の場合のみ再現率と適合率を計算
+            // 二値分類の場合、再現率と適合率を計算
             if classLabelsFromConfusion.count == 2 {
-                // classLabelsFromConfusion はアルファベット順などでソートされている想定
-                // 例: ["Negative", "Positive"] や ["Cat", "Dog"]
-                // どちらのラベルを陽性 (Positive) とみなすかは、データの構成に依存
-                // ここでは、便宜上、2番目のラベルを陽性クラスとする
+                // classLabelsFromConfusion はソート済み想定 (例: ["Negative", "Positive"])
+                // 2番目のラベルを陽性クラスとする
                 let negativeLabel = classLabelsFromConfusion[0]
                 let positiveLabel = classLabelsFromConfusion[1]
 
@@ -158,8 +154,8 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
 
                 for row in confusionMatrix.rows {
                     guard
-                        let actual = row["actualLabel"]?.stringValue,
-                        let predicted = row["predictedLabel"]?.stringValue,
+                        let actual = row["True Label"]?.stringValue,
+                        let predicted = row["Predicted"]?.stringValue,
                         let cnt = row["count"]?.intValue
                     else { continue }
 
@@ -181,13 +177,14 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
                 print("    🔍 検証データ 再現率 (陽性クラス: \(positiveLabel)): \(String(format: "%.2f", recallRate * 100))%")
                 print("    🎯 検証データ 適合率 (陽性クラス: \(positiveLabel)): \(String(format: "%.2f", precisionRate * 100))%")
             } else {
-                print("    ⚠️ 再現率・適合率は二値分類の場合のみ計算されます。(現在のクラス数: \(classLabelsFromConfusion.count))")
+                print("    ⚠️ 再現率・適合率は二値分類の場合のみ計算 (現在クラス数: \(classLabelsFromConfusion.count))")
             }
-            // --- トレーニングと評価 完了 ---
 
-            // トレーニングに使用した総サンプル数を計算
-            var totalImageSamples = 0
-            let classLabelDirs = (
+            // 各クラスの画像枚数とクラス名リスト取得
+            var imageCountsPerClass: [String: Int] = [:]
+            var classNamesFromDataDirs: [String] = []
+
+            let classLabelDirURLs = (
                 try? FileManager.default.contentsOfDirectory(
                     at: trainingDataParentDirURL,
                     includingPropertiesForKeys: [.isDirectoryKey],
@@ -198,74 +195,70 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
                     FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir)
                     return isDir.boolValue && !url.lastPathComponent.hasPrefix(".")
                 }
+                .sorted(by: { $0.lastPathComponent < $1.lastPathComponent }) // 名前でソートし一貫性を保持
             ) ?? []
 
-            for labelDirURL in classLabelDirs {
+            for labelDirURL in classLabelDirURLs {
+                let className = labelDirURL.lastPathComponent
+                classNamesFromDataDirs.append(className)
                 if let files = try? FileManager.default.contentsOfDirectory(
                     at: labelDirURL,
                     includingPropertiesForKeys: [.isRegularFileKey],
                     options: .skipsHiddenFiles
                 ) {
-                    totalImageSamples += files.filter { !$0.hasDirectoryPath }.count
+                    imageCountsPerClass[className] = files.filter { !$0.hasDirectoryPath }.count
+                } else {
+                    imageCountsPerClass[className] = 0
                 }
             }
 
-            // .mlmodel のメタデータに含める shortDescription を動的に生成
+            // .mlmodel メタデータ用 shortDescription 生成
             var modelMetadataShortDescription = String(
                 format: "訓練正解率: %.1f%%, 検証正解率: %.1f%%",
                 trainingAccuracyPercentage,
                 validationAccuracyPercentage
             )
-            if classLabelsFromConfusion.count == 2 {
-                let positiveLabelForDesc = classLabelsFromConfusion[1]
-                var metricsSummary = ""
-                if recallRate > 0 || precisionRate > 0 {
-                    metricsSummary = String(
-                        format: ", 再現率(%@): %.1f%%, 適合率(%@): %.1f%%",
-                        positiveLabelForDesc, recallRate * 100,
-                        positiveLabelForDesc, precisionRate * 100
-                    )
-                }
-                modelMetadataShortDescription += metricsSummary
-            } else {
-                modelMetadataShortDescription += " (詳細指標対象外)"
-            }
-            modelMetadataShortDescription += String(format: ", 総サンプル数: %d (検証自動分割)", totalImageSamples)
 
-            // モデルのメタデータを作成
+            if classLabelsFromConfusion.count == 2 {
+                // 2番目のラベルを陽性クラスとして使用
+                let positiveLabelForDesc = classLabelsFromConfusion[1]
+                modelMetadataShortDescription += String(format: "\n陽性クラス: %@, 再現率: %.1f%%, 適合率: %.1f%%",
+                                                     positiveLabelForDesc,
+                                                     recallRate * 100,
+                                                     precisionRate * 100)
+            } else if !classLabelsFromConfusion.isEmpty {
+                 modelMetadataShortDescription += "\n(詳細な分類指標は二値分類のみ)"
+            }
+
+            // クラス構成情報追加
+            if !classNamesFromDataDirs.isEmpty {
+                let classCountsStrings = classNamesFromDataDirs.map { className in
+                    let count = imageCountsPerClass[className] ?? 0
+                    return "\(className): \(count)枚"
+                }
+                modelMetadataShortDescription += "\nクラス構成: " + classCountsStrings.joined(separator: "; ")
+            } else {
+                modelMetadataShortDescription += "\nクラス構成情報なし"
+            }
+            
+            modelMetadataShortDescription += "\n(検証: 自動分割)"
+
             let modelMetadata = MLModelMetadata(
                 author: author,
-                shortDescription: modelMetadataShortDescription, // 動的に生成した説明文を使用
+                shortDescription: modelMetadataShortDescription,
                 version: version
             )
 
-            // 学習済みモデルの出力先ファイルURLを決定
             let outputModelFileURL = outputDirURL.appendingPathComponent("\(modelName)_\(version).mlmodel")
 
-            print("💾 \(modelName) (バージョン: \(version)) を保存中: \(outputModelFileURL.path)")
+            print("💾 \(modelName) (v\(version)) 保存中: \(outputModelFileURL.path)")
             try imageClassifier.write(to: outputModelFileURL, metadata: modelMetadata)
-            print("✅ \(modelName) (バージョン: \(version)) は正常に保存されました。")
+            print("✅ \(modelName) (v\(version)) 保存完了")
 
-            // トレーニングに使用したディレクトリ名からクラスラベルを取得 (結果レポート用)
-            let detectedClassLabels: [String]
-            do {
-                let directoryContents = try FileManager.default
-                    .contentsOfDirectory(atPath: trainingDataParentDirURL.path)
-                // 隠しファイルを除外し、ディレクトリのみをフィルタリング & ソート
-                detectedClassLabels = directoryContents.filter { itemName in
-                    var isDirectory: ObjCBool = false
-                    let fullItemPath = trainingDataParentDirURL.appendingPathComponent(itemName).path
-                    // ドットで始まらない、かつ、ディレクトリであるものを抽出
-                    return !itemName.hasPrefix(".") &&
-                        FileManager.default.fileExists(atPath: fullItemPath, isDirectory: &isDirectory) &&
-                        isDirectory.boolValue
-                }.sorted() // アルファベット順にソート
-            } catch {
-                print("⚠️ クラスラベルの取得に失敗しました (ディレクトリ: \(trainingDataParentDirURL.path)) 。 \(error.localizedDescription)")
-                detectedClassLabels = [] // 失敗した場合は空の配列
-            }
+            // 結果レポート用にデータディレクトリ由来のクラスラベルリストを採用
+            let detectedClassLabels = classNamesFromDataDirs
 
-            // トレーニング結果をまとめる
+            // トレーニング結果返却
             return BinaryTrainingResult(
                 modelName: modelName,
                 trainingDataAccuracyPercentage: trainingAccuracyPercentage,
@@ -279,18 +272,17 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
                 maxIterations: maxIterations
             )
 
-        } catch let createMLError as CreateML.MLCreateError { // CreateML固有のエラー処理
+        } catch let createMLError as CreateML.MLCreateError { // CreateML固有エラー
             switch createMLError {
                 case .io:
-                    print("❌ モデル \(modelName) の保存エラー 。 I/Oエラー: \(createMLError.localizedDescription)")
-                // 他のCreateMLエラーケースも必要に応じて追加
+                    print("❌ \(modelName) 保存エラー (I/O): \(createMLError.localizedDescription)")
                 default:
-                    print("❌ モデル \(self.modelName) のトレーニングエラー 。 不明なCreateMLエラー: \(createMLError.localizedDescription)")
-                    print("  詳細なCreateMLエラー情報: \(createMLError)")
+                    print("❌ \(modelName) トレーニングエラー (CreateML): \(createMLError.localizedDescription)")
+                    print("  詳細情報: \(createMLError)")
             }
             return nil
-        } catch { // その他の予期しないエラー
-            print("❌ \(modelName) のトレーニングまたは保存中に予期しないエラーが発生しました 。 \(error.localizedDescription)")
+        } catch { // その他エラー
+            print("❌ \(modelName) トレーニング/保存中に予期しないエラー: \(error.localizedDescription)")
             return nil
         }
     }
