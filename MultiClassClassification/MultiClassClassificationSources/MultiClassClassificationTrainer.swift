@@ -13,8 +13,8 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
 
     public var resourcesDirectoryPath: String {
         var dir = URL(fileURLWithPath: #filePath)
-        dir.deleteLastPathComponent() // Sourcesディレクトリへ
-        dir.deleteLastPathComponent() // MultiClassClassificationディレクトリへ
+        dir.deleteLastPathComponent() // Sources削除
+        dir.deleteLastPathComponent() // MultiClassClassification削除
         return dir.appendingPathComponent("Resources").path
     }
 
@@ -22,7 +22,6 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
 
     public func train(
         author: String,
-        shortDescription: String,
         version: String,
         maxIterations: Int
     )
@@ -33,7 +32,7 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
         let trainingDataParentDir = resourcesDir
 
         guard FileManager.default.fileExists(atPath: trainingDataParentDir.path) else {
-            print("❌ エラー: トレーニングデータ親ディレクトリが見つかりません: \(trainingDataParentDir.path)")
+            print("❌ エラー: トレーニングデータ親ディレクトリが見つかりません 。 \(trainingDataParentDir.path)")
             return nil
         }
 
@@ -56,8 +55,20 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
                 var isDirectory: ObjCBool = false
                 return fileManager.fileExists(atPath: url.path, isDirectory: &isDirectory) && isDirectory.boolValue
             }
-            let classLabels = allClassDirs.map(\.lastPathComponent).sorted()
-            print("📚 検出されたクラスラベル: \(classLabels.joined(separator: ", "))")
+            let classLabelsFromFileSystem = allClassDirs.map(\.lastPathComponent).sorted()
+            print("📚 ファイルシステムから検出されたクラスラベル: \(classLabelsFromFileSystem.joined(separator: ", "))")
+
+            // トレーニングに使用する総サンプル数を計算
+            var totalImageSamples = 0
+            for classDirURL in allClassDirs {
+                if let files = try? fileManager.contentsOfDirectory(
+                    at: classDirURL,
+                    includingPropertiesForKeys: [.isRegularFileKey],
+                    options: .skipsHiddenFiles
+                ) {
+                    totalImageSamples += files.filter { !$0.hasDirectoryPath }.count // Ensure we count only files
+                }
+            }
 
             print("\n🚀 多クラス分類モデル [\(modelName)] のトレーニングを開始します...")
             let trainingDataSource = MLImageClassifier.DataSource.labeledDirectories(at: trainingDataParentDir)
@@ -68,8 +79,7 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
             parameters.validation = .split(strategy: .automatic)
 
             let startTime = Date()
-            let model =
-                try MLImageClassifier(trainingData: trainingDataSource, parameters: parameters)
+            let model = try MLImageClassifier(trainingData: trainingDataSource, parameters: parameters)
             let endTime = Date()
             let duration = endTime.timeIntervalSince(startTime)
             print("🎉 [\(modelName)] のトレーニングに成功しました！ (所要時間: \(String(format: "%.2f", duration))秒)")
@@ -78,16 +88,99 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
             let validationEvaluation = model.validationMetrics
 
             let trainingDataAccuracyPercentage = (1.0 - trainingEvaluation.classificationError) * 100
-            let trainingAccStr = String(format: "%.2f", trainingDataAccuracyPercentage)
-            print("  📊 トレーニングデータ正解率: \(trainingAccStr)%")
+            let trainingAccuracyPercentageString = String(format: "%.2f", trainingDataAccuracyPercentage)
+            print("  📊 トレーニングデータ正解率: \(trainingAccuracyPercentageString)%")
 
             let validationDataAccuracyPercentage = (1.0 - validationEvaluation.classificationError) * 100
-            let validationAccStr = String(format: "%.2f", validationDataAccuracyPercentage)
-            print("  📈 検証データ正解率: \(validationAccStr)%")
+            let validationAccuracyPercentageString = String(format: "%.2f", validationDataAccuracyPercentage)
+            print("  📈 検証データ正解率: \(validationAccuracyPercentageString)%")
+
+            var perClassRecallRates: [Double] = []
+            var perClassPrecisionRates: [Double] = []
+
+            let confusionMatrix = validationEvaluation.confusion
+            var labelSet = Set<String>()
+            for row in confusionMatrix.rows {
+                if let actual = row["actualLabel"]?.stringValue {
+                    labelSet.insert(actual)
+                }
+                if let predicted = row["predictedLabel"]?.stringValue {
+                    labelSet.insert(predicted)
+                }
+            }
+            let labelsFromConfusion = Array(labelSet).sorted()
+            print("📊 混同行列から取得した評価用クラスラベル: \(labelsFromConfusion.joined(separator: ", "))")
+
+            for label in labelsFromConfusion {
+                // TP (True Positive): 真のラベルが `label` で、予測も `label`
+                let truePositivesCount = confusionMatrix.rows.reduce(0.0) { acc, row in
+                    guard
+                        row["actualLabel"]?.stringValue == label,
+                        row["predictedLabel"]?.stringValue == label,
+                        let count = row["count"]?.doubleValue
+                    else { return acc }
+                    return acc + count
+                }
+
+                // FP (False Positive): 真のラベルは `label` 以外だが、予測は `label`
+                var falsePositivesCount: Double = 0
+                for row in confusionMatrix.rows {
+                    guard
+                        let actual = row["actualLabel"]?.stringValue,
+                        let predicted = row["predictedLabel"]?.stringValue,
+                        let count = row["count"]?.doubleValue,
+                        actual != label, predicted == label
+                    else { continue }
+                    falsePositivesCount += count
+                }
+
+                // FN (False Negative): 真のラベルは `label` だが、予測は `label` 以外
+                var falseNegativesCount: Double = 0
+                for row in confusionMatrix.rows {
+                    guard
+                        let actual = row["actualLabel"]?.stringValue,
+                        let predicted = row["predictedLabel"]?.stringValue,
+                        let count = row["count"]?.doubleValue,
+                        actual == label, predicted != label
+                    else { continue }
+                    falseNegativesCount += count
+                }
+
+                let recallRate = (truePositivesCount + falseNegativesCount == 0) ? 0 : truePositivesCount /
+                    (truePositivesCount + falseNegativesCount)
+                let precisionRate = (truePositivesCount + falsePositivesCount == 0) ? 0 : truePositivesCount /
+                    (truePositivesCount + falsePositivesCount)
+                perClassRecallRates.append(recallRate)
+                perClassPrecisionRates.append(precisionRate)
+            }
+
+            let macroAverageRecallRate = perClassRecallRates.isEmpty ? 0 : perClassRecallRates
+                .reduce(0, +) / Double(perClassRecallRates.count)
+            let macroAveragePrecisionRate = perClassPrecisionRates.isEmpty ? 0 : perClassPrecisionRates
+                .reduce(0, +) / Double(perClassPrecisionRates.count)
+
+            print("    📊 検証データ マクロ平均再現率: \(String(format: "%.2f", macroAverageRecallRate * 100))%")
+            print("    🎯 検証データ マクロ平均適合率: \(String(format: "%.2f", macroAveragePrecisionRate * 100))%")
+
+            // .mlmodel のメタデータに含める shortDescription を動的に生成
+            var modelMetadataShortDescription = String(
+                format: "訓練正解率: %.1f%%, 検証正解率: %.1f%%",
+                trainingDataAccuracyPercentage,
+                validationDataAccuracyPercentage
+            )
+            if !labelsFromConfusion.isEmpty, macroAverageRecallRate > 0 || macroAveragePrecisionRate > 0 {
+                modelMetadataShortDescription += String(
+                    format: ", マクロ平均再現率: %.1f%%, マクロ平均適合率: %.1f%% (対象: %dクラス)",
+                    macroAverageRecallRate * 100,
+                    macroAveragePrecisionRate * 100,
+                    labelsFromConfusion.count
+                )
+            }
+            modelMetadataShortDescription += String(format: ", 総サンプル数: %d (自動分割)", totalImageSamples)
 
             let metadata = MLModelMetadata(
                 author: author,
-                shortDescription: shortDescription,
+                shortDescription: modelMetadataShortDescription, // 動的に生成した説明文を使用
                 version: version
             )
 
@@ -106,15 +199,18 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
                 trainingTimeInSeconds: duration,
                 modelOutputPath: outputModelURL.path,
                 trainingDataPath: trainingDataParentDir.path,
-                classLabels: classLabels,
-                maxIterations: maxIterations
+                classLabels: classLabelsFromFileSystem,
+                maxIterations: maxIterations,
+                macroAverageRecall: macroAverageRecallRate,
+                macroAveragePrecision: macroAveragePrecisionRate,
+                detectedClassLabelsList: labelsFromConfusion
             )
 
         } catch let error as CreateML.MLCreateError {
-            print("  ❌ モデル [\(modelName)] のトレーニングまたは保存エラー (CreateML): \(error.localizedDescription)")
+            print("  ❌ モデル [\(modelName)] のトレーニングまたは保存エラー 。CreateMLエラー: \(error.localizedDescription)")
             return nil
         } catch {
-            print("  ❌ トレーニングプロセス中に予期しないエラーが発生しました: \(error.localizedDescription)")
+            print("  ❌ トレーニングプロセス中に予期しないエラーが発生しました 。 \(error.localizedDescription)")
             if let nsError = error as NSError? {
                 print("    詳細なエラー情報: \(nsError.userInfo)")
             }

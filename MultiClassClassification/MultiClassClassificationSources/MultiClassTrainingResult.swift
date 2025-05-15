@@ -12,6 +12,9 @@ public struct MultiClassTrainingResult: TrainingResultProtocol {
     public let trainingDataPath: String
     public let classLabels: [String]
     public let maxIterations: Int
+    public let macroAverageRecall: Double
+    public let macroAveragePrecision: Double
+    public let detectedClassLabelsList: [String]
 
     public func saveLog(
         modelAuthor: String,

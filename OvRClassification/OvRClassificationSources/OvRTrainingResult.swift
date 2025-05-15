@@ -1,20 +1,20 @@
 import CSInterface
 import Foundation
 
-public struct IndividualModelReport {
+public struct IndividualModelReport: Codable, Sendable {
     public let modelName: String
-    public let trainingAccuracy: Double
-    public let validationAccuracy: Double
+    public let positiveClassName: String
+    public let trainingAccuracyRate: Double
+    public let validationAccuracyRate: Double
+    public let recallRate: Double
+    public let precisionRate: Double
+    public let modelDescription: String
 }
 
 public struct OvRTrainingResult: TrainingResultProtocol {
+    public let modelName: String?
     public let modelOutputPath: String
-    public let trainingDataAccuracy: Double
-    public let validationDataAccuracy: Double
-    public let trainingDataErrorRate: Double
-    public let validationDataErrorRate: Double
-    public let trainingTimeInSeconds: TimeInterval
-    public let trainingDataPath: String
+    public let trainingDataPaths: String
     public let maxIterations: Int
     public let individualReports: [IndividualModelReport]
 
@@ -23,65 +23,58 @@ public struct OvRTrainingResult: TrainingResultProtocol {
         dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss Z"
         let generatedDateString = dateFormatter.string(from: Date())
 
-        let reportFileName =
-            "OvR_Model_Stat_\(modelVersion).md"
-        let modelDir = URL(fileURLWithPath: modelOutputPath).standardizedFileURL.deletingLastPathComponent()
+        let reportFileName = "OvR_Run_Report_\(modelVersion).md"
+        let modelDir = URL(fileURLWithPath: modelOutputPath)
         let reportURL = modelDir.appendingPathComponent(reportFileName)
 
         var markdownText = """
-        # モデルトレーニング情報
+        # OvR (One-vs-Rest) トレーニング実行レポート
 
-        ## モデル詳細
-        ファイル生成日時   : \(generatedDateString)
-        最大反復回数     : \(maxIterations)
-
-        ## パフォーマンス指標 (全体平均)
-        トレーニング所要時間              : \(String(format: "%.2f", trainingTimeInSeconds)) 秒
-        トレーニング誤分類率 (学習時)     : \(String(format: "%.2f", trainingDataErrorRate * 100))%
-        訓練データ正解率 (学習時)         : \(String(format: "%.2f", trainingDataAccuracy * 100))%
-        検証データ正解率 (学習時自動検証) : \(String(format: "%.2f", validationDataAccuracy * 100))%
-        検証誤分類率 (学習時自動検証)     : \(String(format: "%.2f", validationDataErrorRate * 100))%
+        ## 実行概要
+        モデル群名         : \(modelName ?? "N/A")
+        レポート生成日時   : \(generatedDateString)
+        最大反復回数     : \(maxIterations) (各ペアモデル共通)
         """
 
         if !individualReports.isEmpty {
             markdownText += """
 
             ## 個別モデルのパフォーマンス指標
-            | モデル名                        | 訓練データ正解率 | 検証データ正解率 | 最大反復回数 |
-            |---------------------------------|--------------------|--------------------|--------------|
+            | モデル名 (PositiveClass) | 検証正解率 | 検証再現率 | 検証適合率 | 説明 |
+            |--------------------------|--------------|--------------|--------------|------|
             """
-            let iterationsStr = "\(self.maxIterations)"
             for report in individualReports {
-                let modelFileName = report.modelName
-                let trainingAccStr = String(
-                    format: "%.4f (%.2f%%)",
-                    report.trainingAccuracy,
-                    report.trainingAccuracy * 100
-                )
-                let validationAccStr = String(
-                    format: "%.4f (%.2f%%)",
-                    report.validationAccuracy,
-                    report.validationAccuracy * 100
-                )
+                let modelNameDisplay = "\(report.modelName) (\(report.positiveClassName))"
+                let valAccStr = String(format: "%.2f%%", report.validationAccuracyRate * 100)
+                let recallStr = String(format: "%.2f%%", report.recallRate * 100)
+                let precisionStr = String(format: "%.2f%%", report.precisionRate * 100)
+
+                let descSummary = report.modelDescription.prefix(50)
+
                 markdownText +=
-                    "\n| \(modelFileName.padding(toLength: 30, withPad: " ", startingAt: 0)) | \(trainingAccStr.padding(toLength: 18, withPad: " ", startingAt: 0)) | \(validationAccStr.padding(toLength: 18, withPad: " ", startingAt: 0)) | \(iterationsStr.padding(toLength: 12, withPad: " ", startingAt: 0)) |"
+                    "\n| \(modelNameDisplay) | \(valAccStr) | \(recallStr) | \(precisionStr) | \(descSummary)... |"
             }
             markdownText += "\n"
+
+            markdownText += "\n\n### 個別モデル詳細説明:\n"
+            for report in individualReports {
+                markdownText += "- **\(report.modelName) (\(report.positiveClassName))**: \(report.modelDescription)\n"
+            }
         }
 
         markdownText += """
 
-        ## モデルメタデータ
+        ## 共通メタデータ
         作成者            : \(modelAuthor)
-        説明              : \(modelDescription)
+        全体説明          : \(modelDescription) (このOvR実行全体に対して)
         バージョン        : \(modelVersion)
         """
 
         do {
             try markdownText.write(to: reportURL, atomically: true, encoding: .utf8)
-            print("✅ OvRレポートを保存しました: \(reportURL.path)")
+            print("✅ OvR実行レポートを保存しました: \(reportURL.path)")
         } catch {
-            print("❌ OvRレポートの保存エラー: \(error.localizedDescription) (Path: \(reportURL.path))")
+            print("❌ OvR実行レポートの保存エラー: \(error.localizedDescription) (Path: \(reportURL.path))")
         }
     }
 }
