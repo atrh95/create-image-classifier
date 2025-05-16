@@ -6,10 +6,14 @@ import Foundation
 public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
     public typealias TrainingResultType = MultiClassTrainingResult
 
-    public var modelName: String { "ScaryCatScreeningML_MultiClass" }
-    public var customOutputDirPath: String { "MultiClassClassification/OutputModels" }
+    public var outputDirPath: String {
+        var dir = URL(fileURLWithPath: #filePath)
+        dir.deleteLastPathComponent() // Sources削除
+        dir.deleteLastPathComponent() // MultiClassClassification削除
+        return dir.appendingPathComponent("OutputModels").path
+    }
 
-    public var outputRunNamePrefix: String { "MultiClass" }
+    public var classificationMethod: String { "MultiClass" }
 
     public var resourcesDirectoryPath: String {
         var dir = URL(fileURLWithPath: #filePath)
@@ -22,6 +26,7 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
 
     public func train(
         author: String,
+        modelName: String,
         version: String,
         maxIterations: Int
     )
@@ -36,24 +41,23 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
             return nil
         }
 
-        let fileManager = FileManager.default
         let finalOutputDir: URL
 
         do {
-            finalOutputDir = try setupVersionedRunOutputDirectory(
-                version: version,
-                fileManager: fileManager,
-                trainerFilePath: #filePath
+            finalOutputDir = try createOutputDirectory(
+                modelName: modelName,
+                version: version
             )
 
-            let contents = try fileManager.contentsOfDirectory(
+            let contents = try FileManager.default.contentsOfDirectory(
                 at: trainingDataParentDir,
                 includingPropertiesForKeys: [.isDirectoryKey],
                 options: .skipsHiddenFiles
             )
             let allClassDirs = contents.filter { url in
                 var isDirectory: ObjCBool = false
-                return fileManager.fileExists(atPath: url.path, isDirectory: &isDirectory) && isDirectory.boolValue
+                return FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory) && isDirectory
+                    .boolValue
             }
             let classLabelsFromFileSystem = allClassDirs.map(\.lastPathComponent).sorted()
             print("📚 ファイルシステムから検出されたクラスラベル: \(classLabelsFromFileSystem.joined(separator: ", "))")
@@ -61,7 +65,7 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
             // トレーニングに使用する総サンプル数を計算
             var totalImageSamples = 0
             for classDirURL in allClassDirs {
-                if let files = try? fileManager.contentsOfDirectory(
+                if let files = try? FileManager.default.contentsOfDirectory(
                     at: classDirURL,
                     includingPropertiesForKeys: [.isRegularFileKey],
                     options: .skipsHiddenFiles
@@ -184,11 +188,12 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
                 version: version
             )
 
-            let outputModelURL = finalOutputDir.appendingPathComponent("\(modelName)_\(version).mlmodel")
+            let outputModelURL = finalOutputDir
+                .appendingPathComponent("\(modelName)_\(classificationMethod)_\(version).mlmodel")
 
-            print("  💾 [\(modelName)_\(version).mlmodel] を保存中: \(outputModelURL.path)")
+            print("  💾 [\(modelName)_\(classificationMethod)_\(version).mlmodel] を保存中: \(outputModelURL.path)")
             try model.write(to: outputModelURL, metadata: metadata)
-            print("  ✅ [\(modelName)_\(version).mlmodel] は正常に保存されました。")
+            print("  ✅ [\(modelName)_\(classificationMethod)_\(version).mlmodel] は正常に保存されました。")
 
             return MultiClassTrainingResult(
                 modelName: modelName,

@@ -3,36 +3,30 @@ import CreateML
 import CSInterface
 import Foundation
 
-// MARK: - 画像二値分類トレーニング実行クラス
-
 public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
     public typealias TrainingResultType = BinaryTrainingResult
 
-    // モデル名
-    public var modelName: String { "ScaryCatScreeningML_Binary" }
-    // カスタムモデル出力先ディレクトリパス
-    public var customOutputDirPath: String { "BinaryClassification/OutputModels" }
-    // 実行時出力名プレフィックス
-    public var outputRunNamePrefix: String { "Binary" }
+    public var outputDirPath: String {
+        var dir = URL(fileURLWithPath: #filePath)
+        dir.deleteLastPathComponent()
+        dir.deleteLastPathComponent()
+        return dir.appendingPathComponent("OutputModels").path
+    }
 
-    // トレーニングリソース格納ディレクトリパス
+    public var classificationMethod: String { "Binary" }
+
     public var resourcesDirectoryPath: String {
         var dir = URL(fileURLWithPath: #filePath)
-        dir.deleteLastPathComponent() // BinaryClassificationSources 削除
-        dir.deleteLastPathComponent() // BinaryClassification 削除
+        dir.deleteLastPathComponent()
+        dir.deleteLastPathComponent()
         return dir.appendingPathComponent("Resources").path
     }
 
     public init() {}
 
-    /// トレーニング処理
-    /// - Parameters:
-    ///   - author: モデル作成者名
-    ///   - version: モデルバージョン
-    ///   - maxIterations: トレーニング最大反復回数
-    /// - Returns: トレーニング結果。失敗時は nil。
     public func train(
         author: String,
+        modelName: String,
         version: String,
         maxIterations: Int
     ) async -> BinaryTrainingResult? {
@@ -42,9 +36,9 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
         // 出力ディレクトリ設定
         let outputDirectoryURL: URL
         do {
-            outputDirectoryURL = try setupVersionedRunOutputDirectory(
-                version: version,
-                trainerFilePath: #filePath
+            outputDirectoryURL = try createOutputDirectory(
+                modelName: modelName,
+                version: version
             )
         } catch {
             print("❌ エラー: 出力ディレクトリ設定に失敗 \(error.localizedDescription)")
@@ -55,6 +49,7 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
 
         // 主要トレーニング処理実行
         return await executeTrainingCore(
+            modelName: modelName,
             trainingDataParentDirURL: resourcesDirURL,
             outputDirURL: outputDirectoryURL,
             author: author,
@@ -63,9 +58,9 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
         )
     }
 
-
     /// 主要なトレーニング処理
     private func executeTrainingCore(
+        modelName: String,
         trainingDataParentDirURL: URL,
         outputDirURL: URL,
         author: String,
@@ -222,12 +217,14 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
             if classLabelsFromConfusion.count == 2 {
                 // 2番目のラベルを陽性クラスとして使用
                 let positiveLabelForDesc = classLabelsFromConfusion[1]
-                modelMetadataShortDescription += String(format: "\n陽性クラス: %@, 再現率: %.1f%%, 適合率: %.1f%%",
-                                                     positiveLabelForDesc,
-                                                     recallRate * 100,
-                                                     precisionRate * 100)
+                modelMetadataShortDescription += String(
+                    format: "\n陽性クラス: %@, 再現率: %.1f%%, 適合率: %.1f%%",
+                    positiveLabelForDesc,
+                    recallRate * 100,
+                    precisionRate * 100
+                )
             } else if !classLabelsFromConfusion.isEmpty {
-                 modelMetadataShortDescription += "\n(詳細な分類指標は二値分類のみ)"
+                modelMetadataShortDescription += "\n(詳細な分類指標は二値分類のみ)"
             }
 
             // クラス構成情報追加
@@ -240,7 +237,7 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
             } else {
                 modelMetadataShortDescription += "\nクラス構成情報なし"
             }
-            
+
             modelMetadataShortDescription += "\n(検証: 自動分割)"
 
             let modelMetadata = MLModelMetadata(
@@ -249,7 +246,8 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
                 version: version
             )
 
-            let outputModelFileURL = outputDirURL.appendingPathComponent("\(modelName)_\(version).mlmodel")
+            let outputModelFileURL = outputDirURL
+                .appendingPathComponent("\(modelName)_\(classificationMethod)_\(version).mlmodel")
 
             print("💾 \(modelName) (v\(version)) 保存中: \(outputModelFileURL.path)")
             try imageClassifier.write(to: outputModelFileURL, metadata: modelMetadata)

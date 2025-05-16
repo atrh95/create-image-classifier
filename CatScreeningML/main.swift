@@ -22,6 +22,15 @@ enum TrainerType {
             case .ovr: "v3"
         }
     }
+
+    var modelName: String {
+        switch self {
+            case .binary: "BinaryCatModel"
+            case .multiClass: "MultiClassCatModel"
+            case .multiLabel: "MultiLabelCatModel"
+            case .ovr: "OvRCatModel"
+        }
+    }
 }
 
 // --- トレーニング設定 ---
@@ -32,8 +41,9 @@ let maxTrainingIterations = 15
 let modelAuthor = "akitora"
 let modelShortDescription = "ScaryCatScreener Training"
 let modelVersion = currentTrainerType.definedVersion
+let modelTargetName = currentTrainerType.modelName
 
-print("🚀 トレーニングを開始します... 設定タイプ: \(currentTrainerType), バージョン: \(modelVersion)")
+print("🚀 トレーニングを開始します... 設定タイプ: \(currentTrainerType), モデル名: \(modelTargetName), バージョン: \(modelVersion)")
 
 // トレーナーの選択と実行
 let trainer: any ScreeningTrainerProtocol
@@ -56,6 +66,7 @@ switch currentTrainerType {
 
 trainingResult = await trainer.train(
     author: modelAuthor,
+    modelName: modelTargetName,
     version: modelVersion,
     maxIterations: maxTrainingIterations
 )
