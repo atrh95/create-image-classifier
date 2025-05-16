@@ -116,8 +116,6 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
             var precisionRate = 0.0
 
             let confusionMatrix = validationMetrics.confusion
-            print("デバッグ: 混同行列の内容: \(confusionMatrix.description)")
-            print("デバッグ: 混同行列の列名: \(confusionMatrix.columnNames)")
 
             // MLDataTableの行構成: actualLabel | predictedLabel | count
             var labelSet = Set<String>()
@@ -132,8 +130,6 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
                     labelSet.insert(predicted)
                 }
             }
-            print("デバッグ: 混同行列から処理された総行数: \(rowCount)")
-            print("デバッグ: 混同行列から抽出されたラベルセット: \(labelSet)")
             let classLabelsFromConfusion = Array(labelSet).sorted()
 
             // 二値分類の場合、再現率と適合率を計算
@@ -151,7 +147,7 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
                     guard
                         let actual = row["True Label"]?.stringValue,
                         let predicted = row["Predicted"]?.stringValue,
-                        let cnt = row["count"]?.intValue
+                        let cnt = row["Count"]?.intValue
                     else { continue }
 
                     if actual == positiveLabel, predicted == positiveLabel {
@@ -190,7 +186,7 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
                     FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir)
                     return isDir.boolValue && !url.lastPathComponent.hasPrefix(".")
                 }
-                .sorted(by: { $0.lastPathComponent < $1.lastPathComponent }) // 名前でソートし一貫性を保持
+                .sorted(by: { $0.lastPathComponent < $1.lastPathComponent })
             ) ?? []
 
             for labelDirURL in classLabelDirURLs {
@@ -208,37 +204,48 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
             }
 
             // .mlmodel メタデータ用 shortDescription 生成
-            var modelMetadataShortDescription = String(
-                format: "訓練正解率: %.1f%%, 検証正解率: %.1f%%",
-                trainingAccuracyPercentage,
-                validationAccuracyPercentage
-            )
+            var descriptionParts: [String] = []
 
-            if classLabelsFromConfusion.count == 2 {
-                // 2番目のラベルを陽性クラスとして使用
-                let positiveLabelForDesc = classLabelsFromConfusion[1]
-                modelMetadataShortDescription += String(
-                    format: "\n陽性クラス: %@, 再現率: %.1f%%, 適合率: %.1f%%",
-                    positiveLabelForDesc,
-                    recallRate * 100,
-                    precisionRate * 100
-                )
-            } else if !classLabelsFromConfusion.isEmpty {
-                modelMetadataShortDescription += "\n(詳細な分類指標は二値分類のみ)"
-            }
-
-            // クラス構成情報追加
+            // 1. クラス構成情報
             if !classNamesFromDataDirs.isEmpty {
                 let classCountsStrings = classNamesFromDataDirs.map { className in
                     let count = imageCountsPerClass[className] ?? 0
                     return "\(className): \(count)枚"
                 }
-                modelMetadataShortDescription += "\nクラス構成: " + classCountsStrings.joined(separator: "; ")
+                descriptionParts.append("クラス構成: " + classCountsStrings.joined(separator: "; "))
             } else {
-                modelMetadataShortDescription += "\nクラス構成情報なし"
+                descriptionParts.append("クラス構成情報なし")
             }
 
-            modelMetadataShortDescription += "\n(検証: 自動分割)"
+            // 2. 最大反復回数
+            descriptionParts.append("最大反復回数: \(maxIterations)回")
+
+            // 3. 正解率情報
+            descriptionParts.append(String(
+                format: "訓練正解率: %.1f%%, 検証正解率: %.1f%%",
+                trainingAccuracyPercentage,
+                validationAccuracyPercentage
+            ))
+
+            // 4. 陽性クラス情報 (再現率・適合率)
+            if classLabelsFromConfusion.count == 2 {
+                // classLabelsFromConfusion はソート済み想定 (例: ["Not Scary", "Scary"])
+                // 2番目のラベルを陽性クラスとする
+                let positiveLabelForDesc = classLabelsFromConfusion[1]
+                descriptionParts.append(String(
+                    format: "陽性クラス: %@, 再現率: %.1f%%, 適合率: %.1f%%",
+                    positiveLabelForDesc,
+                    recallRate * 100,
+                    precisionRate * 100
+                ))
+            } else if !classLabelsFromConfusion.isEmpty {
+                descriptionParts.append("(詳細な分類指標は二値分類のみ)")
+            }
+            
+            // 5. 検証方法
+            descriptionParts.append("(検証: 自動分割)")
+
+            let modelMetadataShortDescription = descriptionParts.joined(separator: "\n")
 
             let modelMetadata = MLModelMetadata(
                 author: author,
@@ -249,9 +256,9 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
             let outputModelFileURL = outputDirURL
                 .appendingPathComponent("\(modelName)_\(classificationMethod)_\(version).mlmodel")
 
-            print("💾 \(modelName) (v\(version)) 保存中: \(outputModelFileURL.path)")
+            print("💾 \(modelName) (\(version)) 保存中: \(outputModelFileURL.path)")
             try imageClassifier.write(to: outputModelFileURL, metadata: modelMetadata)
-            print("✅ \(modelName) (v\(version)) 保存完了")
+            print("✅ \(modelName) (\(version)) 保存完了")
 
             // 結果レポート用にデータディレクトリ由来のクラスラベルリストを採用
             let detectedClassLabels = classNamesFromDataDirs
@@ -270,7 +277,7 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
                 maxIterations: maxIterations
             )
 
-        } catch let createMLError as CreateML.MLCreateError { // CreateML固有エラー
+        } catch let createMLError as CreateML.MLCreateError {
             switch createMLError {
                 case .io:
                     print("❌ \(modelName) 保存エラー (I/O): \(createMLError.localizedDescription)")
@@ -279,7 +286,7 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
                     print("  詳細情報: \(createMLError)")
             }
             return nil
-        } catch { // その他エラー
+        } catch {
             print("❌ \(modelName) トレーニング/保存中に予期しないエラー: \(error.localizedDescription)")
             return nil
         }

@@ -7,7 +7,7 @@ import MultiClassClassification
 import MultiLabelClassification
 import OvRClassification
 
-// --- トレーナータイプ ---
+// --- トレーナータイプの定義 ---
 enum TrainerType {
     case binary
     case multiClass
@@ -22,28 +22,19 @@ enum TrainerType {
             case .ovr: "v3"
         }
     }
-
-    var modelName: String {
-        switch self {
-            case .binary: "BinaryCatModel"
-            case .multiClass: "MultiClassCatModel"
-            case .multiLabel: "MultiLabelCatModel"
-            case .ovr: "OvRCatModel"
-        }
-    }
 }
 
 // --- トレーニング設定 ---
-let currentTrainerType: TrainerType = .ovr
-let maxTrainingIterations = 15
+let currentTrainerType: TrainerType = .binary
+let maxTrainingIterations = 11
 
-// --- メタデータ定義 ---
+// --- 共通のログデータ設定 ---
 let modelAuthor = "akitora"
 let modelShortDescription = "ScaryCatScreener Training"
 let modelVersion = currentTrainerType.definedVersion
-let modelTargetName = currentTrainerType.modelName
+let modelName = "ScaryCatScreeningML"
 
-print("🚀 トレーニングを開始します... 設定タイプ: \(currentTrainerType), モデル名: \(modelTargetName), バージョン: \(modelVersion)")
+print("🚀 トレーニングを開始します... 設定タイプ: \(currentTrainerType), モデル名: \(modelName), バージョン: \(modelVersion)")
 
 // トレーナーの選択と実行
 let trainer: any ScreeningTrainerProtocol
@@ -66,7 +57,7 @@ switch currentTrainerType {
 
 trainingResult = await trainer.train(
     author: modelAuthor,
-    modelName: modelTargetName,
+    modelName: modelName,
     version: modelVersion,
     maxIterations: maxTrainingIterations
 )
@@ -79,6 +70,7 @@ if let result = trainingResult {
     if let resultData = result as? any TrainingResultProtocol {
         resultData.saveLog(
             modelAuthor: modelAuthor,
+            modelName: modelName,
             modelDescription: modelShortDescription,
             modelVersion: modelVersion
         )

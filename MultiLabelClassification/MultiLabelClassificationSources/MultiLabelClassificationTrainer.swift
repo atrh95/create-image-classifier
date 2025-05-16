@@ -35,7 +35,7 @@ public final class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
     public init() {}
 
     public func train(
-        author _: String,
+        author: String,
         modelName: String,
         version: String,
         maxIterations: Int
@@ -47,7 +47,7 @@ public final class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
                 version: version
             )
         } catch {
-            print("❌ Failed to create output directory – \(error.localizedDescription)")
+            print("❌ 出力ディレクトリの作成に失敗しました – \(error.localizedDescription)")
             return nil
         }
 
@@ -59,7 +59,7 @@ public final class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
             let entries = try? JSONDecoder().decode([ManifestEntry].self, from: manifestData),
             !entries.isEmpty
         else {
-            print("❌ Could not read or decode manifest at \(manifestURL.path)")
+            print("❌ マニフェストの読み取りまたはデコードに失敗しました: \(manifestURL.path)")
             return nil
         }
 
@@ -70,10 +70,10 @@ public final class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
 
         let labels = Set(annotatedFeatures.flatMap(\.annotation)).sorted()
         guard !labels.isEmpty else {
-            print("❌ No labels detected in manifest.")
+            print("❌ マニフェストでラベルが検出されませんでした。")
             return nil
         }
-        print("📚 Labels: \(labels.joined(separator: ", "))")
+        print("📚 ラベル: \(labels.joined(separator: ", "))")
 
         let classifier = FullyConnectedNetworkMultiLabelClassifier<Float, String>(
             labels: Set(labels)
@@ -87,11 +87,11 @@ public final class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
             let trainingFeatures = try? await reader.applied(to: trainSet),
             let validationFeatures = try? await reader.applied(to: validationSet)
         else {
-            print("❌ Failed to apply image reader")
+            print("❌ 画像リーダーの適用に失敗しました")
             return nil
         }
 
-        print("⏳ Training – train: \(trainSet.count) / validation: \(validationSet.count)")
+        print("⏳ トレーニング中 – 学習データ: \(trainSet.count) / 検証データ: \(validationSet.count)")
 
         let t0 = Date()
         let fittedPipeline: ComposedTransformer<
@@ -101,18 +101,24 @@ public final class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
         do {
             fittedPipeline = try await pipeline.fitted(to: trainingFeatures, validateOn: validationFeatures)
         } catch {
-            print("❌ Training failed – \(error.localizedDescription)")
+            print("❌ トレーニングに失敗しました – \(error.localizedDescription)")
             return nil
         }
         let trainingTime = Date().timeIntervalSince(t0)
-        print("🎉 Training complete in \(String(format: "%.2f", trainingTime)) s")
+        print("🎉 \(String(format: "%.2f", trainingTime)) 秒でトレーニングが完了しました")
+
+        let modelMetadata = ModelMetadata(
+            description: "A multi-label image classifier for cats trained on \(trainSet.count) images and validated on \(validationSet.count) images. Labels: \(labels.joined(separator: ", "))",
+            version: version,
+            author: author
+        )
 
         let modelURL = outputDir.appendingPathComponent("\(modelName)_\(classificationMethod)_\(version).mlmodel")
         do {
-            try fittedPipeline.export(to: modelURL)
-            print("✅ Saved model to \(modelURL.path)")
+            try fittedPipeline.export(to: modelURL, metadata: modelMetadata)
+            print("✅ モデルを \(modelURL.path) に保存しました")
         } catch {
-            print("❌ Failed to export model – \(error.localizedDescription)")
+            print("❌ モデルのエクスポートに失敗しました – \(error.localizedDescription)")
             return nil
         }
 

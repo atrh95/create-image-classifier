@@ -8,8 +8,8 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
 
     public var outputDirPath: String {
         var dir = URL(fileURLWithPath: #filePath)
-        dir.deleteLastPathComponent() // Sources削除
-        dir.deleteLastPathComponent() // MultiClassClassification削除
+        dir.deleteLastPathComponent()
+        dir.deleteLastPathComponent()
         return dir.appendingPathComponent("OutputModels").path
     }
 
@@ -17,8 +17,8 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
 
     public var resourcesDirectoryPath: String {
         var dir = URL(fileURLWithPath: #filePath)
-        dir.deleteLastPathComponent() // Sources削除
-        dir.deleteLastPathComponent() // MultiClassClassification削除
+        dir.deleteLastPathComponent()
+        dir.deleteLastPathComponent() 
         return dir.appendingPathComponent("Resources").path
     }
 
@@ -184,7 +184,7 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
 
             let metadata = MLModelMetadata(
                 author: author,
-                shortDescription: modelMetadataShortDescription, // 動的に生成した説明文を使用
+                shortDescription: modelMetadataShortDescription,
                 version: version
             )
 

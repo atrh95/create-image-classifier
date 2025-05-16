@@ -17,7 +17,7 @@ public struct OvRTrainingResult: TrainingResultProtocol {
     public let maxIterations: Int
     public let individualReports: [IndividualModelReport]
 
-    public func saveLog(modelAuthor: String, modelDescription: String, modelVersion: String) {
+    public func saveLog(modelAuthor: String, modelName: String, modelDescription: String, modelVersion: String) {
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss Z"
         let generatedDateString = dateFormatter.string(from: Date())

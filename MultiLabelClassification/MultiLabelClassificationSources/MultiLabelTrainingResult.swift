@@ -17,6 +17,7 @@ public struct MultiLabelTrainingResult: TrainingResultProtocol {
 
     public func saveLog(
         modelAuthor: String,
+        modelName: String,
         modelDescription: String,
         modelVersion: String
     ) {
