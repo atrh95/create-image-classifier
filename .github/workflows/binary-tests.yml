@@ -14,11 +14,11 @@ on:
     outputs:
       test_result:
         description: "BinaryTestsの結果"
-        value: ${{ jobs.run_binary_tests.outputs.result }}
+        value: ${{ jobs.run-tests.outputs.result }}
 
 jobs:
-  run_binary_tests:
-    runs-on: macos-latest
+  run-tests:
+    runs-on: macos-15
     outputs:
       result: ${{ steps.execute_tests.outcome }}
     env:
