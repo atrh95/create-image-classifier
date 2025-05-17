@@ -184,7 +184,11 @@ class BinaryClassificationTests: XCTestCase {
         // classLabel1 の画像取得処理
         let imageURL1: URL
         do {
-            imageURL1 = try getRandomImageURL(forClassLabel: classLabel1, inBaseDirectory: baseResourceURL, validExtensions: ["jpg"])
+            imageURL1 = try getRandomImageURL(
+                forClassLabel: classLabel1,
+                inBaseDirectory: baseResourceURL,
+                validExtensions: ["jpg"]
+            )
         } catch {
             XCTFail("'\(classLabel1)' サブディレクトリからのランダム画像取得失敗。エラー: \(error.localizedDescription)")
             throw error
@@ -193,7 +197,11 @@ class BinaryClassificationTests: XCTestCase {
         // classLabel2 の画像取得処理
         let imageURL2: URL
         do {
-            imageURL2 = try getRandomImageURL(forClassLabel: classLabel2, inBaseDirectory: baseResourceURL, validExtensions: ["jpg"])
+            imageURL2 = try getRandomImageURL(
+                forClassLabel: classLabel2,
+                inBaseDirectory: baseResourceURL,
+                validExtensions: ["jpg"]
+            )
         } catch {
             XCTFail("'\(classLabel2)' サブディレクトリからのランダム画像取得失敗。エラー: \(error.localizedDescription)")
             throw error
@@ -222,22 +230,33 @@ class BinaryClassificationTests: XCTestCase {
         print("クラス '\(classLabel2)' 画像の予測 (正解ラベル): \(topResult2.identifier) (確信度: \(topResult2.confidence))")
     }
 
-    private func getRandomImageURL(forClassLabel classLabel: String, inBaseDirectory baseDirectoryURL: URL, validExtensions: [String]) throws -> URL {
+    private func getRandomImageURL(
+        forClassLabel classLabel: String,
+        inBaseDirectory baseDirectoryURL: URL,
+        validExtensions: [String]
+    ) throws -> URL {
         let subdirectoryURL = baseDirectoryURL.appendingPathComponent(classLabel)
         print("'\(classLabel)' のサブディレクトリにアクセス試行: \(subdirectoryURL.path)")
 
         var isDirectory: ObjCBool = false
-        guard fileManager.fileExists(atPath: subdirectoryURL.path, isDirectory: &isDirectory), isDirectory.boolValue else {
+        guard fileManager.fileExists(atPath: subdirectoryURL.path, isDirectory: &isDirectory),
+              isDirectory.boolValue
+        else {
             let message = "サブディレクトリ '\(classLabel)' が見つからないか、ディレクトリではありません: \(subdirectoryURL.path)"
             XCTFail(message)
             throw TestError.testResourceMissing
         }
 
-        let allFiles = try fileManager.contentsOfDirectory(at: subdirectoryURL, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles])
+        let allFiles = try fileManager.contentsOfDirectory(
+            at: subdirectoryURL,
+            includingPropertiesForKeys: nil,
+            options: [.skipsHiddenFiles]
+        )
         let imageFiles = allFiles.filter { validExtensions.contains($0.pathExtension.lowercased()) }
 
         guard let randomImageURL = imageFiles.randomElement() else {
-            let message = "サブディレクトリ '\(classLabel)' に指定拡張子 (\(validExtensions.joined(separator: ", ")) の画像ファイルが見つかりません: \(subdirectoryURL.path)"
+            let message =
+                "サブディレクトリ '\(classLabel)' に指定拡張子 (\(validExtensions.joined(separator: ", ")) の画像ファイルが見つかりません: \(subdirectoryURL.path)"
             XCTFail(message)
             throw TestError.testResourceMissing
         }

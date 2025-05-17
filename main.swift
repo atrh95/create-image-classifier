@@ -69,7 +69,7 @@ Task {
         featureExtractor: .scenePrint(revision: 1),
         classifier: .logisticRegressor
     )
-    
+
     let modelParameters = MLImageClassifier.ModelParameters(
         validation: .split(strategy: .automatic),
         maxIterations: 10,

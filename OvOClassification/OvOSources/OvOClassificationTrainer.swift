@@ -34,8 +34,8 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
 
     public var resourcesDirectoryPath: String {
         var dir = URL(fileURLWithPath: #filePath)
-        dir.deleteLastPathComponent() 
-        dir.deleteLastPathComponent() 
+        dir.deleteLastPathComponent()
+        dir.deleteLastPathComponent()
         return dir.appendingPathComponent("Resources").path
     }
 

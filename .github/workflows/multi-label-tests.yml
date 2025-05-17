@@ -1,0 +1,90 @@
+name: Run MultiLabelTests
+
+on:
+  workflow_call:
+    inputs:
+      derived_data_artifact_name:
+        description: "Name of the DerivedData artifact from the build job"
+        required: true
+        type: string
+      derived_data_path_on_runner:
+        description: "Path on the runner where DerivedData was stored by the build job"
+        required: true
+        type: string
+    outputs:
+      test_result:
+        description: "Outcome of the MultiLabelTests"
+        value: ${{ jobs.run_multi_label_tests.outputs.result }}
+
+jobs:
+  run_multi_label_tests:
+    runs-on: macos-latest
+    outputs:
+      result: ${{ steps.execute_tests.outcome }}
+    env:
+      MINT_PATH: ${{ github.workspace }}/.mint
+      TEST_OUTPUT_PATH: "ci-outputs/test-results/multi-label-tests"
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Cache Mint packages
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.MINT_PATH }}
+          key: ${{ runner.os }}-mint-${{ hashFiles('**/Mintfile') }}
+          restore-keys: |
+            ${{ runner.os }}-mint-
+
+      - name: Install Mint
+        run: brew install mint
+
+      - name: Setup Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '16.2'
+
+      - name: Generate Xcode Project
+        run: mint run xcodegen generate
+
+      - name: Create Test Output Directory
+        run: mkdir -p ${{ env.TEST_OUTPUT_PATH }}
+
+      - name: Create local DerivedData directory for download
+        run: mkdir -p ${{ inputs.derived_data_path_on_runner }}
+
+      - name: Download Derived Data
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.derived_data_artifact_name }}
+          path: ${{ inputs.derived_data_path_on_runner }}
+
+      - name: Run MultiLabelTests
+        id: execute_tests
+        run: |
+          set -o pipefail
+          xcodebuild test-without-building \
+            -project "CatScreeningML.xcodeproj" \
+            -scheme "MultiLabelTests" \
+            -destination "platform=macOS" \
+            -derivedDataPath ./${{ inputs.derived_data_path_on_runner }} \
+            -enableCodeCoverage NO \
+            -resultBundlePath ./${{ env.TEST_OUTPUT_PATH }}/TestResults.xcresult \
+            | xcbeautify --report junit --report-path ./${{ env.TEST_OUTPUT_PATH }}/junit.xml
+
+      - name: Verify Test Results Bundle
+        if: steps.execute_tests.outcome == 'success'
+        run: |
+          RESULT_BUNDLE_PATH="./${{ env.TEST_OUTPUT_PATH }}/TestResults.xcresult"
+          if [ ! -d "$RESULT_BUNDLE_PATH" ]; then echo "❌ Error: Test result bundle not found at $RESULT_BUNDLE_PATH"; exit 1; fi
+          echo "✅ Test result bundle found at $RESULT_BUNDLE_PATH"
+
+      - name: Upload MultiLabelTests Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: multi-label-test-results-${{ github.run_id }}
+          path: |
+            ${{ env.TEST_OUTPUT_PATH }}/TestResults.xcresult
+            ${{ env.TEST_OUTPUT_PATH }}/junit.xml
+          retention-days: 7 
