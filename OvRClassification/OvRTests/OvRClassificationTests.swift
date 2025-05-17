@@ -1,12 +1,11 @@
-@testable import OvRClassification
-import XCTest
 import CoreML
-import CreateML 
-import Vision
+import CreateML
 import Foundation
+@testable import OvRClassification
+import Vision
+import XCTest
 
 final class OvRClassificationTests: XCTestCase {
-
     var trainer: OvRClassificationTrainer!
     let fileManager = FileManager.default
     let authorName: String = "Test Author"
@@ -26,7 +25,7 @@ final class OvRClassificationTests: XCTestCase {
             algorithm: algorithm
         )
     }
-    
+
     var testResourcesRootPath: String {
         var currentTestFileDir = URL(fileURLWithPath: #filePath)
         currentTestFileDir.deleteLastPathComponent()
@@ -47,7 +46,7 @@ final class OvRClassificationTests: XCTestCase {
 
     override func setUp() async throws {
         try await super.setUp()
-        
+
         temporaryOutputDirectoryURL = fileManager.temporaryDirectory
             .appendingPathComponent("TestOutput_OvR_\(UUID().uuidString)")
         try fileManager.createDirectory(
@@ -60,15 +59,15 @@ final class OvRClassificationTests: XCTestCase {
             resourcesDirectoryPathOverride: testResourcesRootPath,
             outputDirectoryPathOverride: temporaryOutputDirectoryURL.path
         )
-        
+
         trainingResult = await trainer.train(
             author: authorName,
             modelName: testModelName,
             version: testModelVersion,
-            modelParameters: self.modelParameters 
+            modelParameters: modelParameters
         )
 
-        guard trainingResult != nil else { 
+        guard trainingResult != nil else {
             throw TestError.trainingFailed
         }
     }
@@ -106,7 +105,11 @@ final class OvRClassificationTests: XCTestCase {
             "訓練モデル出力ディレクトリが期待されるパス「\(modelOutputDir.path)」に見つかりません"
         )
 
-        let contents = try fileManager.contentsOfDirectory(at: modelOutputDir, includingPropertiesForKeys: nil, options: [])
+        let contents = try fileManager.contentsOfDirectory(
+            at: modelOutputDir,
+            includingPropertiesForKeys: nil,
+            options: []
+        )
         let mlModelFiles = contents.filter { $0.pathExtension == "mlmodel" }
         XCTAssertFalse(mlModelFiles.isEmpty, "訓練された .mlmodel ファイルが出力ディレクトリ「\(modelOutputDir.path)」に見つかりません")
 
@@ -123,7 +126,11 @@ final class OvRClassificationTests: XCTestCase {
         }
 
         let modelOutputDir = URL(fileURLWithPath: result.modelOutputPath)
-        let contents = try fileManager.contentsOfDirectory(at: modelOutputDir, includingPropertiesForKeys: nil, options: [])
+        let contents = try fileManager.contentsOfDirectory(
+            at: modelOutputDir,
+            includingPropertiesForKeys: nil,
+            options: []
+        )
         guard let firstMlModelURL = contents.first(where: { $0.pathExtension == "mlmodel" }) else {
             XCTFail("出力ディレクトリ「\(modelOutputDir.path)」にコンパイル可能な .mlmodel ファイルが見つかりません")
             throw TestError.modelFileMissing
@@ -133,18 +140,19 @@ final class OvRClassificationTests: XCTestCase {
         let specificCompiledModelURL: URL
         do {
             specificCompiledModelURL = try await MLModel.compileModel(at: firstMlModelURL)
-            self.compiledModelURL = specificCompiledModelURL
+            compiledModelURL = specificCompiledModelURL
         } catch {
             XCTFail("選択されたモデルのコンパイル失敗 (\(firstMlModelURL.path)): \(error.localizedDescription)")
             throw TestError.modelFileMissing
         }
-        
+
         let imageURL: URL
         do {
-            imageURL = try getRandomImageURLFromTestResources(inBaseDirectory: URL(fileURLWithPath: testResourcesRootPath))
+            imageURL =
+                try getRandomImageURLFromTestResources(inBaseDirectory: URL(fileURLWithPath: testResourcesRootPath))
         } catch {
             XCTFail("テストリソースからのランダム画像取得失敗。エラー: \(error.localizedDescription)")
-            throw error 
+            throw error
         }
 
         print("Test image for OvR prediction: \(imageURL.path)")
@@ -157,7 +165,7 @@ final class OvRClassificationTests: XCTestCase {
         let mlModel = try MLModel(contentsOf: specificCompiledModelURL)
         let visionModel = try VNCoreMLModel(for: mlModel)
         let request = VNCoreMLRequest(model: visionModel) { request, error in
-            if let error = error {
+            if let error {
                 XCTFail("VNCoreMLRequest failed: \(error.localizedDescription)")
                 return
             }
@@ -165,16 +173,20 @@ final class OvRClassificationTests: XCTestCase {
                 XCTFail("予測結果をVNClassificationObservationにキャストできませんでした。")
                 return
             }
-            
+
             XCTAssertFalse(observations.isEmpty, "予測結果(observations)が空でした。モデルは予測を行いませんでした。")
 
             if let topResult = observations.first {
-                print("OvR Top prediction for \(imageURL.lastPathComponent) using \(firstMlModelURL.lastPathComponent): \(topResult.identifier) with confidence \(topResult.confidence)")
+                print(
+                    "OvR Top prediction for \(imageURL.lastPathComponent) using \(firstMlModelURL.lastPathComponent): \(topResult.identifier) with confidence \(topResult.confidence)"
+                )
             } else {
-                print("OvR prediction for \(imageURL.lastPathComponent) using \(firstMlModelURL.lastPathComponent): No observations found, though this should have been caught by XCTAssertFalse.")
+                print(
+                    "OvR prediction for \(imageURL.lastPathComponent) using \(firstMlModelURL.lastPathComponent): No observations found, though this should have been caught by XCTAssertFalse."
+                )
             }
         }
-        
+
         let handler = VNImageRequestHandler(url: imageURL, options: [:])
         try handler.perform([request])
     }
@@ -201,7 +213,7 @@ final class OvRClassificationTests: XCTestCase {
             XCTFail(message)
             throw TestError.resourcePathError
         }
-        
+
         print("Randomly selected label directory for OvR test image: \(randomLabelDirURL.path)")
 
         let imageFiles = try fileManager.contentsOfDirectory(
@@ -218,7 +230,7 @@ final class OvRClassificationTests: XCTestCase {
             XCTFail(message)
             throw TestError.resourcePathError
         }
-        
+
         return randomImageURL
     }
 }

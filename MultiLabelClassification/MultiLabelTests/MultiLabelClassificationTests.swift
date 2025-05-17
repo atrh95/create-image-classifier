@@ -1,9 +1,9 @@
-@testable import MultiLabelClassification
-import XCTest
 import CoreML
 import CreateML
-import Vision
 import Foundation
+@testable import MultiLabelClassification
+import Vision
+import XCTest
 
 class MultiLabelClassificationTests: XCTestCase {
     var trainer: MultiLabelClassificationTrainer!
@@ -88,7 +88,7 @@ class MultiLabelClassificationTests: XCTestCase {
             author: authorName,
             modelName: testModelName,
             version: testModelVersion,
-            modelParameters: self.modelParameters // Use class-level computed property
+            modelParameters: modelParameters // Use class-level computed property
         )
 
         guard let result = trainingResult else {
@@ -168,10 +168,15 @@ class MultiLabelClassificationTests: XCTestCase {
             throw TestError.trainingFailed
         }
 
-        let annotationFilePath = URL(fileURLWithPath: testResourcesRootPath).appendingPathComponent(resolvedAnnotationFileName)
+        let annotationFilePath = URL(fileURLWithPath: testResourcesRootPath)
+            .appendingPathComponent(resolvedAnnotationFileName)
         guard let annotationData = try? Data(contentsOf: annotationFilePath),
-              let entries = try? JSONDecoder().decode([MultiLabelClassificationTrainer.ManifestEntry].self, from: annotationData),
-              let firstEntry = entries.first else {
+              let entries = try? JSONDecoder().decode(
+                  [MultiLabelClassificationTrainer.ManifestEntry].self,
+                  from: annotationData
+              ),
+              let firstEntry = entries.first
+        else {
             XCTFail("テスト用アノテーションファイルの読み込み、または最初のエントリーの取得に失敗: \(annotationFilePath.path)")
             throw TestError.manifestFileError
         }
@@ -197,16 +202,25 @@ class MultiLabelClassificationTests: XCTestCase {
         XCTAssertFalse(observations.isEmpty, "予測結果(observations)が空でした。モデルは予測を行いませんでした。")
 
         if !observations.isEmpty {
-            let allPredictedLabelsWithConfidence = observations.map { "\($0.identifier) (信頼度: \(String(format: "%.2f", $0.confidence)))" }.joined(separator: ", ")
+            let allPredictedLabelsWithConfidence = observations
+                .map { "\($0.identifier) (信頼度: \(String(format: "%.2f", $0.confidence)))" }.joined(separator: ", ")
             print("ファイル「\(imageURL.lastPathComponent)」の全予測ラベル: [\(allPredictedLabelsWithConfidence)]")
-            
-            let annotationFilePath = URL(fileURLWithPath: testResourcesRootPath).appendingPathComponent(resolvedAnnotationFileName)
+
+            let annotationFilePath = URL(fileURLWithPath: testResourcesRootPath)
+                .appendingPathComponent(resolvedAnnotationFileName)
             if let annotationData = try? Data(contentsOf: annotationFilePath),
-               let entries = try? JSONDecoder().decode([MultiLabelClassificationTrainer.ManifestEntry].self, from: annotationData),
-               let firstEntry = entries.first(where: { URL(fileURLWithPath: testResourcesRootPath).appendingPathComponent($0.filename) == imageURL }) {
-                 print("アノテーションファイル上の期待ラベル (参考): \(firstEntry.annotations.joined(separator: ", "))")
+               let entries = try? JSONDecoder().decode(
+                   [MultiLabelClassificationTrainer.ManifestEntry].self,
+                   from: annotationData
+               ),
+               let firstEntry = entries
+               .first(where: {
+                   URL(fileURLWithPath: testResourcesRootPath).appendingPathComponent($0.filename) == imageURL
+               })
+            {
+                print("アノテーションファイル上の期待ラベル (参考): \(firstEntry.annotations.joined(separator: ", "))")
             } else if let firstEntry = entries.first {
-                 print("アノテーションファイル上の期待ラベル（フォールバック・最初の画像） (参考): \(firstEntry.annotations.joined(separator: ", "))")
+                print("アノテーションファイル上の期待ラベル（フォールバック・最初の画像） (参考): \(firstEntry.annotations.joined(separator: ", "))")
             }
         }
     }

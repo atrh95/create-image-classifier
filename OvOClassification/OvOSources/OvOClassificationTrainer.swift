@@ -45,7 +45,7 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
         }
         var dir = URL(fileURLWithPath: #filePath)
         dir.deleteLastPathComponent()
-        dir.deleteLastPathComponent() 
+        dir.deleteLastPathComponent()
         return dir.appendingPathComponent("Resources").path
     }
 
@@ -69,7 +69,7 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
         let mainOutputRunURL: URL
         do {
             mainOutputRunURL = try createOutputDirectory(
-                modelName: modelName, 
+                modelName: modelName,
                 version: version
             )
         } catch {
@@ -80,7 +80,7 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
         let baseProjectURL = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
             .deletingLastPathComponent()
-            .deletingLastPathComponent() 
+            .deletingLastPathComponent()
         let tempOvOBaseURL = baseProjectURL.appendingPathComponent(Self.tempBaseDirName) // OvO用一時ディレクトリベースパス
         defer {
             if Self.fileManager.fileExists(atPath: tempOvOBaseURL.path) {
@@ -102,7 +102,7 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
             return nil
         }
 
-        let ovoResourcesURL = URL(fileURLWithPath: self.resourcesDirectoryPath) // Use the (potentially overridden) property
+        let ovoResourcesURL = URL(fileURLWithPath: resourcesDirectoryPath) // Use the (potentially overridden) property
 
         print("🚀 OvOトレーニング開始 (バージョン: \(version))...")
 

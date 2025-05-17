@@ -1,7 +1,7 @@
-@testable import MultiClassClassification
 import CoreML
 import CreateML
 import Foundation
+@testable import MultiClassClassification
 import Vision
 import XCTest
 
@@ -61,7 +61,7 @@ class MultiClassClassificationTests: XCTestCase {
             author: authorName,
             modelName: testModelName,
             version: testModelVersion,
-            modelParameters: self.modelParameters
+            modelParameters: modelParameters
         )
 
         guard let result = trainingResult else {
@@ -129,9 +129,16 @@ class MultiClassClassificationTests: XCTestCase {
 
         let expectedLogFileName = "\(testModelName)_\(testModelVersion).md"
         let expectedLogFilePath = modelFileDir.appendingPathComponent(expectedLogFileName).path
-        XCTAssertTrue(fileManager.fileExists(atPath: expectedLogFilePath), "ログファイルが期待されるパス「\(expectedLogFilePath)」に生成されていません")
+        XCTAssertTrue(
+            fileManager.fileExists(atPath: expectedLogFilePath),
+            "ログファイルが期待されるパス「\(expectedLogFilePath)」に生成されていません"
+        )
 
-        XCTAssertEqual(result.modelName, testModelName, "訓練結果のmodelName「\(result.modelName)」が期待値「\(testModelName)」と一致しません")
+        XCTAssertEqual(
+            result.modelName,
+            testModelName,
+            "訓練結果のmodelName「\(result.modelName)」が期待値「\(testModelName)」と一致しません"
+        )
         XCTAssertEqual(result.maxIterations, 10, "訓練結果のmaxIterations「\(result.maxIterations)」が期待値「10」と一致しません")
 
         do {

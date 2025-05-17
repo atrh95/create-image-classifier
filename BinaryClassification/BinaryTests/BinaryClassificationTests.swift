@@ -57,7 +57,7 @@ final class BinaryClassificationTests: XCTestCase {
             author: authorName,
             modelName: testModelName,
             version: testModelVersion,
-            modelParameters: self.modelParameters
+            modelParameters: modelParameters
         )
 
         guard let result = trainingResult else {
