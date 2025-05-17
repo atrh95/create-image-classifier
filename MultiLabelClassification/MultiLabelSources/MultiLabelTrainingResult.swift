@@ -15,6 +15,42 @@ public struct MultiLabelTrainingResult: TrainingResultProtocol {
     public let averageRecallAcrossLabels: Double?
     public let averagePrecisionAcrossLabels: Double?
 
+    public let dataAugmentationDescription: String
+    public let featureExtractorDescription: String
+
+    public init(
+        modelName: String,
+        trainingDurationInSeconds: TimeInterval,
+        modelOutputPath: String,
+        trainingDataPath: String,
+        classLabels: [String],
+        maxIterations: Int,
+        meanAveragePrecision: Double?,
+        perLabelMetricsSummary: String?,
+        averageRecallAcrossLabels: Double?,
+        averagePrecisionAcrossLabels: Double?,
+        dataAugmentationDescription: String,
+        baseFeatureExtractorDescription: String,
+        scenePrintRevision: Int?
+    ) {
+        self.modelName = modelName
+        self.trainingDurationInSeconds = trainingDurationInSeconds
+        self.modelOutputPath = modelOutputPath
+        self.trainingDataPath = trainingDataPath
+        self.classLabels = classLabels
+        self.maxIterations = maxIterations
+        self.meanAveragePrecision = meanAveragePrecision
+        self.perLabelMetricsSummary = perLabelMetricsSummary
+        self.averageRecallAcrossLabels = averageRecallAcrossLabels
+        self.averagePrecisionAcrossLabels = averagePrecisionAcrossLabels
+        self.dataAugmentationDescription = dataAugmentationDescription
+        if let revision = scenePrintRevision {
+            self.featureExtractorDescription = "\(baseFeatureExtractorDescription) (revision: \(revision))"
+        } else {
+            self.featureExtractorDescription = "\(baseFeatureExtractorDescription) (revision: 1)"
+        }
+    }
+
     public func saveLog(
         modelAuthor: String,
         modelName: String,
@@ -50,6 +86,8 @@ public struct MultiLabelTrainingResult: TrainingResultProtocol {
         モデル名           : \(modelName)
         ファイル生成日時   : \(generatedDateString)
         最大反復回数     : \(maxIterations) (注: CreateMLComponentsでは直接使用されません)
+        データ拡張       : \(dataAugmentationDescription)
+        特徴抽出器       : \(featureExtractorDescription)
 
         ## トレーニング設定
         元データ(マニフェスト): \(trainingDataPath)

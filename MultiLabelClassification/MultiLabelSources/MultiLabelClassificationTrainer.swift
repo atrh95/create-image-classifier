@@ -55,7 +55,8 @@ public final class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
         author: String,
         modelName: String,
         version: String,
-        modelParameters: CreateML.MLImageClassifier.ModelParameters
+        modelParameters: CreateML.MLImageClassifier.ModelParameters,
+        scenePrintRevision: Int?
     ) async -> MultiLabelTrainingResult? {
         let outputDir: URL
         do {
@@ -128,7 +129,7 @@ public final class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
         let classifier = FullyConnectedNetworkMultiLabelClassifier<Float, String>(
             labels: Set(labels)
         )
-        let featureExtractor = ImageFeaturePrint(revision: 1)
+        let featureExtractor = ImageFeaturePrint(revision: scenePrintRevision ?? 1)
         let pipeline = featureExtractor.appending(classifier)
 
         let reader = ImageReader()
@@ -246,7 +247,25 @@ public final class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
             descriptionParts.append("ラベル別検証指標: 計算スキップまたは失敗")
         }
 
-        descriptionParts.append("(検証: 80/20ランダム分割)")
+        // データ拡張 (Data Augmentation)
+        let augmentationFinalDescription: String
+        if !modelParameters.augmentationOptions.isEmpty {
+            augmentationFinalDescription = String(describing: modelParameters.augmentationOptions)
+            descriptionParts.append("データ拡張: \(augmentationFinalDescription)")
+        } else {
+            augmentationFinalDescription = "なし"
+            descriptionParts.append("データ拡張: なし")
+        }
+
+        // 特徴抽出器 (Feature Extractor)
+        let featureExtractorTypeDescription = "ImageFeaturePrint"
+        let featureExtractorDescForMetadata: String
+        if let revision = scenePrintRevision {
+            featureExtractorDescForMetadata = "\(featureExtractorTypeDescription)(revision: \(revision))"
+        } else {
+            featureExtractorDescForMetadata = "\(featureExtractorTypeDescription)(revision: 1)"
+        }
+        descriptionParts.append("特徴抽出器: \(featureExtractorDescForMetadata)")
 
         let modelShortDescription = descriptionParts.joined(separator: "\n")
 
@@ -288,7 +307,10 @@ public final class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
             meanAveragePrecision: finalMeanAP,
             perLabelMetricsSummary: finalPerLabelSummary,
             averageRecallAcrossLabels: avgRecallDouble,
-            averagePrecisionAcrossLabels: avgPrecisionDouble
+            averagePrecisionAcrossLabels: avgPrecisionDouble,
+            dataAugmentationDescription: augmentationFinalDescription,
+            baseFeatureExtractorDescription: featureExtractorTypeDescription,
+            scenePrintRevision: scenePrintRevision
         )
     }
 }

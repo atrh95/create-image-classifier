@@ -14,7 +14,8 @@ public protocol ScreeningTrainerProtocol {
         author: String,
         modelName: String,
         version: String,
-        modelParameters: CreateML.MLImageClassifier.ModelParameters
+        modelParameters: CreateML.MLImageClassifier.ModelParameters,
+        scenePrintRevision: Int?
     ) async
         -> TrainingResultType?
 }

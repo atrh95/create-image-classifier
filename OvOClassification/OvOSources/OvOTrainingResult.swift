@@ -13,16 +13,44 @@ public struct IndividualModelReport: Codable, Sendable {
 
 public struct OvOTrainingResult: TrainingResultProtocol {
     public let modelOutputPath: String
-    public let trainingDataPaths: String
-    public let maxIterations: Int
+    public let trainingDataPaths: String 
+    public let maxIterations: Int       
     public let individualReports: [IndividualModelReport]
     public let numberOfClasses: Int
     public let numberOfPairs: Int
+    public let dataAugmentationDescription: String
+    public let featureExtractorDescription: String
+
+    // イニシャライザ更新
+    public init(
+        modelOutputPath: String,
+        trainingDataPaths: String,
+        maxIterations: Int,
+        individualReports: [IndividualModelReport],
+        numberOfClasses: Int,
+        numberOfPairs: Int,
+        dataAugmentationDescription: String,
+        baseFeatureExtractorDescription: String,
+        scenePrintRevision: Int?
+    ) {
+        self.modelOutputPath = modelOutputPath
+        self.trainingDataPaths = trainingDataPaths
+        self.maxIterations = maxIterations
+        self.individualReports = individualReports
+        self.numberOfClasses = numberOfClasses
+        self.numberOfPairs = numberOfPairs
+        self.dataAugmentationDescription = dataAugmentationDescription
+        if let revision = scenePrintRevision {
+            self.featureExtractorDescription = "\(baseFeatureExtractorDescription)(revision: \(revision))"
+        } else {
+            self.featureExtractorDescription = baseFeatureExtractorDescription
+        }
+    }
 
     public func saveLog(modelAuthor: String, modelName: String, modelVersion: String) {
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss Z"
-        dateFormatter.timeZone = TimeZone(identifier: "Asia/Tokyo")
+        dateFormatter.timeZone = TimeZone(identifier: "Asia/Tokyo") // 日本時間に設定
         let generatedDateString = dateFormatter.string(from: Date())
 
         let reportFileName = "OvO_Run_Report_\(modelVersion).md"
@@ -39,6 +67,8 @@ public struct OvOTrainingResult: TrainingResultProtocol {
         総クラス数       : \(numberOfClasses)
         総ペア数         : \(numberOfPairs)
         最大反復回数     : \(maxIterations) (各ペアモデル共通)
+        データ拡張       : \(dataAugmentationDescription) (各ペアモデル共通)
+        特徴抽出器       : \(featureExtractorDescription) (各ペアモデル共通)
         """
 
         if !individualReports.isEmpty {

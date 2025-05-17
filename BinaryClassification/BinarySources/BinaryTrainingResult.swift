@@ -13,6 +13,41 @@ public struct BinaryTrainingResult: TrainingResultProtocol {
     public let sourceTrainingDataDirectoryPath: String
     public let detectedClassLabelsList: [String]
     public let maxIterations: Int
+    public let dataAugmentationDescription: String
+    public let featureExtractorDescription: String
+
+    public init(
+        modelName: String,
+        trainingDataAccuracyPercentage: Double,
+        validationDataAccuracyPercentage: Double,
+        trainingDataMisclassificationRate: Double,
+        validationDataMisclassificationRate: Double,
+        trainingDurationInSeconds: TimeInterval,
+        trainedModelFilePath: String,
+        sourceTrainingDataDirectoryPath: String,
+        detectedClassLabelsList: [String],
+        maxIterations: Int,
+        dataAugmentationDescription: String,
+        baseFeatureExtractorDescription: String,
+        scenePrintRevision: Int?
+    ) {
+        self.modelName = modelName
+        self.trainingDataAccuracyPercentage = trainingDataAccuracyPercentage
+        self.validationDataAccuracyPercentage = validationDataAccuracyPercentage
+        self.trainingDataMisclassificationRate = trainingDataMisclassificationRate
+        self.validationDataMisclassificationRate = validationDataMisclassificationRate
+        self.trainingDurationInSeconds = trainingDurationInSeconds
+        self.trainedModelFilePath = trainedModelFilePath
+        self.sourceTrainingDataDirectoryPath = sourceTrainingDataDirectoryPath
+        self.detectedClassLabelsList = detectedClassLabelsList
+        self.maxIterations = maxIterations
+        self.dataAugmentationDescription = dataAugmentationDescription
+        if let revision = scenePrintRevision {
+            self.featureExtractorDescription = "\(baseFeatureExtractorDescription)(revision: \(revision))"
+        } else {
+            self.featureExtractorDescription = baseFeatureExtractorDescription
+        }
+    }
 
     public func saveLog(
         modelAuthor: String,
@@ -42,6 +77,8 @@ public struct BinaryTrainingResult: TrainingResultProtocol {
         モデル名           : \(modelName)
         ファイル生成日時   : \(generatedDateString)
         最大反復回数     : \(maxIterations)
+        データ拡張       : \(dataAugmentationDescription)
+        特徴抽出器       : \(featureExtractorDescription)
 
         ## トレーニング設定
         使用されたクラスラベル : \(classLabelsString)

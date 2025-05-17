@@ -44,7 +44,8 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
         author: String,
         modelName: String,
         version: String,
-        modelParameters: CreateML.MLImageClassifier.ModelParameters
+        modelParameters: CreateML.MLImageClassifier.ModelParameters,
+        scenePrintRevision: Int?
     )
         async -> MultiClassTrainingResult?
     {
@@ -252,12 +253,30 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
                 }
             }
 
-            // 5. 検証方法
-            descriptionParts.append("(検証: 自動分割)")
+            // 5. データ拡張 (Data Augmentation)
+            let augmentationFinalDescription: String
+            if !modelParameters.augmentationOptions.isEmpty {
+                augmentationFinalDescription = String(describing: modelParameters.augmentationOptions)
+                descriptionParts.append("データ拡張: " + augmentationFinalDescription)
+            } else {
+                augmentationFinalDescription = "なし"
+                descriptionParts.append("データ拡張: なし")
+            }
+
+            // 6. 特徴抽出器 (Feature Extractor)
+            let featureExtractorString = String(describing: modelParameters.featureExtractor)
+            let baseFeatureExtractorDescription: String
+            if let revision = scenePrintRevision {
+                baseFeatureExtractorDescription = "\(featureExtractorString)(revision: \(revision))"
+                descriptionParts.append("特徴抽出器: \(baseFeatureExtractorDescription)")
+            } else {
+                baseFeatureExtractorDescription = featureExtractorString
+                descriptionParts.append("特徴抽出器: \(baseFeatureExtractorDescription)")
+            }
 
             let modelMetadataShortDescription = descriptionParts.joined(separator: "\n")
 
-            let metadata = MLModelMetadata(
+            let modelMetadata = MLModelMetadata(
                 author: author,
                 shortDescription: modelMetadataShortDescription,
                 version: version
@@ -266,9 +285,9 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
             let outputModelURL = finalOutputDir
                 .appendingPathComponent("\(modelName)_\(classificationMethod)_\(version).mlmodel")
 
-            print("  💾 [\(modelName)_\(classificationMethod)_\(version).mlmodel] を保存中: \(outputModelURL.path)")
-            try model.write(to: outputModelURL, metadata: metadata)
-            print("  ✅ [\(modelName)_\(classificationMethod)_\(version).mlmodel] は正常に保存されました。")
+            print("💾 \(modelName) (\(version)) 保存中: \(outputModelURL.path)")
+            try model.write(to: outputModelURL, metadata: modelMetadata)
+            print("✅ \(modelName) (\(version)) 保存完了")
 
             return MultiClassTrainingResult(
                 modelName: modelName,
@@ -279,11 +298,14 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
                 trainingTimeInSeconds: duration,
                 modelOutputPath: outputModelURL.path,
                 trainingDataPath: trainingDataParentDir.path,
-                classLabels: classLabelsFromFileSystem,
+                classLabels: classLabelsFromFileSystem, // file system labels for overall context
                 maxIterations: modelParameters.maxIterations,
                 macroAverageRecall: macroAverageRecallRate,
                 macroAveragePrecision: macroAveragePrecisionRate,
-                detectedClassLabelsList: finalDetectedClassLabels
+                detectedClassLabelsList: finalDetectedClassLabels, // labels from confusion matrix for detailed metrics
+                dataAugmentationDescription: augmentationFinalDescription,
+                baseFeatureExtractorDescription: featureExtractorString,
+                scenePrintRevision: scenePrintRevision
             )
 
         } catch let error as CreateML.MLCreateError {

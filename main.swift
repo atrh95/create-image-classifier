@@ -61,12 +61,14 @@ let semaphore = DispatchSemaphore(value: 0)
 
 Task {
     let selectedModel: MLModelType = .scaryCatScreeningML
-    let selectedTrainer: TrainerType = .multiLabel
+    let selectedTrainer: TrainerType = .ovo
     let author = "akitora"
 
     // ModelParametersの設定
+    // 特徴抽出器の設定：ScenePrint の場合のみリビジョンを指定する
+    let scenePrintRevision: Int? = 1
     let algorithm = MLImageClassifier.ModelParameters.ModelAlgorithmType.transferLearning(
-        featureExtractor: .scenePrint(revision: 1),
+        featureExtractor: .scenePrint(revision: scenePrintRevision),
         classifier: .logisticRegressor
     )
 
@@ -91,7 +93,8 @@ Task {
         author: author,
         modelName: selectedModel.name,
         version: version,
-        modelParameters: modelParameters
+        modelParameters: modelParameters,
+        scenePrintRevision: scenePrintRevision
     ) as? TrainingResultProtocol else {
         print("トレーニングに失敗しました")
         semaphore.signal()

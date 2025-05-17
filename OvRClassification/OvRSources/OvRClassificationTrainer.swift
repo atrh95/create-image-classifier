@@ -64,7 +64,8 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
         author: String,
         modelName: String,
         version: String,
-        modelParameters: CreateML.MLImageClassifier.ModelParameters
+        modelParameters: CreateML.MLImageClassifier.ModelParameters,
+        scenePrintRevision: Int?
     ) async -> OvRTrainingResult? {
         let mainOutputRunURL: URL
         do {
@@ -129,6 +130,22 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
 
         print("  処理対象主要ラベル数 ('safe'除く): \(primaryLabelSourceDirs.count)")
 
+        // データ拡張と特徴抽出器の説明を生成 (モデル全体で共通、TrainingResult用)
+        let commonDataAugmentationDesc: String
+        if !modelParameters.augmentationOptions.isEmpty {
+            commonDataAugmentationDesc = String(describing: modelParameters.augmentationOptions)
+        } else {
+            commonDataAugmentationDesc = "なし"
+        }
+        
+        let featureExtractorString = String(describing: modelParameters.featureExtractor)
+        var commonFeatureExtractorDesc: String
+        if let revision = scenePrintRevision {
+            commonFeatureExtractorDesc = "\(featureExtractorString)(revision: \(revision))"
+        } else {
+            commonFeatureExtractorDesc = featureExtractorString
+        }
+
         var allPairTrainingResults: [OvRPairTrainingResult] = []
 
         for (index, dir) in primaryLabelSourceDirs.enumerated() {
@@ -144,7 +161,8 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
                 author: author,
                 version: version,
                 pairIndex: index,
-                modelParameters: modelParameters
+                modelParameters: modelParameters,
+                scenePrintRevision: scenePrintRevision
             ) {
                 allPairTrainingResults.append(result)
                 print("  ✅ OvRペア [\(dir.lastPathComponent)] vs Rest トレーニング成功")
@@ -180,7 +198,10 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
             modelOutputPath: finalRunOutputPath,
             trainingDataPaths: trainingDataPaths,
             maxIterations: modelParameters.maxIterations,
-            individualReports: individualReports
+            individualReports: individualReports,
+            dataAugmentationDescription: commonDataAugmentationDesc,     
+            baseFeatureExtractorDescription: featureExtractorString,
+            scenePrintRevision: scenePrintRevision
         )
 
         return trainingResult
@@ -195,7 +216,8 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
         author: String,
         version: String,
         pairIndex: Int,
-        modelParameters: CreateML.MLImageClassifier.ModelParameters
+        modelParameters: CreateML.MLImageClassifier.ModelParameters,
+        scenePrintRevision: Int?
     ) async -> OvRPairTrainingResult? {
         let originalOneLabelName = oneLabelSourceDirURL.lastPathComponent
         let positiveClassNameForModel = originalOneLabelName.components(separatedBy: CharacterSet(charactersIn: "_-"))
@@ -380,15 +402,39 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
             ))
 
             // 4. 陽性クラス情報 (再現率・適合率)
-            descriptionParts.append(String(
-                format: "陽性クラス: %@, 再現率: %.1f%%, 適合率: %.1f%%",
-                positiveClassNameForModel,
-                recall * 100,
-                precision * 100
-            ))
+            if classLabelsFromConfusion.count == 2 {
+                // OvRでは classLabelsFromConfusion[1] が陽性クラス名 (例: Cat) となる想定
+                let positiveLabelForDesc = classLabelsFromConfusion.first { $0 == positiveClassNameForModel } ?? classLabelsFromConfusion[1]
+                descriptionParts.append(String(
+                    format: "陽性クラス (\(positiveLabelForDesc)): 再現率 %.1f%%, 適合率 %.1f%%",
+                    positiveLabelForDesc,
+                    recall * 100,
+                    precision * 100
+                ))
+            } else if !classLabelsFromConfusion.isEmpty {
+                descriptionParts.append("(詳細な分類指標は二値分類構造のみ)")
+            }
 
-            // 5. 検証方法
-            descriptionParts.append("(検証: 自動分割)")
+            // 5. データ拡張 (Data Augmentation)
+            let augmentationFinalDescription: String // For individualDesc
+            if !modelParameters.augmentationOptions.isEmpty {
+                augmentationFinalDescription = String(describing: modelParameters.augmentationOptions)
+                descriptionParts.append("データ拡張: \(augmentationFinalDescription)")
+            } else {
+                augmentationFinalDescription = "なし"
+                descriptionParts.append("データ拡張: なし")
+            }
+
+            // 6. 特徴抽出器 (Feature Extractor)
+            let featureExtractorStringForPair = String(describing: modelParameters.featureExtractor)
+            var featureExtractorDescForPairMetadata: String // For metadata description
+            if let revision = scenePrintRevision {
+                featureExtractorDescForPairMetadata = "\(featureExtractorStringForPair)(revision: \(revision))"
+                descriptionParts.append("特徴抽出器: \(featureExtractorDescForPairMetadata)")
+            } else {
+                featureExtractorDescForPairMetadata = featureExtractorStringForPair
+                descriptionParts.append("特徴抽出器: \(featureExtractorDescForPairMetadata)")
+            }
 
             let individualDesc = descriptionParts.joined(separator: "\n")
 

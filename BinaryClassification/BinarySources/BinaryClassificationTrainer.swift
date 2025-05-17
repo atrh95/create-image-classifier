@@ -40,7 +40,8 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
         author: String,
         modelName: String,
         version: String,
-        modelParameters: CreateML.MLImageClassifier.ModelParameters
+        modelParameters: CreateML.MLImageClassifier.ModelParameters,
+        scenePrintRevision: Int?
     ) async -> BinaryTrainingResult? {
         let resourcesPath = resourcesDirectoryPath
         let resourcesDirURL = URL(fileURLWithPath: resourcesPath)
@@ -66,7 +67,8 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
             outputDirURL: outputDirectoryURL,
             author: author,
             version: version,
-            modelParameters: modelParameters
+            modelParameters: modelParameters,
+            scenePrintRevision: scenePrintRevision
         )
     }
 
@@ -77,7 +79,8 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
         outputDirURL: URL,
         author: String,
         version: String,
-        modelParameters: CreateML.MLImageClassifier.ModelParameters
+        modelParameters: CreateML.MLImageClassifier.ModelParameters,
+        scenePrintRevision: Int?
     ) async -> BinaryTrainingResult? {
         // トレーニングデータ親ディレクトリ存在確認
         guard FileManager.default.fileExists(atPath: trainingDataParentDirURL.path) else {
@@ -255,8 +258,23 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
                 descriptionParts.append("(詳細な分類指標は二値分類のみ)")
             }
 
-            // 5. 検証方法
-            descriptionParts.append("(検証: 自動分割)")
+            // 5. データ拡張 (Data Augmentation)
+            let augmentationFinalDescription: String // For TrainingResult
+            if !modelParameters.augmentationOptions.isEmpty {
+                augmentationFinalDescription = String(describing: modelParameters.augmentationOptions)
+                descriptionParts.append("データ拡張: \(augmentationFinalDescription)")
+            } else {
+                augmentationFinalDescription = "なし"
+                descriptionParts.append("データ拡張: なし")
+            }
+
+            // 6. 特徴抽出器 (Feature Extractor)
+            let baseFeatureExtractorString = String(describing: modelParameters.featureExtractor)
+            if let revision = scenePrintRevision {
+                descriptionParts.append("特徴抽出器: \(baseFeatureExtractorString)(revision: \(revision))")
+            } else {
+                descriptionParts.append("特徴抽出器: \(baseFeatureExtractorString)")
+            }
 
             let modelMetadataShortDescription = descriptionParts.joined(separator: "\n")
 
@@ -287,7 +305,10 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
                 trainedModelFilePath: outputModelFileURL.path,
                 sourceTrainingDataDirectoryPath: trainingDataParentDirURL.path,
                 detectedClassLabelsList: detectedClassLabels,
-                maxIterations: modelParameters.maxIterations // Use maxIterations from modelParameters
+                maxIterations: modelParameters.maxIterations,
+                dataAugmentationDescription: augmentationFinalDescription,
+                baseFeatureExtractorDescription: baseFeatureExtractorString,
+                scenePrintRevision: scenePrintRevision
             )
 
         } catch let createMLError as CreateML.MLCreateError {

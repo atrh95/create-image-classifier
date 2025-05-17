@@ -64,7 +64,8 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
         author: String,
         modelName: String,
         version: String,
-        modelParameters: CreateML.MLImageClassifier.ModelParameters
+        modelParameters: CreateML.MLImageClassifier.ModelParameters,
+        scenePrintRevision: Int?
     ) async -> OvOTrainingResult? {
         let mainOutputRunURL: URL
         do {
@@ -145,6 +146,22 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
 
         print("  生成されたOvOペア数: \(classPairs.count)")
 
+        // 各ペアモデル共通設定の記述を生成 (TrainingResult用)
+        let commonDataAugmentationDesc: String
+        if !modelParameters.augmentationOptions.isEmpty {
+            commonDataAugmentationDesc = String(describing: modelParameters.augmentationOptions)
+        } else {
+            commonDataAugmentationDesc = "なし"
+        }
+        
+        let featureExtractorString = String(describing: modelParameters.featureExtractor)
+        var commonFeatureExtractorDesc: String
+        if let revision = scenePrintRevision {
+            commonFeatureExtractorDesc = "\(featureExtractorString)(revision: \(revision))"
+        } else {
+            commonFeatureExtractorDesc = featureExtractorString
+        }
+
         var allPairTrainingResults: [OvOPairTrainingResult] = []
         var pairIndex = 0
 
@@ -163,7 +180,8 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
                 author: author,
                 version: version,
                 pairIndex: pairIndex,
-                modelParameters: modelParameters
+                modelParameters: modelParameters,
+                scenePrintRevision: scenePrintRevision
             ) {
                 allPairTrainingResults.append(result)
                 print("  ✅ OvOペア [\(dir1.lastPathComponent)] vs [\(dir2.lastPathComponent)] トレーニング成功")
@@ -203,8 +221,11 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
             trainingDataPaths: trainingDataPaths,
             maxIterations: modelParameters.maxIterations,
             individualReports: individualReports,
-            numberOfClasses: allLabelSourceDirectories.count, // 総クラス数を追加
-            numberOfPairs: classPairs.count // 総ペア数を追加
+            numberOfClasses: allLabelSourceDirectories.count,
+            numberOfPairs: classPairs.count,
+            dataAugmentationDescription: commonDataAugmentationDesc,
+            baseFeatureExtractorDescription: featureExtractorString,
+            scenePrintRevision: scenePrintRevision
         )
 
         return trainingResult
@@ -220,7 +241,8 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
         author: String,
         version: String,
         pairIndex _: Int,
-        modelParameters: CreateML.MLImageClassifier.ModelParameters
+        modelParameters: CreateML.MLImageClassifier.ModelParameters,
+        scenePrintRevision: Int?
     ) async -> OvOPairTrainingResult? {
         let class1NameOriginal = class1DirURL.lastPathComponent
         let class2NameOriginal = class2DirURL.lastPathComponent
@@ -337,10 +359,28 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
                 trainingAccuracy * 100,
                 validationAccuracy * 100
             ))
-            descriptionParts.append("(検証: 自動分割)")
-            let individualDesc = descriptionParts.joined(separator: "\n")
 
-            let modelMetadata = MLModelMetadata(author: author, shortDescription: individualDesc, version: version)
+            // データ拡張
+            if !modelParameters.augmentationOptions.isEmpty {
+                descriptionParts.append("データ拡張: \(String(describing: modelParameters.augmentationOptions))")
+            } else {
+                descriptionParts.append("データ拡張: なし")
+            }
+
+            // 特徴抽出器
+            let featureExtractorStringForPair = String(describing: modelParameters.featureExtractor)
+            var featureExtractorDescForPairMetadata: String // For metadata description
+            if let revision = scenePrintRevision {
+                featureExtractorDescForPairMetadata = "\(featureExtractorStringForPair)(revision: \(revision))"
+                descriptionParts.append("特徴抽出器: \(featureExtractorDescForPairMetadata)")
+            } else {
+                featureExtractorDescForPairMetadata = featureExtractorStringForPair
+                descriptionParts.append("特徴抽出器: \(featureExtractorDescForPairMetadata)")
+            }
+            
+            let modelMetadataShortDescription = descriptionParts.joined(separator: "\n")
+
+            let modelMetadata = MLModelMetadata(author: author, shortDescription: modelMetadataShortDescription, version: version)
 
             try classifier.write(to: modelPath, metadata: modelMetadata)
             print("  ✅ モデル保存成功: \(modelPath.path)")
@@ -361,7 +401,7 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
                 validationErrorRate: validationError,
                 trainingTime: trainingTime,
                 trainingDataPath: tempOvOPairRootURL.path,
-                individualModelDescription: individualDesc
+                individualModelDescription: modelMetadataShortDescription
             )
 
         } catch let createMLError as CreateML.MLCreateError {

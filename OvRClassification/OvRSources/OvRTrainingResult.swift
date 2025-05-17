@@ -16,10 +16,34 @@ public struct OvRTrainingResult: TrainingResultProtocol {
     public let trainingDataPaths: String
     public let maxIterations: Int
     public let individualReports: [IndividualModelReport]
+    public let dataAugmentationDescription: String
+    public let featureExtractorDescription: String
 
-    public func saveLog(modelAuthor: String, modelName _: String, modelVersion: String) {
+    public init(
+        modelOutputPath: String,
+        trainingDataPaths: String,
+        maxIterations: Int,
+        individualReports: [IndividualModelReport],
+        dataAugmentationDescription: String,
+        baseFeatureExtractorDescription: String,
+        scenePrintRevision: Int?
+    ) {
+        self.modelOutputPath = modelOutputPath
+        self.trainingDataPaths = trainingDataPaths
+        self.maxIterations = maxIterations
+        self.individualReports = individualReports
+        self.dataAugmentationDescription = dataAugmentationDescription
+        if let revision = scenePrintRevision {
+            self.featureExtractorDescription = "\(baseFeatureExtractorDescription)(revision: \(revision))"
+        } else {
+            self.featureExtractorDescription = baseFeatureExtractorDescription
+        }
+    }
+
+    public func saveLog(modelAuthor: String, modelName: String, modelVersion: String) {
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss Z"
+        dateFormatter.timeZone = TimeZone(identifier: "Asia/Tokyo")
         let generatedDateString = dateFormatter.string(from: Date())
 
         let reportFileName = "OvR_Run_Report_\(modelVersion).md"
@@ -31,28 +55,23 @@ public struct OvRTrainingResult: TrainingResultProtocol {
 
         ## 実行概要
         モデル群         : OvRモデル群 (One-vs-Rest)
+        モデルベース名   : \(modelName)
         レポート生成日時   : \(generatedDateString)
         最大反復回数     : \(maxIterations) (各ペアモデル共通)
+        データ拡張       : \(dataAugmentationDescription)
+        特徴抽出器       : \(featureExtractorDescription)
+
+        ## 個別 "One" モデルのパフォーマンス指標
+        | "One" クラス名 | モデル名 (vs Rest) | 検証正解率 | 再現率 | 適合率 |
+        |----------------|----------------------|--------------|----------|----------|
         """
-
-        if !individualReports.isEmpty {
-            markdownText += """
-
-            ## 個別モデルのパフォーマンス指標
-            | モデル名 (PositiveClass) | 検証正解率 | 検証再現率 | 検証適合率 |
-            |--------------------------|--------------|--------------|--------------|
-            """
-            for report in individualReports {
-                let modelNameDisplay = "\(report.modelName) (\(report.positiveClassName))"
-                let valAccStr = String(format: "%.2f%%", report.validationAccuracyPercentage)
-                let recallStr = String(format: "%.2f%%", report.recallRate * 100)
-                let precisionStr = String(format: "%.2f%%", report.precisionRate * 100)
-
-                markdownText +=
-                    "\n| \(modelNameDisplay) | \(valAccStr) | \(recallStr) | \(precisionStr) |"
-            }
-            markdownText += "\n"
+        for report in individualReports {
+            let valAccStr = String(format: "%.2f%%", report.validationAccuracyPercentage * 100)
+            let recallStr = String(format: "%.2f%%", report.recallRate * 100)
+            let precisionStr = String(format: "%.2f%%", report.precisionRate * 100)
+            markdownText += "\n| \(report.positiveClassName) | \(report.modelName) | \(valAccStr) | \(recallStr) | \(precisionStr) |"
         }
+        markdownText += "\n"
 
         markdownText += """
 
