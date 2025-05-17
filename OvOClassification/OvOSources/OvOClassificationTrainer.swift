@@ -23,7 +23,7 @@ private struct OvOPairTrainingResult {
 public class OvOClassificationTrainer: ScreeningTrainerProtocol {
     public typealias TrainingResultType = OvOTrainingResult
 
-    // Path Overrides for DI (e.g., for testing)
+    // DI 用のプロパティ
     private let resourcesDirectoryPathOverride: String?
     private let outputDirectoryPathOverride: String?
 

@@ -5,7 +5,7 @@ import Foundation
 import Vision
 import XCTest
 
-class BinaryClassificationTests: XCTestCase {
+final class BinaryClassificationTests: XCTestCase {
     var trainer: BinaryClassificationTrainer!
     let fileManager = FileManager.default
     var authorName: String = "Test Author"

@@ -5,7 +5,7 @@ import CreateML
 import Vision
 import Foundation
 
-class OvOClassificationTests: XCTestCase {
+final class OvOClassificationTests: XCTestCase {
 
     var trainer: OvOClassificationTrainer!
     let fileManager = FileManager.default
@@ -116,7 +116,7 @@ class OvOClassificationTests: XCTestCase {
         XCTAssertTrue(fileManager.fileExists(atPath: expectedLogFilePath), "ログファイル「\(expectedLogFilePath)」が生成されていません")
     }
 
-    func testModelCanPerformPrediction() throws {
+    func testModelCanPerformPrediction() async throws {
         guard let result = trainingResult else {
             XCTFail("訓練結果がnil (OvO testModelCanPerformPrediction)")
             throw TestError.trainingFailed
