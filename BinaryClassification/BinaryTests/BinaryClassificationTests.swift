@@ -8,13 +8,13 @@ import XCTest
 class BinaryClassificationTests: XCTestCase {
     var trainer: BinaryClassificationTrainer!
     let fileManager = FileManager.default
-    var testModelName: String!
-    var testModelVersion: String!
+    var authorName: String = "Test Author"
+    var testModelName: String = "TestCats_Binary_Run"
+    var testModelVersion: String = "v1"
     var testResourcesRootPath: String!
     var temporaryOutputDirectoryURL: URL!
     var compiledModelURL: URL?
     var trainingResult: BinaryClassification.BinaryTrainingResult?
-    var authorName: String!
 
     override func setUp() async throws {
         try await super.setUp()
@@ -36,18 +36,14 @@ class BinaryClassificationTests: XCTestCase {
             resourcesDirectoryPathOverride: testResourcesRootPath,
             outputDirectoryPathOverride: temporaryOutputDirectoryURL.path
         )
-        testModelName = "TestCats_Binary_Run"
-        testModelVersion = "\(Int(Date().timeIntervalSince1970))"
-        authorName = "Test Author Setup"
 
-        // Create ModelParameters for the test
         let algorithm = MLImageClassifier.ModelParameters.ModelAlgorithmType.transferLearning(
             featureExtractor: .scenePrint(revision: 1),
             classifier: .logisticRegressor
         )
         let modelParameters = MLImageClassifier.ModelParameters(
             validation: .split(strategy: .automatic),
-            maxIterations: 1, // Using 1 for test speed
+            maxIterations: 1,
             augmentation: [],
             algorithm: algorithm
         )
@@ -56,7 +52,7 @@ class BinaryClassificationTests: XCTestCase {
             author: authorName,
             modelName: testModelName,
             version: testModelVersion,
-            modelParameters: modelParameters // Pass modelParameters
+            modelParameters: modelParameters
         )
 
         guard let result = trainingResult else {
@@ -124,11 +120,12 @@ class BinaryClassificationTests: XCTestCase {
 
         result.saveLog(modelAuthor: authorName, modelName: testModelName, modelVersion: testModelVersion)
         let modelFileDir = URL(fileURLWithPath: result.trainedModelFilePath).deletingLastPathComponent()
-        let expectedLogFileName = "\(testModelName!)_\(testModelVersion!).md"
+
+        let expectedLogFileName = "\(testModelName)_\(testModelVersion).md"
         let expectedLogFilePath = modelFileDir.appendingPathComponent(expectedLogFileName).path
         XCTAssertTrue(fileManager.fileExists(atPath: expectedLogFilePath), "ログファイルが期待パス「\(expectedLogFilePath)」に未生成")
 
-        XCTAssertEqual(result.modelName, testModelName, "訓練結果modelName「\(result.modelName)」が期待値「\(testModelName!)」と不一致")
+        XCTAssertEqual(result.modelName, testModelName, "訓練結果modelName「\(result.modelName)」が期待値「\(testModelName)」と不一致")
         XCTAssertEqual(result.maxIterations, 1, "訓練結果maxIterations「\(result.maxIterations)」が期待値「1」と不一致")
 
         do {
@@ -140,11 +137,11 @@ class BinaryClassificationTests: XCTestCase {
 
         XCTAssertTrue(
             result.trainedModelFilePath.contains(testModelName),
-            "モデルファイルパスにモデル名「\(testModelName!)」が含まれていません"
+            "モデルファイルパスにモデル名「\(testModelName)」が含まれていません"
         )
         XCTAssertTrue(
             result.trainedModelFilePath.contains(testModelVersion),
-            "モデルファイルパスにバージョン「\(testModelVersion!)」が含まれていません"
+            "モデルファイルパスにバージョン「\(testModelVersion)」が含まれていません"
         )
         XCTAssertTrue(
             result.trainedModelFilePath.contains(trainer.classificationMethod),
