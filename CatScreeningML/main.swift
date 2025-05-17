@@ -7,7 +7,7 @@ import MultiClassClassification
 import MultiLabelClassification
 import OvRClassification
 
-// --- トレーナータイプの定義 ---
+// --- トレーナータイプの型 ---
 enum TrainerType {
     case binary
     case multiClass
@@ -24,14 +24,13 @@ enum TrainerType {
     }
 }
 
-// --- モデル名タイプの定義 ---
+// --- 作成するモデル名の型 ---
 enum ModelNameType: String {
     case scaryCatScreeningML = "ScaryCatScreeningML"
-    // 他のモデル名が必要な場合はここに追加
 }
 
 // --- トレーニング設定 ---
-let currentTrainerType: TrainerType = .multiClass
+let currentTrainerType: TrainerType = .multiLabel
 let maxTrainingIterations = 11
 
 // --- 共通のログデータ設定 ---

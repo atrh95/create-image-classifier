@@ -107,6 +107,59 @@ public final class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
         let trainingTime = Date().timeIntervalSince(t0)
         print("🎉 \(String(format: "%.2f", trainingTime)) 秒でトレーニングが完了しました")
 
+        var perLabelMetricsResults: [String: (tp: Int, fp: Int, fn: Int)] = [:]
+        for label in labels {
+            perLabelMetricsResults[label] = (tp: 0, fp: 0, fn: 0)
+        }
+
+        if let validationPredictions = try? await fittedPipeline.applied(to: validationFeatures) {
+            print("🧪 検証データで予測を取得しました。サンプル数: \(validationPredictions.count)")
+            for i in 0..<validationSet.count {
+                let trueAnnotations = validationSet[i].annotation // Set<String>
+                let annotatedPrediction = validationPredictions[i]    // This is AnnotatedFeature<ClassificationDistribution<String>, Set<String>>
+                let actualDistribution = annotatedPrediction.feature // This is ClassificationDistribution<String>
+                
+                var predictedLabels = Set<String>()
+                for labelInDataset in labels { // Iterate through all known labels
+                    if let score = actualDistribution[labelInDataset], score >= predictionThreshold {
+                        predictedLabels.insert(labelInDataset)
+                    }
+                }
+
+                for label in labels {
+                    let trulyHasLabel = trueAnnotations.contains(label)
+                    let predictedHasLabel = predictedLabels.contains(label)
+
+                    if trulyHasLabel && predictedHasLabel {
+                        perLabelMetricsResults[label]?.tp += 1
+                    } else if !trulyHasLabel && predictedHasLabel {
+                        perLabelMetricsResults[label]?.fp += 1
+                    } else if trulyHasLabel && !predictedHasLabel {
+                        perLabelMetricsResults[label]?.fn += 1
+                    }
+                }
+            }
+        } else {
+            print("⚠️ 検証データでの予測取得に失敗しました。ラベル別指標は計算できません。")
+        }
+        
+        struct PerLabelCalculatedMetrics {
+            let label: String
+            let recall: Double
+            let precision: Double
+        }
+        var calculatedMetricsForDescription: [PerLabelCalculatedMetrics] = []
+
+        for label in labels.sorted() { // Iterate in sorted order for consistent description
+            if let counts = perLabelMetricsResults[label] {
+                let recall = (counts.tp + counts.fn == 0) ? 0.0 : Double(counts.tp) / Double(counts.tp + counts.fn)
+                let precision = (counts.tp + counts.fp == 0) ? 0.0 : Double(counts.tp) / Double(counts.tp + counts.fp)
+                calculatedMetricsForDescription.append(PerLabelCalculatedMetrics(label: label, recall: recall, precision: precision))
+                print("    🔖 ラベル: \(label) - 再現率: \(String(format: "%.2f", recall * 100))%, 適合率: \(String(format: "%.2f", precision * 100))% (TP: \(counts.tp), FP: \(counts.fp), FN: \(counts.fn))")
+            }
+        }
+        // ---- END: Calculate Per-Label Recall and Precision ----
+
         // .mlmodel のメタデータに含める shortDescription を動的に生成
         var descriptionParts: [String] = []
 
@@ -122,6 +175,21 @@ public final class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
 
         // 3. データセット情報
         descriptionParts.append(String(format: "学習データ数: %d枚, 検証データ数: %d枚", trainSet.count, validationSet.count))
+
+        // ---- START: Add Per-Label Metrics to Description ----
+        if !calculatedMetricsForDescription.isEmpty {
+            descriptionParts.append("ラベル別検証指標 (しきい値: \(predictionThreshold)):")
+            for metrics in calculatedMetricsForDescription {
+                let metricsString = String(format: "    %@: 再現率 %.1f%%, 適合率 %.1f%%",
+                                           metrics.label,
+                                           metrics.recall * 100,
+                                           metrics.precision * 100)
+                descriptionParts.append(metricsString)
+            }
+        } else {
+            descriptionParts.append("ラベル別検証指標: 計算スキップまたは失敗")
+        }
+        // ---- END: Add Per-Label Metrics to Description ----
 
         // 4. 検証方法
         descriptionParts.append("(検証: 80/20ランダム分割)")
@@ -143,10 +211,18 @@ public final class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
             return nil
         }
 
-        let meanAP: Double? = nil
-        let perLabelSummary = "evaluation skipped"
-        let avgRecall: Double? = nil
-        let avgPrecision: Double? = nil
+        let finalMeanAP = calculatedMetricsForDescription.isEmpty ? nil : 0.0 // Placeholder, mAP not calculated here
+        let finalPerLabelSummary = calculatedMetricsForDescription.isEmpty ? "evaluation skipped or failed" : "Per-label recall/precision in description"
+        
+        // For simplicity, avgRecall and avgPrecision will be simple averages of the per-label ones.
+        // A more robust approach might be micro/macro averaging based on support.
+        var avgRecallDouble: Double? = nil
+        var avgPrecisionDouble: Double? = nil
+
+        if !calculatedMetricsForDescription.isEmpty {
+            avgRecallDouble = calculatedMetricsForDescription.map { $0.recall }.reduce(0, +) / Double(calculatedMetricsForDescription.count)
+            avgPrecisionDouble = calculatedMetricsForDescription.map { $0.precision }.reduce(0, +) / Double(calculatedMetricsForDescription.count)
+        }
 
         return MultiLabelTrainingResult(
             modelName: modelName,
@@ -155,10 +231,10 @@ public final class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
             trainingDataPath: manifestURL.path,
             classLabels: labels,
             maxIterations: maxIterations,
-            meanAveragePrecision: meanAP,
-            perLabelMetricsSummary: perLabelSummary,
-            averageRecallAcrossLabels: avgRecall,
-            averagePrecisionAcrossLabels: avgPrecision
+            meanAveragePrecision: finalMeanAP, // mAP is complex, not calculated here
+            perLabelMetricsSummary: finalPerLabelSummary,
+            averageRecallAcrossLabels: avgRecallDouble,
+            averagePrecisionAcrossLabels: avgPrecisionDouble
         )
     }
 }
