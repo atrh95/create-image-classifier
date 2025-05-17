@@ -37,7 +37,7 @@ targets:
     type: framework
     platform: macOS
     sources:
-      - path: BinaryClassification/BinaryClassificationSources
+      - path: BinaryClassification/BinarySources
     resources:
       - path: BinaryClassification/Resources
     dependencies:
@@ -52,7 +52,7 @@ targets:
     type: framework
     platform: macOS
     sources:
-      - path: MultiClassClassification/MultiClassClassificationSources
+      - path: MultiClassClassification/MultiClassSources
     resources:
       - path: MultiClassClassification/Resources
     dependencies:
@@ -67,7 +67,7 @@ targets:
     type: framework
     platform: macOS
     sources:
-      - path: MultiLabelClassification/MultiLabelClassificationSources
+      - path: MultiLabelClassification/MultiLabelSources
     resources:
       - path: MultiLabelClassification/Resources
     dependencies:
@@ -82,7 +82,7 @@ targets:
     type: framework
     platform: macOS
     sources:
-      - path: OvRClassification/OvRClassificationSources
+      - path: OvRClassification/OvRSources
     resources:
       - path: OvRClassification/Resources
     dependencies:
@@ -97,7 +97,7 @@ targets:
     type: framework
     platform: macOS
     sources:
-      - path: OvOClassification/OvOClassificationSources
+      - path: OvOClassification/OvOSources
     resources:
       - path: OvOClassification/Resources
     dependencies:
