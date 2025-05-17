@@ -32,7 +32,7 @@ public extension ScreeningTrainerProtocol {
             withIntermediateDirectories: true,
             attributes: nil
         )
-        print("📂 バージョン別出力ディレクトリ (親): \(versionedOutputDirURL.path)")
+        // print("📂 バージョン別出力ディレクトリ (親): \(versionedOutputDirURL.path)") // This line will be commented out/removed
 
         // バージョン別ディレクトリ内の既存の実行をリスト
         let existingRuns = (try? FileManager.default.contentsOfDirectory(

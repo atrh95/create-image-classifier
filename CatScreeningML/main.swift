@@ -31,7 +31,7 @@ enum ModelNameType: String {
 }
 
 // --- トレーニング設定 ---
-let currentTrainerType: TrainerType = .ovr
+let currentTrainerType: TrainerType = .multiClass
 let maxTrainingIterations = 11
 
 // --- 共通のログデータ設定 ---

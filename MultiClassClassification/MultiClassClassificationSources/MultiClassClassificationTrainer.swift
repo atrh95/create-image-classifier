@@ -93,7 +93,7 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
 
             let trainingDataAccuracyPercentage = (1.0 - trainingEvaluation.classificationError) * 100
             let trainingAccuracyPercentageString = String(format: "%.2f", trainingDataAccuracyPercentage)
-            print("  📊 トレーニングデータ正解率: \(trainingAccuracyPercentageString)%")
+            print("  📈 トレーニングデータ正解率: \(trainingAccuracyPercentageString)%")
 
             let validationDataAccuracyPercentage = (1.0 - validationEvaluation.classificationError) * 100
             let validationAccuracyPercentageString = String(format: "%.2f", validationDataAccuracyPercentage)
@@ -105,10 +105,10 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
             let confusionMatrix = validationEvaluation.confusion
             var labelSet = Set<String>()
             for row in confusionMatrix.rows {
-                if let actual = row["actualLabel"]?.stringValue {
+                if let actual = row["True Label"]?.stringValue {
                     labelSet.insert(actual)
                 }
-                if let predicted = row["predictedLabel"]?.stringValue {
+                if let predicted = row["Predicted"]?.stringValue {
                     labelSet.insert(predicted)
                 }
             }
@@ -119,9 +119,9 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
                 // TP (True Positive): 真のラベルが `label` で、予測も `label`
                 let truePositivesCount = confusionMatrix.rows.reduce(0.0) { acc, row in
                     guard
-                        row["actualLabel"]?.stringValue == label,
-                        row["predictedLabel"]?.stringValue == label,
-                        let count = row["count"]?.doubleValue
+                        row["True Label"]?.stringValue == label,
+                        row["Predicted"]?.stringValue == label,
+                        let count = row["Count"]?.intValue.map(Double.init)
                     else { return acc }
                     return acc + count
                 }
@@ -130,9 +130,9 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
                 var falsePositivesCount: Double = 0
                 for row in confusionMatrix.rows {
                     guard
-                        let actual = row["actualLabel"]?.stringValue,
-                        let predicted = row["predictedLabel"]?.stringValue,
-                        let count = row["count"]?.doubleValue,
+                        let actual = row["True Label"]?.stringValue,
+                        let predicted = row["Predicted"]?.stringValue,
+                        let count = row["Count"]?.intValue.map(Double.init),
                         actual != label, predicted == label
                     else { continue }
                     falsePositivesCount += count
@@ -142,9 +142,9 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
                 var falseNegativesCount: Double = 0
                 for row in confusionMatrix.rows {
                     guard
-                        let actual = row["actualLabel"]?.stringValue,
-                        let predicted = row["predictedLabel"]?.stringValue,
-                        let count = row["count"]?.doubleValue,
+                        let actual = row["True Label"]?.stringValue,
+                        let predicted = row["Predicted"]?.stringValue,
+                        let count = row["Count"]?.intValue.map(Double.init),
                         actual == label, predicted != label
                     else { continue }
                     falseNegativesCount += count
@@ -189,14 +189,12 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
             ))
 
             // 4. マクロ平均再現率・適合率
-            if !labelsFromConfusion.isEmpty, macroAverageRecallRate > 0 || macroAveragePrecisionRate > 0 {
-                descriptionParts.append(String(
-                    format: "平均再現率: %.1f%%, 平均適合率: %.1f%% (対象: %dクラス)",
-                    macroAverageRecallRate * 100,
-                    macroAveragePrecisionRate * 100,
-                    labelsFromConfusion.count
-                ))
-            }
+            descriptionParts.append(String(
+                format: "平均再現率: %.1f%%, 平均適合率: %.1f%% (対象: %dクラス)",
+                macroAverageRecallRate * 100,
+                macroAveragePrecisionRate * 100,
+                labelsFromConfusion.count
+            ))
             
             // 5. 検証方法
             descriptionParts.append("(検証: 自動分割)")
