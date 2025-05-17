@@ -8,87 +8,91 @@ import MultiLabelClassification
 import OvRClassification
 import OvOClassification
 
-// --- トレーナータイプの型 ---
-enum TrainerType {
-    case binary
-    case multiClass
-    case multiLabel
-    case ovr
-    case ovo
-
-    var definedVersion: String {
+// 分類器の種類
+enum TrainerType: String {
+    case binary, multiClass, multiLabel, ovr, ovo
+    
+    func makeTrainer() -> any ScreeningTrainerProtocol {
         switch self {
-            case .binary: "v5"
-            case .multiClass: "v3"
-            case .multiLabel: "v1"
-            case .ovr: "v3"
-            case .ovo: "v1"
+        case .binary: BinaryClassificationTrainer()
+        case .multiClass: MultiClassClassificationTrainer()
+        case .multiLabel: MultiLabelClassificationTrainer()
+        case .ovr: OvRClassificationTrainer()
+        case .ovo: OvOClassificationTrainer()
         }
     }
 }
 
-// --- 作成するモデル名の型 ---
-enum ModelNameType: String {
-    case scaryCatScreeningML = "ScaryCatScreeningML"
-}
-
-// --- トレーニング設定 ---
-let currentTrainerType: TrainerType = .ovo
-let maxTrainingIterations = 11
-
-// --- 共通のログデータ設定 ---
-let modelAuthor = "akitora"
-let modelName = ModelNameType.scaryCatScreeningML.rawValue
-let modelVersion = currentTrainerType.definedVersion
-
-print("🚀 トレーニングを開始します... 設定タイプ: \(currentTrainerType), モデル名: \(modelName), バージョン: \(modelVersion)")
-
-// トレーナーの選択と実行
-let trainer: any ScreeningTrainerProtocol
-var trainingResult: Any?
-
-switch currentTrainerType {
-    case .binary:
-        let binaryTrainer = BinaryClassificationTrainer()
-        trainer = binaryTrainer
-    case .multiClass:
-        let multiClassTrainer = MultiClassClassificationTrainer()
-        trainer = multiClassTrainer
-    case .multiLabel:
-        let multiLabelTrainer = MultiLabelClassificationTrainer()
-        trainer = multiLabelTrainer
-    case .ovr:
-        let ovrTrainer = OvRClassificationTrainer()
-        trainer = ovrTrainer
-    case .ovo:
-        let ovoTrainer = OvOClassificationTrainer()
-        trainer = ovoTrainer
-}
-
-trainingResult = await trainer.train(
-    author: modelAuthor,
-    modelName: modelName,
-    version: modelVersion,
-    maxIterations: maxTrainingIterations
-)
-
-// 結果の処理
-if let result = trainingResult {
-    print("🎉 トレーニングが正常に完了しました。")
-
-    // 結果をログに保存
-    if let resultData = result as? any TrainingResultProtocol {
-        resultData.saveLog(
-            modelAuthor: modelAuthor,
-            modelName: modelName,
-            modelVersion: modelVersion
-        )
-        print("💾 トレーニング結果をログに保存しました。")
-    } else {
-        print("⚠️ 結果の型がTrainingResultDataに準拠していません。ログは保存されませんでした。")
+// モデルの種類
+enum MLModelType: String {
+    case scaryCatScreeningML
+    
+    struct ModelConfig {
+        let name: String
+        let supportedTrainerVersions: [TrainerType: String]
     }
-} else {
-    print("🛑 トレーニングまたはモデルの保存中にエラーが発生しました。")
+    
+    private static let configs: [MLModelType: ModelConfig] = [
+        .scaryCatScreeningML: ModelConfig(
+            name: "ScaryCatScreeningML",
+            supportedTrainerVersions: [
+                .binary: "v5",
+                .multiClass: "v3",
+                .multiLabel: "v1",
+                .ovr: "v3",
+                .ovo: "v1"
+            ]
+        )
+    ]
+    
+    private var config: ModelConfig {
+        guard let config = Self.configs[self] else {
+            fatalError("Configが存在しないモデルタイプ: \(self)")
+        }
+        return config
+    }
+    
+    var name: String { config.name }
+    var supportedTrainerTypes: [TrainerType] { Array(config.supportedTrainerVersions.keys) }
+    func version(for trainer: TrainerType) -> String? { config.supportedTrainerVersions[trainer] }
 }
 
-print("✅ すべての処理が完了しました。") 
+let semaphore = DispatchSemaphore(value: 0)
+
+Task {
+    let selectedModel: MLModelType = .scaryCatScreeningML
+    let selectedTrainer: TrainerType = .multiLabel
+    let author = "akitora"
+    let maxIterations = 10
+    
+    guard selectedModel.supportedTrainerTypes.contains(selectedTrainer),
+          let version = selectedModel.version(for: selectedTrainer) else {
+        print("無効な組み合わせです")
+        semaphore.signal()
+        return
+    }
+    
+    let trainer = selectedTrainer.makeTrainer()
+    
+    guard let result = await trainer.train(
+        author: author,
+        modelName: selectedModel.name,
+        version: version,
+        maxIterations: maxIterations
+    ) as? TrainingResultProtocol else {
+        print("トレーニングに失敗しました")
+        semaphore.signal()
+        return
+    }
+    
+    result.saveLog(
+        modelAuthor: author,
+        modelName: selectedModel.name,
+        modelVersion: version
+    )
+    
+    print("トレーニング完了: \(selectedModel.name) [\(selectedTrainer.rawValue)]")
+    semaphore.signal()
+}
+
+semaphore.wait()
