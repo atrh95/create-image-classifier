@@ -176,7 +176,9 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
 
                 perClassRecallRates.append(recallRate)
                 perClassPrecisionRates.append(precisionRate)
-                print("    🔎 クラス: \(label) - 再現率: \(String(format: "%.2f", recallRate * 100))%, 適合率: \(String(format: "%.2f", precisionRate * 100))%")
+                print(
+                    "    🔎 クラス: \(label) - 再現率: \(String(format: "%.2f", recallRate * 100))%, 適合率: \(String(format: "%.2f", precisionRate * 100))%"
+                )
 
                 detailedClassMetrics.append(PerClassValidationMetrics(
                     label: label,
@@ -218,10 +220,12 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
             if !detailedClassMetrics.isEmpty {
                 descriptionParts.append("クラス別検証指標:")
                 for metrics in detailedClassMetrics {
-                    let metricsString = String(format: "    %@: 再現率 %.1f%%, 適合率 %.1f%%",
-                                               metrics.label,
-                                               metrics.recall * 100,
-                                               metrics.precision * 100)
+                    let metricsString = String(
+                        format: "    %@: 再現率 %.1f%%, 適合率 %.1f%%",
+                        metrics.label,
+                        metrics.recall * 100,
+                        metrics.precision * 100
+                    )
                     descriptionParts.append(metricsString)
                 }
             }

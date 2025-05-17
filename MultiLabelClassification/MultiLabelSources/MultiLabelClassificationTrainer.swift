@@ -114,11 +114,11 @@ public final class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
 
         if let validationPredictions = try? await fittedPipeline.applied(to: validationFeatures) {
             print("🧪 検証データで予測を取得しました。サンプル数: \(validationPredictions.count)")
-            for i in 0..<validationSet.count {
+            for i in 0 ..< validationSet.count {
                 let trueAnnotations = validationSet[i].annotation
                 let annotatedPrediction = validationPredictions[i]
                 let actualDistribution = annotatedPrediction.feature
-                
+
                 var predictedLabels = Set<String>()
                 for labelInDataset in labels {
                     if let score = actualDistribution[labelInDataset], score >= predictionThreshold {
@@ -130,11 +130,11 @@ public final class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
                     let trulyHasLabel = trueAnnotations.contains(label)
                     let predictedHasLabel = predictedLabels.contains(label)
 
-                    if trulyHasLabel && predictedHasLabel {
+                    if trulyHasLabel, predictedHasLabel {
                         perLabelMetricsResults[label]?.tp += 1
-                    } else if !trulyHasLabel && predictedHasLabel {
+                    } else if !trulyHasLabel, predictedHasLabel {
                         perLabelMetricsResults[label]?.fp += 1
-                    } else if trulyHasLabel && !predictedHasLabel {
+                    } else if trulyHasLabel, !predictedHasLabel {
                         perLabelMetricsResults[label]?.fn += 1
                     }
                 }
@@ -142,7 +142,7 @@ public final class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
         } else {
             print("⚠️ 検証データでの予測取得に失敗しました。ラベル別指標は計算できません。")
         }
-        
+
         struct PerLabelCalculatedMetrics {
             let label: String
             let recall: Double
@@ -154,8 +154,14 @@ public final class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
             if let counts = perLabelMetricsResults[label] {
                 let recall = (counts.tp + counts.fn == 0) ? 0.0 : Double(counts.tp) / Double(counts.tp + counts.fn)
                 let precision = (counts.tp + counts.fp == 0) ? 0.0 : Double(counts.tp) / Double(counts.tp + counts.fp)
-                calculatedMetricsForDescription.append(PerLabelCalculatedMetrics(label: label, recall: recall, precision: precision))
-                print("    🔖 ラベル: \(label) - 再現率: \(String(format: "%.2f", recall * 100))%, 適合率: \(String(format: "%.2f", precision * 100))% (TP: \(counts.tp), FP: \(counts.fp), FN: \(counts.fn))")
+                calculatedMetricsForDescription.append(PerLabelCalculatedMetrics(
+                    label: label,
+                    recall: recall,
+                    precision: precision
+                ))
+                print(
+                    "    🔖 ラベル: \(label) - 再現率: \(String(format: "%.2f", recall * 100))%, 適合率: \(String(format: "%.2f", precision * 100))% (TP: \(counts.tp), FP: \(counts.fp), FN: \(counts.fn))"
+                )
             }
         }
         // ---- END: Calculate Per-Label Recall and Precision ----
@@ -180,10 +186,12 @@ public final class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
         if !calculatedMetricsForDescription.isEmpty {
             descriptionParts.append("ラベル別検証指標 (しきい値: \(predictionThreshold)):")
             for metrics in calculatedMetricsForDescription {
-                let metricsString = String(format: "    %@: 再現率 %.1f%%, 適合率 %.1f%%",
-                                           metrics.label,
-                                           metrics.recall * 100,
-                                           metrics.precision * 100)
+                let metricsString = String(
+                    format: "    %@: 再現率 %.1f%%, 適合率 %.1f%%",
+                    metrics.label,
+                    metrics.recall * 100,
+                    metrics.precision * 100
+                )
                 descriptionParts.append(metricsString)
             }
         } else {
@@ -212,13 +220,16 @@ public final class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
         }
 
         let finalMeanAP: Double? = nil // mAPは現時点では計算しない
-        let finalPerLabelSummary = calculatedMetricsForDescription.isEmpty ? "評価スキップまたは失敗" : "ラベル別 再現率/適合率はモデルDescription参照"
+        let finalPerLabelSummary = calculatedMetricsForDescription
+            .isEmpty ? "評価スキップまたは失敗" : "ラベル別 再現率/適合率はモデルDescription参照"
         var avgRecallDouble: Double? = nil
         var avgPrecisionDouble: Double? = nil
 
         if !calculatedMetricsForDescription.isEmpty {
-            avgRecallDouble = calculatedMetricsForDescription.map { $0.recall }.reduce(0, +) / Double(calculatedMetricsForDescription.count)
-            avgPrecisionDouble = calculatedMetricsForDescription.map { $0.precision }.reduce(0, +) / Double(calculatedMetricsForDescription.count)
+            avgRecallDouble = calculatedMetricsForDescription.map(\.recall)
+                .reduce(0, +) / Double(calculatedMetricsForDescription.count)
+            avgPrecisionDouble = calculatedMetricsForDescription.map(\.precision)
+                .reduce(0, +) / Double(calculatedMetricsForDescription.count)
         }
 
         return MultiLabelTrainingResult(
