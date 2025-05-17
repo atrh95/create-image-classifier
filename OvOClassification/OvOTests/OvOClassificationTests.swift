@@ -9,14 +9,28 @@ class OvOClassificationTests: XCTestCase {
 
     var trainer: OvOClassificationTrainer! // OvOトレーナーに変更
     let fileManager = FileManager.default
-    var authorName: String = "Test Author"
-    var testModelName: String = "TestCats_OvO_Run"
-    var testModelVersion: String = "v1"
+    let authorName: String = "Test Author"
+    let testModelName: String = "TestCats_OvO_Run"
+    let testModelVersion: String = "v1"
 
+    let algorithm = MLImageClassifier.ModelParameters.ModelAlgorithmType.transferLearning(
+        featureExtractor: .scenePrint(revision: 1),
+        classifier: .logisticRegressor
+    )
+
+    var modelParameters: MLImageClassifier.ModelParameters {
+        MLImageClassifier.ModelParameters(
+            validation: .split(strategy: .automatic),
+            maxIterations: 10,
+            augmentation: [],
+            algorithm: algorithm
+        )
+    }
+    
     // テストリソースへのパス
     var testResourcesRootPath: String {
         var currentTestFileDir = URL(fileURLWithPath: #filePath)
-        currentTestFileDir.deleteLastPathComponent() // -> OvOTests ディレクトリ
+        currentTestFileDir.deleteLastPathComponent()
         return currentTestFileDir.appendingPathComponent("TestResources").path
     }
 
@@ -57,7 +71,7 @@ class OvOClassificationTests: XCTestCase {
 
     override func setUp() async throws {
         try await super.setUp()
-
+        
         resolvedAnnotationFileName = findAnnotationFileName()
         guard resolvedAnnotationFileName != nil else {
             throw TestError.annotationFileError
@@ -71,27 +85,16 @@ class OvOClassificationTests: XCTestCase {
             attributes: nil
         )
 
-        // OvOClassificationTrainer の初期化方法に合わせて調整
         trainer = OvOClassificationTrainer(
             resourcesDirectoryPathOverride: testResourcesRootPath,
-            outputDirectoryPathOverride: temporaryOutputDirectoryURL.path,
-            annotationFileNameOverride: resolvedAnnotationFileName // OvOの仕様による
+            outputDirectoryPathOverride: temporaryOutputDirectoryURL.path
         )
-
-        // OvOClassificationTrainer.train の引数シグネチャに合わせる
-        // ダミーパラメータもOvOのトレーナーが要求する型に合わせる
-        let dummyModelParameters = MLImageClassifier.ModelParameters( // 型は仮。OvOが直接これを使うか不明
-            validation: .split(strategy: .automatic),
-            maxIterations: 1, 
-            augmentation: [],
-            algorithm: .transferLearning() // アルゴリズムも仮
-        )
-
+        
         trainingResult = await trainer.train(
             author: authorName,
             modelName: testModelName,
             version: testModelVersion,
-            modelParameters: dummyModelParameters // OvOトレーナーの train メソッドのシグネチャに合わせる
+            modelParameters: self.modelParameters 
         )
 
         guard let result = trainingResult else {

@@ -8,9 +8,23 @@ import Foundation
 class MultiLabelClassificationTests: XCTestCase {
     var trainer: MultiLabelClassificationTrainer!
     let fileManager = FileManager.default
-    var authorName: String = "Test Author"
-    var testModelName: String = "TestCats_MultiLabel_Run"
-    var testModelVersion: String = "v1"
+    let authorName: String = "Test Author"
+    let testModelName: String = "TestCats_MultiLabel_Run"
+    let testModelVersion: String = "v1"
+
+    let algorithm = MLImageClassifier.ModelParameters.ModelAlgorithmType.transferLearning(
+        featureExtractor: .scenePrint(revision: 1),
+        classifier: .logisticRegressor
+    )
+
+    var modelParameters: MLImageClassifier.ModelParameters {
+        MLImageClassifier.ModelParameters(
+            validation: .split(strategy: .automatic),
+            maxIterations: 1,
+            augmentation: [],
+            algorithm: algorithm
+        )
+    }
 
     var testResourcesRootPath: String {
         var currentTestFileDir = URL(fileURLWithPath: #filePath)
@@ -70,18 +84,11 @@ class MultiLabelClassificationTests: XCTestCase {
             annotationFileNameOverride: resolvedAnnotationFileName
         )
 
-        let dummyModelParameters = MLImageClassifier.ModelParameters(
-            validation: .split(strategy: .automatic),
-            maxIterations: 1,
-            augmentation: [],
-            algorithm: .transferLearning(featureExtractor: .scenePrint(revision: 1), classifier: .logisticRegressor)
-        )
-
         trainingResult = await trainer.train(
             author: authorName,
             modelName: testModelName,
             version: testModelVersion,
-            modelParameters: dummyModelParameters
+            modelParameters: self.modelParameters // Use class-level computed property
         )
 
         guard let result = trainingResult else {

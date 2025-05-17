@@ -32,8 +32,8 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
             return overridePath
         }
         var dir = URL(fileURLWithPath: #filePath)
-        dir.deleteLastPathComponent() // OvOSources
-        dir.deleteLastPathComponent() // OvOClassification
+        dir.deleteLastPathComponent()
+        dir.deleteLastPathComponent()
         return dir.appendingPathComponent("OutputModels").path
     }
 
@@ -44,8 +44,8 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
             return overridePath
         }
         var dir = URL(fileURLWithPath: #filePath)
-        dir.deleteLastPathComponent() // OvOSources
-        dir.deleteLastPathComponent() // OvOClassification
+        dir.deleteLastPathComponent()
+        dir.deleteLastPathComponent() 
         return dir.appendingPathComponent("Resources").path
     }
 
@@ -66,11 +66,9 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
         version: String,
         modelParameters: CreateML.MLImageClassifier.ModelParameters
     ) async -> OvOTrainingResult? {
-        let resolvedOutputDirPath = self.outputDirPath // Use the (potentially overridden) property
         let mainOutputRunURL: URL
         do {
             mainOutputRunURL = try createOutputDirectory(
-                basePath: resolvedOutputDirPath, // Pass the resolved path
                 modelName: modelName, 
                 version: version
             )
@@ -80,9 +78,9 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
         }
 
         let baseProjectURL = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent() // OvOClassificationSources
-            .deletingLastPathComponent() // OvOClassification
-            .deletingLastPathComponent() // プロジェクトルート
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent() 
         let tempOvOBaseURL = baseProjectURL.appendingPathComponent(Self.tempBaseDirName) // OvO用一時ディレクトリベースパス
         defer {
             if Self.fileManager.fileExists(atPath: tempOvOBaseURL.path) {
@@ -392,21 +390,5 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
             !url.lastPathComponent
                 .hasPrefix(".") && (try? url.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true
         }
-    }
-
-    // MARK: - Directory Management Helpers
-
-    // 出力ディレクトリを作成・準備する (ベースパスを指定可能に)
-    private func createOutputDirectory(basePath: String, modelName: String, version: String) throws -> URL {
-        let runFolderName = "\(modelName)_\(classificationMethod)_run_\(version)_\(DateFormatter.timestamp())"
-        let runURL = URL(fileURLWithPath: basePath).appendingPathComponent(runFolderName)
-
-        if Self.fileManager.fileExists(atPath: runURL.path) {
-            print("⚠️ 既存の実行ディレクトリを削除: \(runURL.path)")
-            try Self.fileManager.removeItem(at: runURL)
-        }
-        try Self.fileManager.createDirectory(at: runURL, withIntermediateDirectories: true, attributes: nil)
-        print("✅ メイン出力ディレクトリ作成: \(runURL.path)")
-        return runURL
     }
 }

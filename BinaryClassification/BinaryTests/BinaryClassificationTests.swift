@@ -11,6 +11,21 @@ class BinaryClassificationTests: XCTestCase {
     var authorName: String = "Test Author"
     var testModelName: String = "TestCats_Binary_Run"
     var testModelVersion: String = "v1"
+
+    let algorithm = MLImageClassifier.ModelParameters.ModelAlgorithmType.transferLearning(
+        featureExtractor: .scenePrint(revision: 1),
+        classifier: .logisticRegressor
+    )
+
+    var modelParameters: MLImageClassifier.ModelParameters {
+        MLImageClassifier.ModelParameters(
+            validation: .split(strategy: .automatic),
+            maxIterations: 1,
+            augmentation: [],
+            algorithm: algorithm
+        )
+    }
+
     var temporaryOutputDirectoryURL: URL!
     var compiledModelURL: URL?
     var trainingResult: BinaryClassification.BinaryTrainingResult?
@@ -38,22 +53,11 @@ class BinaryClassificationTests: XCTestCase {
             outputDirectoryPathOverride: temporaryOutputDirectoryURL.path
         )
 
-        let algorithm = MLImageClassifier.ModelParameters.ModelAlgorithmType.transferLearning(
-            featureExtractor: .scenePrint(revision: 1),
-            classifier: .logisticRegressor
-        )
-        let modelParameters = MLImageClassifier.ModelParameters(
-            validation: .split(strategy: .automatic),
-            maxIterations: 1,
-            augmentation: [],
-            algorithm: algorithm
-        )
-
         trainingResult = await trainer.train(
             author: authorName,
             modelName: testModelName,
             version: testModelVersion,
-            modelParameters: modelParameters
+            modelParameters: self.modelParameters
         )
 
         guard let result = trainingResult else {
@@ -127,7 +131,7 @@ class BinaryClassificationTests: XCTestCase {
         XCTAssertTrue(fileManager.fileExists(atPath: expectedLogFilePath), "ログファイルが期待パス「\(expectedLogFilePath)」に未生成")
 
         XCTAssertEqual(result.modelName, testModelName, "訓練結果modelName「\(result.modelName)」が期待値「\(testModelName)」と不一致")
-        XCTAssertEqual(result.maxIterations, 1, "訓練結果maxIterations「\(result.maxIterations)」が期待値「1」と不一致")
+        XCTAssertEqual(result.maxIterations, 10, "訓練結果maxIterations「\(result.maxIterations)」が期待値「10」と不一致")
 
         do {
             let logContents = try String(contentsOfFile: expectedLogFilePath, encoding: .utf8)
