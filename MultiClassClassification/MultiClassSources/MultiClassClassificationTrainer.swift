@@ -246,22 +246,18 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
 
             return MultiClassTrainingResult(
                 modelName: modelName,
-                trainingDataAccuracyPercentage: trainingDataAccuracyPercentage,
-                validationDataAccuracyPercentage: validationDataAccuracyPercentage,
-                trainingDurationInSeconds: duration,
-                trainedModelFilePath: outputModelURL.path,
-                sourceTrainingDataDirectoryPath: trainingDataParentDir.path,
-                detectedClassLabelsList: labelsFromConfusion,
+                trainingDataAccuracy: trainingDataAccuracyPercentage / 100.0,
+                validationDataAccuracy: validationDataAccuracyPercentage / 100.0,
+                trainingDataErrorRate: trainingEvaluation.classificationError,
+                validationDataErrorRate: validationEvaluation.classificationError,
+                trainingTimeInSeconds: duration,
+                modelOutputPath: outputModelURL.path,
+                trainingDataPath: trainingDataParentDir.path,
+                classLabels: classLabelsFromFileSystem,
+                maxIterations: modelParameters.maxIterations,
                 macroAverageRecall: macroAverageRecallRate,
                 macroAveragePrecision: macroAveragePrecisionRate,
-                perClassMetrics: detailedClassMetrics.map {
-                    .init(
-                        className: $0.label,
-                        recall: $0.recall,
-                        precision: $0.precision
-                    )
-                },
-                maxIterations: modelParameters.maxIterations
+                detectedClassLabelsList: labelsFromConfusion
             )
 
         } catch let error as CreateML.MLCreateError {

@@ -11,17 +11,18 @@ class BinaryClassificationTests: XCTestCase {
     var authorName: String = "Test Author"
     var testModelName: String = "TestCats_Binary_Run"
     var testModelVersion: String = "v1"
-    var testResourcesRootPath: String!
     var temporaryOutputDirectoryURL: URL!
     var compiledModelURL: URL?
     var trainingResult: BinaryClassification.BinaryTrainingResult?
 
-    override func setUp() async throws {
-        try await super.setUp()
-
+    var testResourcesRootPath: String {
         var sourcesDir = URL(fileURLWithPath: #filePath)
         sourcesDir.deleteLastPathComponent()
-        testResourcesRootPath = sourcesDir.appendingPathComponent("TestResources").path
+        return sourcesDir.appendingPathComponent("TestResources").path
+    }
+
+    override func setUp() async throws {
+        try await super.setUp()
 
         temporaryOutputDirectoryURL = fileManager.temporaryDirectory
             .appendingPathComponent("TestOutput_\(UUID().uuidString)")
@@ -183,8 +184,7 @@ class BinaryClassificationTests: XCTestCase {
         do {
             imageURL1 = try getRandomImageURL(
                 forClassLabel: classLabel1,
-                inBaseDirectory: baseResourceURL,
-                validExtensions: ["jpg"]
+                inBaseDirectory: baseResourceURL
             )
         } catch {
             XCTFail("'\(classLabel1)' サブディレクトリからのランダム画像取得失敗。エラー: \(error.localizedDescription)")
@@ -196,8 +196,7 @@ class BinaryClassificationTests: XCTestCase {
         do {
             imageURL2 = try getRandomImageURL(
                 forClassLabel: classLabel2,
-                inBaseDirectory: baseResourceURL,
-                validExtensions: ["jpg"]
+                inBaseDirectory: baseResourceURL
             )
         } catch {
             XCTFail("'\(classLabel2)' サブディレクトリからのランダム画像取得失敗。エラー: \(error.localizedDescription)")
@@ -229,8 +228,7 @@ class BinaryClassificationTests: XCTestCase {
 
     private func getRandomImageURL(
         forClassLabel classLabel: String,
-        inBaseDirectory baseDirectoryURL: URL,
-        validExtensions: [String]
+        inBaseDirectory baseDirectoryURL: URL
     ) throws -> URL {
         let subdirectoryURL = baseDirectoryURL.appendingPathComponent(classLabel)
         print("'\(classLabel)' のサブディレクトリにアクセス試行: \(subdirectoryURL.path)")
@@ -249,6 +247,7 @@ class BinaryClassificationTests: XCTestCase {
             includingPropertiesForKeys: nil,
             options: [.skipsHiddenFiles]
         )
+        let validExtensions = ["jpg", "jpeg", "png"]
         let imageFiles = allFiles.filter { validExtensions.contains($0.pathExtension.lowercased()) }
 
         guard let randomImageURL = imageFiles.randomElement() else {
