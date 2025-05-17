@@ -72,7 +72,7 @@ jobs:
     secrets: inherit
 
   # ビルド完了通知
-  notify-completion:
+  notify:
     name: Notify Completion
     runs-on: ubuntu-latest
     needs:

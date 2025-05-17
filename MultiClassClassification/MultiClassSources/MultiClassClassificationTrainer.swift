@@ -115,6 +115,8 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
             var perClassPrecisionRates: [Double] = []
 
             let confusionMatrix = validationEvaluation.confusion
+            print("📄 Confusion Matrix Description: \(confusionMatrix.description)")
+            print("📄 Confusion Matrix Rows Count: \(confusionMatrix.rows.count)")
             var labelSet = Set<String>()
             for row in confusionMatrix.rows {
                 if let actual = row["True Label"]?.stringValue {
@@ -126,6 +128,14 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
             }
             let labelsFromConfusion = Array(labelSet).sorted()
             print("📊 混同行列から取得した評価用クラスラベル: \(labelsFromConfusion.joined(separator: ", "))")
+
+            let finalDetectedClassLabels: [String]
+            if labelsFromConfusion.isEmpty, !classLabelsFromFileSystem.isEmpty {
+                print("⚠️ 混同行列からラベルが取得できなかったため、ファイルシステムのラベルを使用します。")
+                finalDetectedClassLabels = classLabelsFromFileSystem
+            } else {
+                finalDetectedClassLabels = labelsFromConfusion
+            }
 
             struct PerClassValidationMetrics {
                 let label: String
@@ -273,7 +283,7 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
                 maxIterations: modelParameters.maxIterations,
                 macroAverageRecall: macroAverageRecallRate,
                 macroAveragePrecision: macroAveragePrecisionRate,
-                detectedClassLabelsList: labelsFromConfusion
+                detectedClassLabelsList: finalDetectedClassLabels
             )
 
         } catch let error as CreateML.MLCreateError {

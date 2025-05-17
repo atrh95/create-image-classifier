@@ -21,10 +21,10 @@ on:
     outputs:
       overall_test_result:
         description: "全体のテスト結果 (success または failure)"
-        value: ${{ jobs.report-status.outputs.overall_result }}
+        value: ${{ jobs.report.outputs.overall_result }}
 
 jobs:
-  report-status:
+  report:
     runs-on: ubuntu-latest
     outputs:
       overall_result: ${{ steps.set_overall_status.outputs.result }}

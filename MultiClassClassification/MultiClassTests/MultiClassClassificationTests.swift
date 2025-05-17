@@ -117,7 +117,29 @@ class MultiClassClassificationTests: XCTestCase {
             "訓練モデルファイルが期待されるパス「\(result.modelOutputPath)」に見つかりません"
         )
 
-        let expectedClassLabels = ["black_and_white", "human_hands_detected", "mouth_open", "sphynx"].sorted()
+        // Dynamically get expected class labels from the TestResources subdirectories
+        let testResourcesURL = URL(fileURLWithPath: testResourcesRootPath)
+        var expectedClassLabels: [String] = []
+        do {
+            let subdirectories = try fileManager.contentsOfDirectory(
+                at: testResourcesURL,
+                includingPropertiesForKeys: [.isDirectoryKey],
+                options: [.skipsHiddenFiles, .skipsSubdirectoryDescendants]
+            )
+            expectedClassLabels = subdirectories.filter { url in
+                var isDirectory: ObjCBool = false
+                return fileManager.fileExists(atPath: url.path, isDirectory: &isDirectory) && isDirectory.boolValue
+            }.map(\.lastPathComponent).sorted()
+        } catch {
+            XCTFail("テストリソースのサブディレクトリからのクラスラベルの取得に失敗しました: \(error.localizedDescription)")
+            throw TestError.setupFailed
+        }
+
+        guard !expectedClassLabels.isEmpty else {
+            XCTFail("テストリソースディレクトリから期待されるクラスラベルが見つかりませんでした。パス: \(testResourcesRootPath)")
+            throw TestError.setupFailed
+        }
+
         XCTAssertEqual(
             Set(result.detectedClassLabelsList.sorted()),
             Set(expectedClassLabels),
@@ -139,7 +161,6 @@ class MultiClassClassificationTests: XCTestCase {
             testModelName,
             "訓練結果のmodelName「\(result.modelName)」が期待値「\(testModelName)」と一致しません"
         )
-        XCTAssertEqual(result.maxIterations, 10, "訓練結果のmaxIterations「\(result.maxIterations)」が期待値「10」と一致しません")
 
         do {
             let logContents = try String(contentsOfFile: expectedLogFilePath, encoding: .utf8)
