@@ -64,7 +64,8 @@ final class OvOClassificationTests: XCTestCase {
             author: authorName,
             modelName: testModelName,
             version: testModelVersion,
-            modelParameters: modelParameters
+            modelParameters: modelParameters,
+            scenePrintRevision: nil
         )
 
         guard trainingResult != nil else {

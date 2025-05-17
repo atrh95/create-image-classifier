@@ -39,7 +39,7 @@ enum MLModelType: String {
                 .binary: "v5",
                 .multiClass: "v3",
                 .multiLabel: "v1",
-                .ovr: "v3",
+                .ovr: "v6",
                 .ovo: "v1",
             ]
         ),

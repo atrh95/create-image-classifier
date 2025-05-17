@@ -199,7 +199,7 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
             trainingDataPaths: trainingDataPaths,
             maxIterations: modelParameters.maxIterations,
             individualReports: individualReports,
-            dataAugmentationDescription: commonDataAugmentationDesc,     
+            dataAugmentationDescription: commonDataAugmentationDesc,
             baseFeatureExtractorDescription: featureExtractorString,
             scenePrintRevision: scenePrintRevision
         )
@@ -226,7 +226,7 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
             .replacingOccurrences(of: "[^a-zA-Z0-9]", with: "", options: .regularExpression)
 
         let modelFileNameBase =
-            "\(modelName)_\(classificationMethod)_\(positiveClassNameForModel)_vs_Rest_v\(version)_idx\(pairIndex)"
+            "\(modelName)_\(classificationMethod)_\(positiveClassNameForModel)_vs_Rest_\(version)"
         let tempOvRPairRootName = "\(modelFileNameBase)_TempData"
         let tempOvRPairRootURL = tempOvRBaseURL.appendingPathComponent(tempOvRPairRootName)
 
@@ -336,19 +336,22 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
             print("  デバッグ [\(positiveClassNameForModel)]: 混同行列の内容: \(confusionMatrix.description)")
             print("  デバッグ [\(positiveClassNameForModel)]: 混同行列の列名: \(confusionMatrix.columnNames)")
 
+            // Recall/Precision calculation logic matching BinaryClassificationTrainer.swift
             var labelSet = Set<String>()
-            var rowCount = 0
             for row in confusionMatrix.rows {
-                rowCount += 1
-                if let actual = row["True Label"]?.stringValue { labelSet.insert(actual) }
-                if let predicted = row["Predicted"]?.stringValue { labelSet.insert(predicted) }
+                if let actual = row["True Label"]?.stringValue {
+                    labelSet.insert(actual)
+                }
+                if let predicted = row["Predicted"]?.stringValue {
+                    labelSet.insert(predicted)
+                }
             }
-            print("  デバッグ [\(positiveClassNameForModel)]: 混同行列から処理された総行数: \(rowCount)")
-            print("  デバッグ [\(positiveClassNameForModel)]: 混同行列から抽出されたラベルセット: \(labelSet)")
-
             let classLabelsFromConfusion = Array(labelSet).sorted()
 
-            if classLabelsFromConfusion.contains(positiveClassNameForModel), classLabelsFromConfusion.contains("Rest") {
+            if classLabelsFromConfusion.count == 2 {
+                let negativeLabel = classLabelsFromConfusion[0]
+                let positiveLabel = classLabelsFromConfusion[1]
+
                 var truePositives = 0
                 var falsePositives = 0
                 var falseNegatives = 0
@@ -360,14 +363,15 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
                         let cnt = row["Count"]?.intValue
                     else { continue }
 
-                    if actual == positiveClassNameForModel, predicted == positiveClassNameForModel {
+                    if actual == positiveLabel, predicted == positiveLabel {
                         truePositives += cnt
-                    } else if actual == "Rest", predicted == positiveClassNameForModel {
+                    } else if actual == negativeLabel, predicted == positiveLabel {
                         falsePositives += cnt
-                    } else if actual == positiveClassNameForModel, predicted == "Rest" {
+                    } else if actual == positiveLabel, predicted == negativeLabel {
                         falseNegatives += cnt
                     }
                 }
+
                 if (truePositives + falseNegatives) > 0 {
                     recall = Double(truePositives) / Double(truePositives + falseNegatives)
                 }
@@ -375,9 +379,7 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
                     precision = Double(truePositives) / Double(truePositives + falsePositives)
                 }
             } else {
-                print(
-                    "  ⚠️ OvRペア [\(positiveClassNameForModel)]: 混同行列から期待されるラベル ('\(positiveClassNameForModel)', 'Rest') が見つからず、再現率/適合率計算スキップ。"
-                )
+                print("  ⚠️ OvRペア [\(positiveClassNameForModel)]: 混同行列のクラス数が2でないため、再現率・適合率計算スキップ")
             }
 
             let positiveCountForDesc = (try? getFilesInDirectory(tempPositiveDataDirForML).count) ?? 0
@@ -406,10 +408,10 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
                 // OvRでは classLabelsFromConfusion[1] が陽性クラス名 (例: Cat) となる想定
                 let positiveLabelForDesc = classLabelsFromConfusion.first { $0 == positiveClassNameForModel } ?? classLabelsFromConfusion[1]
                 descriptionParts.append(String(
-                    format: "陽性クラス (\(positiveLabelForDesc)): 再現率 %.1f%%, 適合率 %.1f%%",
+                    format: "陽性クラス (%@): 再現率 %.1f%%, 適合率 %.1f%%",
                     positiveLabelForDesc,
-                    recall * 100,
-                    precision * 100
+                    max(0.0, recall * 100),
+                    max(0.0, precision * 100)
                 ))
             } else if !classLabelsFromConfusion.isEmpty {
                 descriptionParts.append("(詳細な分類指標は二値分類構造のみ)")

@@ -18,6 +18,10 @@ private struct OvOPairTrainingResult {
     let trainingTime: TimeInterval
     let trainingDataPath: String // このペアのトレーニングに使用されたデータのパス
     let individualModelDescription: String
+    let recallRateClass1: Double
+    let precisionRateClass1: Double
+    let recallRateClass2: Double
+    let precisionRateClass2: Double
 }
 
 public class OvOClassificationTrainer: ScreeningTrainerProtocol {
@@ -204,9 +208,10 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
                 positiveClassName: "\(result.class1Name)_vs_\(result.class2Name)",
                 trainingAccuracyRate: result.trainingAccuracyRate,
                 validationAccuracyPercentage: result.validationAccuracyRate,
-                // OvOの再現率・適合率は各クラス視点で計算可能だが、ここではペア全体の精度を重視
-                recallRate: 0,
-                precisionRate: 0,
+                // OvOの再現率・適合率は各クラス視点で計算可能。ここではclass1の値を代表として格納。
+                // 詳細は individualModelDescription に含まれる。
+                recallRate: result.recallRateClass1,
+                precisionRate: result.precisionRateClass1,
                 modelDescription: result.individualModelDescription
             )
         }
@@ -235,12 +240,12 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
     private func trainSingleOvOPair(
         class1DirURL: URL,
         class2DirURL: URL,
-        mainRunURL: URL, // 各ペアモデルの保存先ディレクトリの親
-        tempOvOBaseURL: URL, // 全ペアの一時データ保存ルート
-        modelName: String, // ユーザー指定の基本モデル名
+        mainRunURL: URL,
+        tempOvOBaseURL: URL,
+        modelName: String,
         author: String,
         version: String,
-        pairIndex _: Int,
+        pairIndex: Int,
         modelParameters: CreateML.MLImageClassifier.ModelParameters,
         scenePrintRevision: Int?
     ) async -> OvOPairTrainingResult? {
@@ -248,28 +253,25 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
         let class2NameOriginal = class2DirURL.lastPathComponent
 
         // モデル名やディレクトリ名に使用するクラス名 (英数字のみに整形)
-        let class1NameForModel = class1NameOriginal.components(separatedBy: CharacterSet(charactersIn: "_-"))
+        let modelClass1Name = class1NameOriginal.components(separatedBy: CharacterSet(charactersIn: "_-"))
             .map(\.capitalized)
             .joined()
             .replacingOccurrences(of: "[^a-zA-Z0-9]", with: "", options: .regularExpression)
 
-        let class2NameForModel = class2NameOriginal.components(separatedBy: CharacterSet(charactersIn: "_-"))
+        let modelClass2Name = class2NameOriginal.components(separatedBy: CharacterSet(charactersIn: "_-"))
             .map(\.capitalized)
             .joined()
             .replacingOccurrences(of: "[^a-zA-Z0-9]", with: "", options: .regularExpression)
 
         // モデルファイル名と一時ディレクトリ名を作成
-        // 例: MyCatModel_OvO_Siamese_vs_Persian_v1.0
-        let pairModelFileNameBase =
-            "\(modelName)_\(classificationMethod)_\(class1NameForModel)_vs_\(class2NameForModel)_\(version)"
-        let tempOvOPairRootName = "\(pairModelFileNameBase)_TempData"
+        let modelFileNameBase = "\(modelName)_\(classificationMethod)_\(modelClass1Name)_vs_\(modelClass2Name)_\(version)"
+        // Ensure unique temp dir per pair using pairIndex
+        let tempOvOPairRootName = "\(modelFileNameBase)_TempData_idx\(pairIndex)"
         let tempOvOPairRootURL = tempOvOBaseURL.appendingPathComponent(tempOvOPairRootName)
 
-        // CreateMLのImageClassifierに渡すためのディレクトリ
-        let tempClass1DataDirForML = tempOvOPairRootURL.appendingPathComponent(class1NameForModel)
-        let tempClass2DataDirForML = tempOvOPairRootURL.appendingPathComponent(class2NameForModel)
+        let tempClass1DataDirForML = tempOvOPairRootURL.appendingPathComponent(modelClass1Name)
+        let tempClass2DataDirForML = tempOvOPairRootURL.appendingPathComponent(modelClass2Name)
 
-        // 既存の一時ペアディレクトリがあれば削除
         if Self.fileManager.fileExists(atPath: tempOvOPairRootURL.path) {
             try? Self.fileManager.removeItem(at: tempOvOPairRootURL)
         }
@@ -278,12 +280,11 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
             try Self.fileManager.createDirectory(at: tempClass2DataDirForML, withIntermediateDirectories: true)
         } catch {
             print(
-                "🛑 エラー: OvOペア [\(class1NameForModel) vs \(class2NameForModel)] 一時学習ディレクトリ作成失敗: \(error.localizedDescription)"
+                "🛑 エラー: OvOペア [\(modelClass1Name) vs \(modelClass2Name)] 一時学習ディレクトリ作成失敗: \(error.localizedDescription)"
             )
             return nil
         }
 
-        // class1の画像を一時ディレクトリにコピー
         var class1SamplesCount = 0
         if let class1SourceFiles = try? getFilesInDirectory(class1DirURL) {
             for fileURL in class1SourceFiles {
@@ -296,13 +297,12 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
         }
         guard class1SamplesCount > 0 else {
             print(
-                "⚠️ OvOペア [\(class1NameForModel) vs \(class2NameForModel)]: クラス1 [\(class1NameForModel)] のサンプルなし。学習スキップ。Path: \(tempClass1DataDirForML.path)"
+                "⚠️ OvOペア [\(modelClass1Name) vs \(modelClass2Name)]: クラス1 [\(modelClass1Name)] のサンプルなし。学習スキップ。Path: \(tempClass1DataDirForML.path)"
             )
-            try? Self.fileManager.removeItem(at: tempOvOPairRootURL) // 不要な一時ディレクトリを削除
+            try? Self.fileManager.removeItem(at: tempOvOPairRootURL)
             return nil
         }
 
-        // class2の画像を一時ディレクトリにコピー
         var class2SamplesCount = 0
         if let class2SourceFiles = try? getFilesInDirectory(class2DirURL) {
             for fileURL in class2SourceFiles {
@@ -315,61 +315,141 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
         }
         guard class2SamplesCount > 0 else {
             print(
-                "⚠️ OvOペア [\(class1NameForModel) vs \(class2NameForModel)]: クラス2 [\(class2NameForModel)] のサンプルなし。学習スキップ。Path: \(tempClass2DataDirForML.path)"
+                "⚠️ OvOペア [\(modelClass1Name) vs \(modelClass2Name)]: クラス2 [\(modelClass2Name)] のサンプルなし。学習スキップ。Path: \(tempClass2DataDirForML.path)"
             )
-            try? Self.fileManager.removeItem(at: tempOvOPairRootURL) // 不要な一時ディレクトリを削除
+            try? Self.fileManager.removeItem(at: tempOvOPairRootURL)
             return nil
         }
 
         print(
-            "  準備完了: [\(class1NameForModel)] (\(class1SamplesCount)枚) vs [\(class2NameForModel)] (\(class2SamplesCount)枚)"
+            "  準備完了: [\(modelClass1Name)] (\(class1SamplesCount)枚) vs [\(modelClass2Name)] (\(class2SamplesCount)枚)"
         )
-
-        let startTime = Date()
-        var trainingAccuracy: Double = 0
-        var validationAccuracy: Double = 0
-        var trainingError = 1.0
-        var validationError = 1.0
-
-        let modelPath = mainRunURL.appendingPathComponent("\(pairModelFileNameBase).mlmodel")
+        
+        let trainingDataSource = MLImageClassifier.DataSource.labeledDirectories(at: tempOvOPairRootURL)
+        let modelFilePath = mainRunURL.appendingPathComponent("\(modelFileNameBase).mlmodel").path
 
         do {
-            print("  CreateML ImageClassifier トレーニング開始: [\(class1NameForModel)] vs [\(class2NameForModel)]")
-            let trainingDataSource = MLImageClassifier.DataSource.labeledDirectories(at: tempOvOPairRootURL)
+            let trainingStartTime = Date()
 
-            let classifier = try MLImageClassifier(trainingData: trainingDataSource, parameters: modelParameters)
+            print("  ⏳ OvOペア [\(modelClass1Name) vs \(modelClass2Name)] モデルトレーニング実行中 (最大反復: \(modelParameters.maxIterations)回)... ")
+            let imageClassifier = try MLImageClassifier(trainingData: trainingDataSource, parameters: modelParameters)
+            print("  ✅ OvOペア [\(modelClass1Name) vs \(modelClass2Name)] モデルトレーニング完了")
 
-            trainingAccuracy = 1.0 - classifier.trainingMetrics.classificationError
-            trainingError = classifier.trainingMetrics.classificationError
+            let trainingEndTime = Date()
+            let trainingDurationSeconds = trainingEndTime.timeIntervalSince(trainingStartTime)
 
-            validationAccuracy = 1.0 - classifier.validationMetrics.classificationError
-            validationError = classifier.validationMetrics.classificationError
+            let trainingMetrics = imageClassifier.trainingMetrics
+            let validationMetrics = imageClassifier.validationMetrics
+
+            let trainingAccuracy = (1.0 - trainingMetrics.classificationError) * 100.0
+            let validationAccuracy = (1.0 - validationMetrics.classificationError) * 100.0
+            let trainingErrorRate = trainingMetrics.classificationError
+            let validationErrorRate = validationMetrics.classificationError
+            
+            // --- Recall and Precision Calculation ---
+            var recall1: Double = 0.0
+            var precision1: Double = 0.0
+            var truePositives1: Int = 0
+            var falsePositives1: Int = 0
+            var falseNegatives1: Int = 0
+
+            var recall2: Double = 0.0
+            var precision2: Double = 0.0
+            var truePositives2: Int = 0
+            var falsePositives2: Int = 0
+            var falseNegatives2: Int = 0
+
+            let confusionMatrix = validationMetrics.confusion
+            // print("  デバッグ [\(modelClass1Name) vs \(modelClass2Name)]: 混同行列の内容: \(confusionMatrix.description)")
+            // print("  デバッグ [\(modelClass1Name) vs \(modelClass2Name)]: 混同行列の列名: \(confusionMatrix.columnNames)")
+            
+            var labelSet = Set<String>()
+            for row in confusionMatrix.rows {
+                if let actual = row["True Label"]?.stringValue { labelSet.insert(actual) }
+                if let predicted = row["Predicted"]?.stringValue { labelSet.insert(predicted) }
+            }
+            // print("  デバッグ [\(modelClass1Name) vs \(modelClass2Name)]: 混同行列から抽出されたラベルセット: \(labelSet)")
+
+            if labelSet.contains(modelClass1Name), labelSet.contains(modelClass2Name) {
+                for row in confusionMatrix.rows {
+                    guard
+                        let actual = row["True Label"]?.stringValue,
+                        let predicted = row["Predicted"]?.stringValue,
+                        let cnt = row["Count"]?.intValue
+                    else { continue }
+
+                    // modelClass1Name metrics
+                    if actual == modelClass1Name, predicted == modelClass1Name {
+                        truePositives1 += cnt
+                    } else if actual == modelClass2Name, predicted == modelClass1Name {
+                        falsePositives1 += cnt
+                    } else if actual == modelClass1Name, predicted == modelClass2Name {
+                        falseNegatives1 += cnt
+                    }
+
+                    // modelClass2Name metrics
+                    if actual == modelClass2Name, predicted == modelClass2Name {
+                        truePositives2 += cnt
+                    } else if actual == modelClass1Name, predicted == modelClass2Name {
+                        falsePositives2 += cnt
+                    } else if actual == modelClass2Name, predicted == modelClass1Name {
+                        falseNegatives2 += cnt
+                    }
+                }
+
+                if (truePositives1 + falseNegatives1) > 0 {
+                    recall1 = Double(truePositives1) / Double(truePositives1 + falseNegatives1)
+                }
+                if (truePositives1 + falsePositives1) > 0 {
+                    precision1 = Double(truePositives1) / Double(truePositives1 + falsePositives1)
+                }
+
+                if (truePositives2 + falseNegatives2) > 0 {
+                    recall2 = Double(truePositives2) / Double(truePositives2 + falseNegatives2)
+                }
+                if (truePositives2 + falsePositives2) > 0 {
+                    precision2 = Double(truePositives2) / Double(truePositives2 + falsePositives2)
+                }
+            } else {
+                print("  ⚠️ OvOペア [\(modelClass1Name) vs \(modelClass2Name)]: 混同行列から期待されるラベル (\'\(modelClass1Name)\', \'\(modelClass2Name)\') が見つからず、再現率/適合率計算スキップ。")
+            }
+            // --- End of Recall and Precision Calculation ---
 
             var descriptionParts: [String] = []
             descriptionParts.append(String(
-                format: "クラス構成: %@: %d枚; %@: %d枚",
-                class1NameForModel,
-                class1SamplesCount,
-                class2NameForModel,
-                class2SamplesCount
+                format: "クラス構成 (%@/%@): %@ (%d枚) / %@ (%d枚)",
+                modelClass1Name, modelClass2Name, modelClass1Name, class1SamplesCount, modelClass2Name, class2SamplesCount
             ))
             descriptionParts.append("最大反復回数: \(modelParameters.maxIterations)回")
             descriptionParts.append(String(
                 format: "訓練正解率: %.1f%%, 検証正解率: %.1f%%",
-                trainingAccuracy * 100,
-                validationAccuracy * 100
+                trainingAccuracy, // Already a percentage
+                validationAccuracy  // Already a percentage
             ))
-
-            // データ拡張
+            descriptionParts.append(String(
+                format: "クラス '%@': 再現率 %.1f%%, 適合率 %.1f%%",
+                modelClass1Name,
+                max(0.0, recall1 * 100),
+                max(0.0, precision1 * 100)
+            ))
+            descriptionParts.append(String(
+                format: "クラス '%@': 再現率 %.1f%%, 適合率 %.1f%%",
+                modelClass2Name,
+                max(0.0, recall2 * 100),
+                max(0.0, precision2 * 100)
+            ))
+            
+            let augmentationFinalDescription: String
             if !modelParameters.augmentationOptions.isEmpty {
-                descriptionParts.append("データ拡張: \(String(describing: modelParameters.augmentationOptions))")
+                augmentationFinalDescription = String(describing: modelParameters.augmentationOptions)
+                descriptionParts.append("データ拡張: \(augmentationFinalDescription)")
             } else {
+                augmentationFinalDescription = "なし"
                 descriptionParts.append("データ拡張: なし")
             }
 
-            // 特徴抽出器
             let featureExtractorStringForPair = String(describing: modelParameters.featureExtractor)
-            var featureExtractorDescForPairMetadata: String // For metadata description
+            var featureExtractorDescForPairMetadata: String
             if let revision = scenePrintRevision {
                 featureExtractorDescForPairMetadata = "\(featureExtractorStringForPair)(revision: \(revision))"
                 descriptionParts.append("特徴抽出器: \(featureExtractorDescForPairMetadata)")
@@ -378,42 +458,50 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
                 descriptionParts.append("特徴抽出器: \(featureExtractorDescForPairMetadata)")
             }
             
-            let modelMetadataShortDescription = descriptionParts.joined(separator: "\n")
+            let individualDesc = descriptionParts.joined(separator: "\n")
 
-            let modelMetadata = MLModelMetadata(author: author, shortDescription: modelMetadataShortDescription, version: version)
+            let modelMetadata = MLModelMetadata(
+                author: author,
+                shortDescription: individualDesc,
+                version: version
+            )
 
-            try classifier.write(to: modelPath, metadata: modelMetadata)
-            print("  ✅ モデル保存成功: \(modelPath.path)")
-
-            let trainingTime = Date().timeIntervalSince(startTime)
-            print(String(format: "  ⏱️ トレーニング時間: %.2f 秒", trainingTime))
-            print(String(format: "  📈 トレーニング精度 (代用): %.2f%%", trainingAccuracy * 100))
-            print(String(format: "  📊 検証精度: %.2f%%", validationAccuracy * 100))
+            print("💾 OvOペア [\(modelClass1Name) vs \(modelClass2Name)] モデル保存中: \(modelFilePath)")
+            try imageClassifier.write(to: URL(fileURLWithPath: modelFilePath), metadata: modelMetadata)
+            print("✅ OvOペア [\(modelClass1Name) vs \(modelClass2Name)] モデル保存完了")
+            
+            print(String(format: "  ⏱️ OvOペア [\(modelClass1Name) vs \(modelClass2Name)] トレーニング所要時間: %.2f 秒", trainingDurationSeconds))
+            print(String(format: "  📊 OvOペア [\(modelClass1Name) vs \(modelClass2Name)] 訓練正解率: %.2f%%", trainingAccuracy)) // trainingAccuracy is already %
+            print(String(format: "  📈 OvOペア [\(modelClass1Name) vs \(modelClass2Name)] 検証正解率: %.2f%%", validationAccuracy)) // validationAccuracy is already %
 
             return OvOPairTrainingResult(
-                modelPath: modelPath.path,
-                modelName: pairModelFileNameBase,
-                class1Name: class1NameForModel,
-                class2Name: class2NameForModel,
-                trainingAccuracyRate: trainingAccuracy,
-                validationAccuracyRate: validationAccuracy,
-                trainingErrorRate: trainingError,
-                validationErrorRate: validationError,
-                trainingTime: trainingTime,
+                modelPath: modelFilePath,
+                modelName: modelFileNameBase,
+                class1Name: modelClass1Name,
+                class2Name: modelClass2Name,
+                trainingAccuracyRate: trainingAccuracy, // Store as percentage
+                validationAccuracyRate: validationAccuracy, // Store as percentage
+                trainingErrorRate: trainingErrorRate,
+                validationErrorRate: validationErrorRate,
+                trainingTime: trainingDurationSeconds,
                 trainingDataPath: tempOvOPairRootURL.path,
-                individualModelDescription: modelMetadataShortDescription
+                individualModelDescription: individualDesc,
+                recallRateClass1: recall1,
+                precisionRateClass1: precision1,
+                recallRateClass2: recall2,
+                precisionRateClass2: precision2
             )
 
         } catch let createMLError as CreateML.MLCreateError {
             print(
-                "🛑 エラー: CreateML ImageClassifier トレーニングまたはモデル保存失敗 [\(class1NameForModel) vs \(class2NameForModel)]: \(createMLError.localizedDescription)"
+                "🛑 エラー: OvOペア [\(modelClass1Name) vs \(modelClass2Name)] トレーニング/保存失敗 (CreateML): \(createMLError.localizedDescription)"
             )
             print("  詳細情報: \(createMLError)")
             try? Self.fileManager.removeItem(at: tempOvOPairRootURL)
             return nil
         } catch {
             print(
-                "🛑 エラー: CreateML ImageClassifier トレーニングまたはモデル保存失敗 [\(class1NameForModel) vs \(class2NameForModel)]: \(error.localizedDescription)"
+                "🛑 エラー: OvOペア [\(modelClass1Name) vs \(modelClass2Name)] トレーニング/保存中に予期しないエラー: \(error.localizedDescription)"
             )
             try? Self.fileManager.removeItem(at: tempOvOPairRootURL)
             return nil

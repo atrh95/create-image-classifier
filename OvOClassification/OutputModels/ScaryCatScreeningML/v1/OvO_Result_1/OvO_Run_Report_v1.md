@@ -3,7 +3,7 @@
 ## 実行概要
 モデル群         : OvOモデル群 (One-vs-One)
 モデルベース名   : ScaryCatScreeningML
-レポート生成日時   : 2025-05-18 00:29:49 +0900
+レポート生成日時   : 2025-05-18 00:53:16 +0900
 総クラス数       : 4
 総ペア数         : 6
 最大反復回数     : 10 (各ペアモデル共通)
@@ -12,12 +12,12 @@
 ## 個別ペアモデルのパフォーマンス指標
 | ペアモデル名 (Class1 vs Class2) | 検証正解率 |
 |---------------------------------|--------------|
-| ScaryCatScreeningML_OvO_Sphynx_vs_HumanHandsDetected_v1 (Sphynx_vs_HumanHandsDetected) | 1.00% |
-| ScaryCatScreeningML_OvO_Sphynx_vs_BlackAndWhite_v1 (Sphynx_vs_BlackAndWhite) | 0.94% |
-| ScaryCatScreeningML_OvO_Sphynx_vs_MouthOpen_v1 (Sphynx_vs_MouthOpen) | 0.91% |
-| ScaryCatScreeningML_OvO_HumanHandsDetected_vs_BlackAndWhite_v1 (HumanHandsDetected_vs_BlackAndWhite) | 0.88% |
-| ScaryCatScreeningML_OvO_HumanHandsDetected_vs_MouthOpen_v1 (HumanHandsDetected_vs_MouthOpen) | 0.82% |
-| ScaryCatScreeningML_OvO_BlackAndWhite_vs_MouthOpen_v1 (BlackAndWhite_vs_MouthOpen) | 0.90% |
+| ScaryCatScreeningML_OvO_Sphynx_vs_HumanHandsDetected_v1 (Sphynx_vs_HumanHandsDetected) | 100.00% |
+| ScaryCatScreeningML_OvO_Sphynx_vs_BlackAndWhite_v1 (Sphynx_vs_BlackAndWhite) | 94.44% |
+| ScaryCatScreeningML_OvO_Sphynx_vs_MouthOpen_v1 (Sphynx_vs_MouthOpen) | 90.91% |
+| ScaryCatScreeningML_OvO_HumanHandsDetected_vs_BlackAndWhite_v1 (HumanHandsDetected_vs_BlackAndWhite) | 87.50% |
+| ScaryCatScreeningML_OvO_HumanHandsDetected_vs_MouthOpen_v1 (HumanHandsDetected_vs_MouthOpen) | 82.35% |
+| ScaryCatScreeningML_OvO_BlackAndWhite_vs_MouthOpen_v1 (BlackAndWhite_vs_MouthOpen) | 90.48% |
 
 ## 共通メタデータ
 作成者            : akitora
