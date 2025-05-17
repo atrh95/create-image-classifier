@@ -70,7 +70,7 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
                     includingPropertiesForKeys: [.isRegularFileKey],
                     options: .skipsHiddenFiles
                 ) {
-                    totalImageSamples += files.filter { !$0.hasDirectoryPath }.count // Ensure we count only files
+                    totalImageSamples += files.filter { !$0.hasDirectoryPath }.count
                 }
             }
 

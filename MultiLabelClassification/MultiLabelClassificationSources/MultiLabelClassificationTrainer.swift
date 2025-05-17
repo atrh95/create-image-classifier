@@ -115,12 +115,12 @@ public final class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
         if let validationPredictions = try? await fittedPipeline.applied(to: validationFeatures) {
             print("🧪 検証データで予測を取得しました。サンプル数: \(validationPredictions.count)")
             for i in 0..<validationSet.count {
-                let trueAnnotations = validationSet[i].annotation // Set<String>
-                let annotatedPrediction = validationPredictions[i]    // This is AnnotatedFeature<ClassificationDistribution<String>, Set<String>>
-                let actualDistribution = annotatedPrediction.feature // This is ClassificationDistribution<String>
+                let trueAnnotations = validationSet[i].annotation
+                let annotatedPrediction = validationPredictions[i]
+                let actualDistribution = annotatedPrediction.feature
                 
                 var predictedLabels = Set<String>()
-                for labelInDataset in labels { // Iterate through all known labels
+                for labelInDataset in labels {
                     if let score = actualDistribution[labelInDataset], score >= predictionThreshold {
                         predictedLabels.insert(labelInDataset)
                     }
@@ -150,7 +150,7 @@ public final class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
         }
         var calculatedMetricsForDescription: [PerLabelCalculatedMetrics] = []
 
-        for label in labels.sorted() { // Iterate in sorted order for consistent description
+        for label in labels.sorted() {
             if let counts = perLabelMetricsResults[label] {
                 let recall = (counts.tp + counts.fn == 0) ? 0.0 : Double(counts.tp) / Double(counts.tp + counts.fn)
                 let precision = (counts.tp + counts.fp == 0) ? 0.0 : Double(counts.tp) / Double(counts.tp + counts.fp)
@@ -170,7 +170,7 @@ public final class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
             descriptionParts.append("ラベル情報なし")
         }
 
-        // 2. 最大反復回数 (注: このトレーナーでは直接使用されない可能性あり)
+        // 2. 最大反復回数
         descriptionParts.append("最大反復回数 (指定値): \(maxIterations)回")
 
         // 3. データセット情報
@@ -211,11 +211,8 @@ public final class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
             return nil
         }
 
-        let finalMeanAP = calculatedMetricsForDescription.isEmpty ? nil : 0.0 // Placeholder, mAP not calculated here
-        let finalPerLabelSummary = calculatedMetricsForDescription.isEmpty ? "evaluation skipped or failed" : "Per-label recall/precision in description"
-        
-        // For simplicity, avgRecall and avgPrecision will be simple averages of the per-label ones.
-        // A more robust approach might be micro/macro averaging based on support.
+        let finalMeanAP: Double? = nil // mAPは現時点では計算しない
+        let finalPerLabelSummary = calculatedMetricsForDescription.isEmpty ? "評価スキップまたは失敗" : "ラベル別 再現率/適合率はモデルDescription参照"
         var avgRecallDouble: Double? = nil
         var avgPrecisionDouble: Double? = nil
 
@@ -231,7 +228,7 @@ public final class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
             trainingDataPath: manifestURL.path,
             classLabels: labels,
             maxIterations: maxIterations,
-            meanAveragePrecision: finalMeanAP, // mAP is complex, not calculated here
+            meanAveragePrecision: finalMeanAP,
             perLabelMetricsSummary: finalPerLabelSummary,
             averageRecallAcrossLabels: avgRecallDouble,
             averagePrecisionAcrossLabels: avgPrecisionDouble
