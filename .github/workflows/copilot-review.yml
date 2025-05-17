@@ -4,7 +4,7 @@ on:
   workflow_call:
     inputs:
       pr_number:
-        description: "Review Target Pull Request Number"
+        description: "レビュー対象のプルリクエスト番号"
         required: true
         type: number
 

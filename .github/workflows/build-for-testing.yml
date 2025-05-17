@@ -4,14 +4,14 @@ on:
   workflow_call:
     outputs:
       derived_data_artifact_name:
-        description: "Name of the DerivedData artifact"
-        value: ${{ jobs.build_and_package_derived_data.outputs.derived_data_artifact_name }}
+        description: "DerivedDataアーティファクトの名前"
+        value: ${{ jobs.build.outputs.derived_data_artifact_name }}
       derived_data_path_on_runner:
-        description: "Relative path on the runner where DerivedData was stored"
-        value: ${{ jobs.build_and_package_derived_data.outputs.derived_data_path_on_runner }}
+        description: "DerivedDataが保存されたランナー上の相対パス"
+        value: ${{ jobs.build.outputs.derived_data_path_on_runner }}
 
 jobs:
-  build-and-package-derived-data:
+  build:
     runs-on: macos-latest
     env:
       MINT_PATH: ${{ github.workspace }}/.mint

@@ -20,7 +20,7 @@ on:
         type: string
     outputs:
       overall_test_result:
-        description: "Overall combined test result (success or failure)"
+        description: "全体のテスト結果 (success または failure)"
         value: ${{ jobs.report-status.outputs.overall_result }}
 
 jobs:

@@ -4,16 +4,16 @@ on:
   workflow_call:
     inputs:
       derived_data_artifact_name:
-        description: "Name of the DerivedData artifact from the build job"
+        description: "ビルドジョブからのDerivedDataアーティファクトの名前"
         required: true
         type: string
       derived_data_path_on_runner:
-        description: "Path on the runner where DerivedData was stored by the build job"
+        description: "ビルドジョブによってDerivedDataが保存されたランナー上のパス"
         required: true
         type: string
     outputs:
       test_result:
-        description: "Outcome of the OvRTests"
+        description: "OvRTestsの結果"
         value: ${{ jobs.run-tests.outputs.result }}
 
 jobs:
@@ -69,6 +69,7 @@ jobs:
             -destination "platform=macOS" \
             -derivedDataPath ./${{ inputs.derived_data_path_on_runner }} \
             -enableCodeCoverage NO \
+            MACOSX_DEPLOYMENT_TARGET=15.2 \
             -resultBundlePath ./${{ env.TEST_OUTPUT_PATH }}/TestResults.xcresult \
             | xcbeautify --report junit --report-path ./${{ env.TEST_OUTPUT_PATH }}/junit.xml
 
