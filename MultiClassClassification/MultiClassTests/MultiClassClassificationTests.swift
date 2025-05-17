@@ -21,8 +21,6 @@ class MultiClassClassificationTests: XCTestCase {
         return currentTestFileDir.appendingPathComponent("TestResources").path
     }
 
-    var actualTrainerTrainingDataPath: String!
-
     override func setUp() async throws {
         try await super.setUp()
 
@@ -34,19 +32,14 @@ class MultiClassClassificationTests: XCTestCase {
             attributes: nil
         )
 
-        trainer = MultiClassClassificationTrainer()
-
-        actualTrainerTrainingDataPath = trainer.resourcesDirectoryPath
-        let actualTrainerOutputPath = trainer.outputDirPath
-
-        try fileManager.createDirectory(
-            at: URL(fileURLWithPath: actualTrainerTrainingDataPath),
-            withIntermediateDirectories: true, attributes: nil
+        trainer = MultiClassClassificationTrainer(
+            resourcesDirectoryPathOverride: testResourcesRootPath,
+            outputDirectoryPathOverride: temporaryOutputDirectoryURL.path
         )
+
         try fileManager.createDirectory(
-            at: URL(fileURLWithPath: actualTrainerOutputPath),
-            withIntermediateDirectories: true,
-            attributes: nil
+            at: URL(fileURLWithPath: testResourcesRootPath),
+            withIntermediateDirectories: true, attributes: nil
         )
 
         let algorithm = MLImageClassifier.ModelParameters.ModelAlgorithmType.transferLearning(
@@ -55,7 +48,7 @@ class MultiClassClassificationTests: XCTestCase {
         )
         let modelParameters = MLImageClassifier.ModelParameters(
             validation: .split(strategy: .automatic),
-            maxIterations: 1, // テストのため反復回数を1に設定
+            maxIterations: 1,
             augmentation: [],
             algorithm: algorithm
         )
@@ -91,20 +84,14 @@ class MultiClassClassificationTests: XCTestCase {
         compiledModelURL = nil
         trainingResult = nil
         trainer = nil
-        actualTrainerTrainingDataPath = nil
         try super.tearDownWithError()
     }
 
     func testTrainerInitialization() {
         XCTAssertNotNil(trainer, "MultiClassClassificationTrainerの初期化失敗")
 
-        var expectedTrainerDefaultResourcesDir = URL(fileURLWithPath: #filePath)
-        expectedTrainerDefaultResourcesDir.deleteLastPathComponent()
-        expectedTrainerDefaultResourcesDir.deleteLastPathComponent()
-        expectedTrainerDefaultResourcesDir.appendPathComponent("Resources")
-        XCTAssertEqual(trainer.resourcesDirectoryPath, expectedTrainerDefaultResourcesDir.path, "トレーナーのリソースパスが期待されるデフォルト値「\(expectedTrainerDefaultResourcesDir.path)」と一致しません。")
-
-        XCTAssertFalse(trainer.outputDirPath.isEmpty, "トレーナーの出力パスが空です")
+        XCTAssertEqual(trainer.resourcesDirectoryPath, testResourcesRootPath, "トレーナーのリソースパスが期待値と不一致")
+        XCTAssertEqual(trainer.outputDirPath, temporaryOutputDirectoryURL.path, "トレーナーの出力パスが期待値と不一致")
     }
 
     enum TestError: Error {

@@ -6,7 +6,14 @@ import Foundation
 public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
     public typealias TrainingResultType = MultiClassTrainingResult
 
+    // DI 用のプロパティ
+    private let resourcesDirectoryPathOverride: String?
+    private let outputDirectoryPathOverride: String?
+
     public var outputDirPath: String {
+        if let overridePath = outputDirectoryPathOverride {
+            return overridePath
+        }
         var dir = URL(fileURLWithPath: #filePath)
         dir.deleteLastPathComponent()
         dir.deleteLastPathComponent()
@@ -16,13 +23,22 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
     public var classificationMethod: String { "MultiClass" }
 
     public var resourcesDirectoryPath: String {
+        if let overridePath = resourcesDirectoryPathOverride {
+            return overridePath
+        }
         var dir = URL(fileURLWithPath: #filePath)
         dir.deleteLastPathComponent()
         dir.deleteLastPathComponent()
         return dir.appendingPathComponent("Resources").path
     }
 
-    public init() {}
+    public init(
+        resourcesDirectoryPathOverride: String? = nil,
+        outputDirectoryPathOverride: String? = nil
+    ) {
+        self.resourcesDirectoryPathOverride = resourcesDirectoryPathOverride
+        self.outputDirectoryPathOverride = outputDirectoryPathOverride
+    }
 
     public func train(
         author: String,
@@ -89,7 +105,7 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
 
             let trainingDataAccuracyPercentage = (1.0 - trainingEvaluation.classificationError) * 100
             let trainingAccuracyPercentageString = String(format: "%.2f", trainingDataAccuracyPercentage)
-            print("  📈 トレーニングデータ正解率: \(trainingAccuracyPercentageString)%")
+            print("  📊 トレーニングデータ正解率: \(trainingAccuracyPercentageString)%")
 
             let validationDataAccuracyPercentage = (1.0 - validationEvaluation.classificationError) * 100
             let validationAccuracyPercentageString = String(format: "%.2f", validationDataAccuracyPercentage)

@@ -23,23 +23,39 @@ private struct OvOPairTrainingResult {
 public class OvOClassificationTrainer: ScreeningTrainerProtocol {
     public typealias TrainingResultType = OvOTrainingResult
 
+    // Path Overrides for DI (e.g., for testing)
+    private let resourcesDirectoryPathOverride: String?
+    private let outputDirectoryPathOverride: String?
+
     public var outputDirPath: String {
+        if let overridePath = outputDirectoryPathOverride {
+            return overridePath
+        }
         var dir = URL(fileURLWithPath: #filePath)
-        dir.deleteLastPathComponent()
-        dir.deleteLastPathComponent()
+        dir.deleteLastPathComponent() // OvOSources
+        dir.deleteLastPathComponent() // OvOClassification
         return dir.appendingPathComponent("OutputModels").path
     }
 
     public var classificationMethod: String { "OvO" }
 
     public var resourcesDirectoryPath: String {
+        if let overridePath = resourcesDirectoryPathOverride {
+            return overridePath
+        }
         var dir = URL(fileURLWithPath: #filePath)
-        dir.deleteLastPathComponent()
-        dir.deleteLastPathComponent()
+        dir.deleteLastPathComponent() // OvOSources
+        dir.deleteLastPathComponent() // OvOClassification
         return dir.appendingPathComponent("Resources").path
     }
 
-    public init() {}
+    public init(
+        resourcesDirectoryPathOverride: String? = nil,
+        outputDirectoryPathOverride: String? = nil
+    ) {
+        self.resourcesDirectoryPathOverride = resourcesDirectoryPathOverride
+        self.outputDirectoryPathOverride = outputDirectoryPathOverride
+    }
 
     static let fileManager = FileManager.default
     static let tempBaseDirName = "TempOvOTrainingData"
@@ -50,10 +66,12 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
         version: String,
         modelParameters: CreateML.MLImageClassifier.ModelParameters
     ) async -> OvOTrainingResult? {
+        let resolvedOutputDirPath = self.outputDirPath // Use the (potentially overridden) property
         let mainOutputRunURL: URL
         do {
             mainOutputRunURL = try createOutputDirectory(
-                modelName: modelName, // ベースモデル名
+                basePath: resolvedOutputDirPath, // Pass the resolved path
+                modelName: modelName, 
                 version: version
             )
         } catch {
@@ -86,7 +104,7 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
             return nil
         }
 
-        let ovoResourcesURL = URL(fileURLWithPath: resourcesDirectoryPath)
+        let ovoResourcesURL = URL(fileURLWithPath: self.resourcesDirectoryPath) // Use the (potentially overridden) property
 
         print("🚀 OvOトレーニング開始 (バージョン: \(version))...")
 
@@ -374,5 +392,21 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
             !url.lastPathComponent
                 .hasPrefix(".") && (try? url.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true
         }
+    }
+
+    // MARK: - Directory Management Helpers
+
+    // 出力ディレクトリを作成・準備する (ベースパスを指定可能に)
+    private func createOutputDirectory(basePath: String, modelName: String, version: String) throws -> URL {
+        let runFolderName = "\(modelName)_\(classificationMethod)_run_\(version)_\(DateFormatter.timestamp())"
+        let runURL = URL(fileURLWithPath: basePath).appendingPathComponent(runFolderName)
+
+        if Self.fileManager.fileExists(atPath: runURL.path) {
+            print("⚠️ 既存の実行ディレクトリを削除: \(runURL.path)")
+            try Self.fileManager.removeItem(at: runURL)
+        }
+        try Self.fileManager.createDirectory(at: runURL, withIntermediateDirectories: true, attributes: nil)
+        print("✅ メイン出力ディレクトリ作成: \(runURL.path)")
+        return runURL
     }
 }

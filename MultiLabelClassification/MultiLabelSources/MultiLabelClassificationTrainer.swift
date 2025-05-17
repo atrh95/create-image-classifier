@@ -7,12 +7,19 @@ import Foundation
 public final class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
     public typealias TrainingResultType = MultiLabelTrainingResult
 
-    private struct ManifestEntry: Decodable {
+    public struct ManifestEntry: Decodable {
         let filename: String
         let annotations: [String]
     }
 
+    private let resourcesDirectoryPathOverride: String?
+    private let outputDirectoryPathOverride: String?
+    private let annotationFileNameOverride: String?
+
     public var outputDirPath: String {
+        if let overridePath = outputDirectoryPathOverride {
+            return overridePath
+        }
         var dir = URL(fileURLWithPath: #filePath)
         dir.deleteLastPathComponent()
         dir.deleteLastPathComponent()
@@ -20,19 +27,29 @@ public final class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
     }
 
     public var classificationMethod: String { "MultiLabel" }
-    public var manifestFileName: String { "multilabel_cat_annotations.json" }
-
+    
     public var resourcesDirectoryPath: String {
+        if let overridePath = resourcesDirectoryPathOverride {
+            return overridePath
+        }
         var dir = URL(fileURLWithPath: #filePath)
         dir.deleteLastPathComponent()
         dir.deleteLastPathComponent()
         return dir.appending(path: "Resources").path
     }
 
-    /// ソフトな分布をハードラベルに変換するための信頼度の閾値
+    // ラベル判定の信頼度閾値
     private let predictionThreshold: Float = 0.5
 
-    public init() {}
+    public init(
+        resourcesDirectoryPathOverride: String? = nil,
+        outputDirectoryPathOverride: String? = nil,
+        annotationFileNameOverride: String? = nil
+    ) {
+        self.resourcesDirectoryPathOverride = resourcesDirectoryPathOverride
+        self.outputDirectoryPathOverride = outputDirectoryPathOverride
+        self.annotationFileNameOverride = annotationFileNameOverride
+    }
 
     public func train(
         author: String,
@@ -52,14 +69,41 @@ public final class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
         }
 
         let resourcesDir = URL(fileURLWithPath: resourcesDirectoryPath)
-        let manifestURL = resourcesDir.appending(path: manifestFileName)
+        
+        let currentAnnotationFileName: String
+        if let overrideName = self.annotationFileNameOverride {
+            currentAnnotationFileName = overrideName
+            print("ℹ️ DI経由でアノテーションファイル名「\(currentAnnotationFileName)」を使用します。")
+        } else {
+            let fileManager = FileManager.default
+            do {
+                let items = try fileManager.contentsOfDirectory(at: resourcesDir, includingPropertiesForKeys: nil, options: .skipsHiddenFiles)
+                if let jsonFile = items.first(where: { $0.pathExtension.lowercased() == "json" }) {
+                    currentAnnotationFileName = jsonFile.lastPathComponent
+                    print("ℹ️ アノテーションファイル「\(currentAnnotationFileName)」を検出しました。場所: \(resourcesDirectoryPath)")
+                } else {
+                    print("❌ トレーニングエラー: リソースディレクトリ「\(resourcesDirectoryPath)」でJSONアノテーションファイルが見つかりませんでした。(オーバーライドも未指定)")
+                    return nil
+                }
+            } catch {
+                print("❌ トレーニングエラー: リソースディレクトリ「\(resourcesDirectoryPath)」の内容読み取り中にエラーが発生しました: \(error.localizedDescription)")
+                return nil
+            }
+        }
+
+        let annotationFileURL = resourcesDir.appending(path: currentAnnotationFileName)
+
+        guard FileManager.default.fileExists(atPath: annotationFileURL.path) else {
+            print("❌ アノテーションファイルが見つかりません: \(annotationFileURL.path)")
+            return nil
+        }
 
         guard
-            let manifestData = try? Data(contentsOf: manifestURL),
+            let manifestData = try? Data(contentsOf: annotationFileURL),
             let entries = try? JSONDecoder().decode([ManifestEntry].self, from: manifestData),
             !entries.isEmpty
         else {
-            print("❌ マニフェストの読み取りまたはデコードに失敗しました: \(manifestURL.path)")
+            print("❌ アノテーションファイルの読み取りまたはデコードに失敗しました: \(annotationFileURL.path)")
             return nil
         }
 
@@ -70,7 +114,7 @@ public final class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
 
         let labels = Set(annotatedFeatures.flatMap(\.annotation)).sorted()
         guard !labels.isEmpty else {
-            print("❌ マニフェストでラベルが検出されませんでした。")
+            print("❌ アノテーションファイルでラベルが検出されませんでした。")
             return nil
         }
         print("📚 ラベル: \(labels.joined(separator: ", "))")
@@ -83,15 +127,16 @@ public final class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
 
         let reader = ImageReader()
         let (trainSet, validationSet) = annotatedFeatures.randomSplit(by: 0.8)
+
         guard
             let trainingFeatures = try? await reader.applied(to: trainSet),
             let validationFeatures = try? await reader.applied(to: validationSet)
         else {
-            print("❌ 画像リーダーの適用に失敗しました")
+            print("❌ 画像リーダーの適用に失敗しました。学習データまたは検証データの処理中にエラーが発生しました。")
             return nil
         }
-
-        print("⏳ トレーニング中 – 学習データ: \(trainSet.count) / 検証データ: \(validationSet.count)")
+        
+        print("⏳ トレーニング中 – 学習データ: \(trainingFeatures.count) / 検証データ: \(validationFeatures.count)")
 
         let t0 = Date()
         let fittedPipeline: ComposedTransformer<
@@ -114,11 +159,11 @@ public final class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
 
         if let validationPredictions = try? await fittedPipeline.applied(to: validationFeatures) {
             print("🧪 検証データで予測を取得しました。サンプル数: \(validationPredictions.count)")
-            for i in 0 ..< validationSet.count {
-                let trueAnnotations = validationSet[i].annotation
-                let annotatedPrediction = validationPredictions[i]
-                let actualDistribution = annotatedPrediction.feature
-
+            for i in 0 ..< validationSet.count { 
+                let trueAnnotations = validationSet[i].annotation 
+                let annotatedPrediction = validationPredictions[i] 
+                let actualDistribution = annotatedPrediction.feature 
+                
                 var predictedLabels = Set<String>()
                 for labelInDataset in labels {
                     if let score = actualDistribution[labelInDataset], score >= predictionThreshold {
@@ -164,25 +209,18 @@ public final class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
                 )
             }
         }
-        // ---- END: Calculate Per-Label Recall and Precision ----
 
-        // .mlmodel のメタデータに含める shortDescription を動的に生成
         var descriptionParts: [String] = []
 
-        // 1. ラベル情報
         if !labels.isEmpty {
             descriptionParts.append("ラベル: " + labels.joined(separator: ", "))
         } else {
             descriptionParts.append("ラベル情報なし")
         }
 
-        // 2. 最大反復回数
         descriptionParts.append("最大反復回数 (指定値): \(modelParameters.maxIterations)回")
+        descriptionParts.append(String(format: "学習データ数: %d枚, 検証データ数: %d枚", trainingFeatures.count, validationFeatures.count))
 
-        // 3. データセット情報
-        descriptionParts.append(String(format: "学習データ数: %d枚, 検証データ数: %d枚", trainSet.count, validationSet.count))
-
-        // ---- START: Add Per-Label Metrics to Description ----
         if !calculatedMetricsForDescription.isEmpty {
             descriptionParts.append("ラベル別検証指標 (しきい値: \(predictionThreshold)):")
             for metrics in calculatedMetricsForDescription {
@@ -197,9 +235,7 @@ public final class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
         } else {
             descriptionParts.append("ラベル別検証指標: 計算スキップまたは失敗")
         }
-        // ---- END: Add Per-Label Metrics to Description ----
-
-        // 4. 検証方法
+        
         descriptionParts.append("(検証: 80/20ランダム分割)")
 
         let modelShortDescription = descriptionParts.joined(separator: "\n")
@@ -219,9 +255,8 @@ public final class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
             return nil
         }
 
-        let finalMeanAP: Double? = nil // mAPは現時点では計算しない
-        let finalPerLabelSummary = calculatedMetricsForDescription
-            .isEmpty ? "評価スキップまたは失敗" : "ラベル別 再現率/適合率はモデルDescription参照"
+        let finalMeanAP: Double? = nil
+        let finalPerLabelSummary = calculatedMetricsForDescription.isEmpty ? "評価スキップまたは失敗" : "ラベル別 再現率/適合率はモデルDescription参照"
         var avgRecallDouble: Double? = nil
         var avgPrecisionDouble: Double? = nil
 
@@ -236,7 +271,7 @@ public final class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
             modelName: modelName,
             trainingDurationInSeconds: trainingTime,
             modelOutputPath: modelURL.path,
-            trainingDataPath: manifestURL.path,
+            trainingDataPath: annotationFileURL.path,
             classLabels: labels,
             maxIterations: modelParameters.maxIterations,
             meanAveragePrecision: finalMeanAP,
