@@ -11,7 +11,7 @@ on:
         value: ${{ jobs.build_and_package_derived_data.outputs.derived_data_path_on_runner }}
 
 jobs:
-  build_and_package_derived_data:
+  build-and-package-derived-data:
     runs-on: macos-latest
     env:
       MINT_PATH: ${{ github.workspace }}/.mint

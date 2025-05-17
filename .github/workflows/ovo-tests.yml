@@ -14,10 +14,10 @@ on:
     outputs:
       test_result:
         description: "Outcome of the OvOTests"
-        value: ${{ jobs.run_ovo_tests.outputs.result }}
+        value: ${{ jobs.run-tests.outputs.result }}
 
 jobs:
-  run_ovo_tests:
+  run-tests:
     runs-on: macos-latest
     outputs:
       result: ${{ steps.execute_tests.outcome }}

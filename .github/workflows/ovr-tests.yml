@@ -14,10 +14,10 @@ on:
     outputs:
       test_result:
         description: "Outcome of the OvRTests"
-        value: ${{ jobs.run_ovr_tests.outputs.result }}
+        value: ${{ jobs.run-tests.outputs.result }}
 
 jobs:
-  run_ovr_tests:
+  run-tests:
     runs-on: macos-latest
     outputs:
       result: ${{ steps.execute_tests.outcome }}

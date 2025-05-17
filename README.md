@@ -7,7 +7,7 @@ CatScreeningML は、AppleのCoreMLおよびCreateMLフレームワークを利�
 
 主な目的は、猫の画像が特定の特徴（例 口を開けているか、人間の手が写っているかなど）を持つかどうかを識別する機械学習モデルのトレーニングのための構造化されたフレームワークを提供することです。
 
-<a href="https://deepwiki.com/aktrh/cat-screening-ml"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki"></a>
+<a href="https://deepwiki.com/atrh95/cat-screening-ml"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki"></a>
 
 ## 設計方針
 
@@ -28,7 +28,8 @@ CatScreeningMLは、Swiftアプリケーションに典型的なモジュラー�
 ├── BinaryClassification/
 │   ├── MultiLabelClassificationSources/
 │   ├── OutputModels/
-│   └── Resources/
+│   ├── Resources/
+│   └── BinaryTests/
 ├── MultiClassClassification/
 │   └── ...
 ├── MultiLabelClassification/
@@ -66,3 +67,13 @@ CatScreeningMLは、以下の4つの異なる分類アプローチをサポー�
 | **One-vs-One (OvO) 分類**  | 全てのカテゴリのペアに対して1つずつ、複数の二値分類器をトレーニングする | 各ペアのカテゴリ間での識別能力に特化した検出器を作成する                         |
 
 トレーニングのプロセスでは、選択された分類タイプのトレーナーが初期化され、モデルのメタデータ（作成者、説明、バージョン）と共に`train()`メソッドが呼び出されます。トレーナーは画像データを処理し、CoreML/CreateMLを使用してモデルをトレーニングし、パフォーマンスを評価して結果を返します。最後に、トレーニングプロセスとモデルのメトリクスを文書化するマークダウンレポートが生成されます。
+
+## Unit Tests
+
+各分類器のユニットテストでは、主に以下の点が確認しています
+*   トレーナーオブジェクトが正しく初期化されること
+*   モデルのトレーニングプロセスがエラーなく正常に完了すること
+*   学習済みモデルファイル (`.mlmodel`) が指定された場所と命名規則で正しく生成されること
+*   トレーニングデータからクラスラベルが正しく検出・認識されること
+*   トレーニングプロセス、結果、モデルのメタデータを含むマークダウン形式のレポートが生成されること
+*   生成されたモデルが、サンプル画像を用いて推論を実行し、予測結果を返却できること
