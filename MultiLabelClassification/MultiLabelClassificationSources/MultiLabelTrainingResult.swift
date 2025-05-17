@@ -58,7 +58,7 @@ public struct MultiLabelTrainingResult: TrainingResultProtocol {
         ## パフォーマンス指標
         トレーニング所要時間: \(durationStr) 秒
         \(metricsLog)
-        
+
         ## モデルメタデータ
         作成者            : \(modelAuthor)
         バージョン          : \(modelVersion)

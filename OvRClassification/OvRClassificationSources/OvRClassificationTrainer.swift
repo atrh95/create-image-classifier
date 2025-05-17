@@ -376,7 +376,7 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
                 recall * 100,
                 precision * 100
             ))
-            
+
             // 5. 検証方法
             descriptionParts.append("(検証: 自動分割)")
 

@@ -18,7 +18,7 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
     public var resourcesDirectoryPath: String {
         var dir = URL(fileURLWithPath: #filePath)
         dir.deleteLastPathComponent()
-        dir.deleteLastPathComponent() 
+        dir.deleteLastPathComponent()
         return dir.appendingPathComponent("Resources").path
     }
 
@@ -115,6 +115,13 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
             let labelsFromConfusion = Array(labelSet).sorted()
             print("📊 混同行列から取得した評価用クラスラベル: \(labelsFromConfusion.joined(separator: ", "))")
 
+            struct PerClassValidationMetrics {
+                let label: String
+                let recall: Double
+                let precision: Double
+            }
+            var detailedClassMetrics: [PerClassValidationMetrics] = []
+
             for label in labelsFromConfusion {
                 // TP (True Positive): 真のラベルが `label` で、予測も `label`
                 let truePositivesCount = confusionMatrix.rows.reduce(0.0) { acc, row in
@@ -150,12 +157,32 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
                     falseNegativesCount += count
                 }
 
+                // TN (True Negative): 真のラベルも予測も `label` 以外
+                var trueNegativesCount: Double = 0
+                for row in confusionMatrix.rows {
+                    guard
+                        let actual = row["True Label"]?.stringValue,
+                        let predicted = row["Predicted"]?.stringValue,
+                        let count = row["Count"]?.intValue.map(Double.init),
+                        actual != label, predicted != label
+                    else { continue }
+                    trueNegativesCount += count
+                }
+
                 let recallRate = (truePositivesCount + falseNegativesCount == 0) ? 0 : truePositivesCount /
                     (truePositivesCount + falseNegativesCount)
                 let precisionRate = (truePositivesCount + falsePositivesCount == 0) ? 0 : truePositivesCount /
                     (truePositivesCount + falsePositivesCount)
+
                 perClassRecallRates.append(recallRate)
                 perClassPrecisionRates.append(precisionRate)
+                print("    🔎 クラス: \(label) - 再現率: \(String(format: "%.2f", recallRate * 100))%, 適合率: \(String(format: "%.2f", precisionRate * 100))%")
+
+                detailedClassMetrics.append(PerClassValidationMetrics(
+                    label: label,
+                    recall: recallRate,
+                    precision: precisionRate
+                ))
             }
 
             let macroAverageRecallRate = perClassRecallRates.isEmpty ? 0 : perClassRecallRates
@@ -171,31 +198,34 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
 
             // 1. クラス構成 (総サンプル数で代用)
             descriptionParts.append(String(format: "総学習サンプル数: %d枚", totalImageSamples))
-            
+
             // クラスラベルリストを追加 (任意) - labelsFromConfusion を使用
             if !labelsFromConfusion.isEmpty {
-                descriptionParts.append("検出クラス: " + labelsFromConfusion.joined(separator: ", "))
+                descriptionParts.append("検出クラス (検証時): " + labelsFromConfusion.joined(separator: ", "))
             }
-
 
             // 2. 最大反復回数
             descriptionParts.append("最大反復回数: \(maxIterations)回")
 
-            // 3. 正解率情報
+            // 3. 正解率情報 (全体)
             descriptionParts.append(String(
-                format: "訓練正解率: %.1f%%, 検証正解率: %.1f%%",
+                format: "訓練正解率 (全体): %.1f%%, 検証正解率 (全体): %.1f%%",
                 trainingDataAccuracyPercentage,
                 validationDataAccuracyPercentage
             ))
 
-            // 4. マクロ平均再現率・適合率
-            descriptionParts.append(String(
-                format: "平均再現率: %.1f%%, 平均適合率: %.1f%% (対象: %dクラス)",
-                macroAverageRecallRate * 100,
-                macroAveragePrecisionRate * 100,
-                labelsFromConfusion.count
-            ))
-            
+            // 4. クラス別指標 (再現率・適合率)
+            if !detailedClassMetrics.isEmpty {
+                descriptionParts.append("クラス別検証指標:")
+                for metrics in detailedClassMetrics {
+                    let metricsString = String(format: "    %@: 再現率 %.1f%%, 適合率 %.1f%%",
+                                               metrics.label,
+                                               metrics.recall * 100,
+                                               metrics.precision * 100)
+                    descriptionParts.append(metricsString)
+                }
+            }
+
             // 5. 検証方法
             descriptionParts.append("(検証: 自動分割)")
 

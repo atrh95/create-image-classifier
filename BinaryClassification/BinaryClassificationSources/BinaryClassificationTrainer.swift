@@ -241,7 +241,7 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
             } else if !classLabelsFromConfusion.isEmpty {
                 descriptionParts.append("(詳細な分類指標は二値分類のみ)")
             }
-            
+
             // 5. 検証方法
             descriptionParts.append("(検証: 自動分割)")
 

@@ -108,7 +108,7 @@ public final class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
         print("🎉 \(String(format: "%.2f", trainingTime)) 秒でトレーニングが完了しました")
 
         // .mlmodel のメタデータに含める shortDescription を動的に生成
-        var descriptionParts: [String] = [] 
+        var descriptionParts: [String] = []
 
         // 1. ラベル情報
         if !labels.isEmpty {

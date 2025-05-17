@@ -18,7 +18,7 @@ public struct MultiClassTrainingResult: TrainingResultProtocol {
 
     public func saveLog(
         modelAuthor: String,
-        modelName: String,
+        modelName _: String,
         modelVersion: String
     ) {
         let dateFormatter = DateFormatter()
@@ -34,10 +34,10 @@ public struct MultiClassTrainingResult: TrainingResultProtocol {
         let durationStr = String(format: "%.2f", trainingTimeInSeconds)
 
         var markdownText = """
-        # モデルトレーニング情報: \(self.modelName)
+        # モデルトレーニング情報: \(modelName)
 
         ## モデル詳細
-        モデル名           : \(self.modelName)
+        モデル名           : \(modelName)
         ファイル生成日時   : \(generatedDateString)
         最大反復回数     : \(maxIterations)
 
@@ -60,15 +60,15 @@ public struct MultiClassTrainingResult: TrainingResultProtocol {
         """
 
         let outputDir = URL(fileURLWithPath: modelOutputPath).deletingLastPathComponent()
-        let textFileName = "\(self.modelName)_\(modelVersion).md"
+        let textFileName = "\(modelName)_\(modelVersion).md"
         let textFilePath = outputDir.appendingPathComponent(textFileName).path
 
         do {
             try markdownText.write(toFile: textFilePath, atomically: true, encoding: String.Encoding.utf8)
-            print("✅ [\(self.modelName)] モデル情報をMarkdownファイルに保存しました: \(textFilePath)")
+            print("✅ [\(modelName)] モデル情報をMarkdownファイルに保存しました: \(textFilePath)")
         } catch {
-            print("❌ [\(self.modelName)] Markdownファイルの書き込みに失敗しました: \(error.localizedDescription)")
-            print("--- [\(self.modelName)] モデル情報 (Markdown) ---:")
+            print("❌ [\(modelName)] Markdownファイルの書き込みに失敗しました: \(error.localizedDescription)")
+            print("--- [\(modelName)] モデル情報 (Markdown) ---:")
             print(markdownText)
             print("--- ここまで --- ")
         }

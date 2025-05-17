@@ -16,7 +16,7 @@ public struct BinaryTrainingResult: TrainingResultProtocol {
 
     public func saveLog(
         modelAuthor: String,
-        modelName: String,
+        modelName _: String,
         modelVersion: String
     ) {
         // ファイル生成日時フォーマッタ
@@ -39,7 +39,7 @@ public struct BinaryTrainingResult: TrainingResultProtocol {
         # モデルトレーニング情報
 
         ## モデル詳細
-        モデル名           : \(self.modelName)
+        モデル名           : \(modelName)
         ファイル生成日時   : \(generatedDateString)
         最大反復回数     : \(maxIterations)
 
@@ -60,7 +60,7 @@ public struct BinaryTrainingResult: TrainingResultProtocol {
 
         // Markdownファイルのパスを作成 (モデルファイルと同じディレクトリ、拡張子を.mdに変更)
         let outputDir = URL(fileURLWithPath: trainedModelFilePath).deletingLastPathComponent()
-        let textFileName = "\(self.modelName)_\(modelVersion).md"
+        let textFileName = "\(modelName)_\(modelVersion).md"
         let textFilePath = outputDir.appendingPathComponent(textFileName).path
 
         // Markdownファイルに書き込み
