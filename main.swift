@@ -6,6 +6,7 @@ import Foundation
 import MultiClassClassification
 import MultiLabelClassification
 import OvRClassification
+import OvOClassification
 
 // --- トレーナータイプの型 ---
 enum TrainerType {
@@ -13,6 +14,7 @@ enum TrainerType {
     case multiClass
     case multiLabel
     case ovr
+    case ovo
 
     var definedVersion: String {
         switch self {
@@ -20,6 +22,7 @@ enum TrainerType {
             case .multiClass: "v3"
             case .multiLabel: "v1"
             case .ovr: "v3"
+            case .ovo: "v1"
         }
     }
 }
@@ -30,7 +33,7 @@ enum ModelNameType: String {
 }
 
 // --- トレーニング設定 ---
-let currentTrainerType: TrainerType = .multiLabel
+let currentTrainerType: TrainerType = .ovo
 let maxTrainingIterations = 11
 
 // --- 共通のログデータ設定 ---
@@ -57,6 +60,9 @@ switch currentTrainerType {
     case .ovr:
         let ovrTrainer = OvRClassificationTrainer()
         trainer = ovrTrainer
+    case .ovo:
+        let ovoTrainer = OvOClassificationTrainer()
+        trainer = ovoTrainer
 }
 
 trainingResult = await trainer.train(
