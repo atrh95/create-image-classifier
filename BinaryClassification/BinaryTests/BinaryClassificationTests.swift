@@ -52,7 +52,7 @@ class BinaryClassificationTests: XCTestCase {
 
         let trainedModelURL = URL(fileURLWithPath: result.trainedModelFilePath)
         do {
-            compiledModelURL = await try MLModel.compileModel(at: trainedModelURL)
+            compiledModelURL = try await MLModel.compileModel(at: trainedModelURL)
         } catch {
             print("モデルのコンパイル失敗 in setUp: \(error.localizedDescription)")
             throw error
@@ -75,6 +75,7 @@ class BinaryClassificationTests: XCTestCase {
         try super.tearDownWithError()
     }
 
+    // BinaryClassificationTrainer の初期化をテスト
     func testTrainerInitialization() {
         XCTAssertNotNil(trainer, "BinaryClassificationTrainerの初期化失敗")
         XCTAssertEqual(trainer.resourcesDirectoryPath, testResourcesRootPath, "トレーナーのリソースパスがオーバーライド値と不一致")
@@ -89,7 +90,8 @@ class BinaryClassificationTests: XCTestCase {
         case setupFailed
     }
 
-    func testModelTrainingAndArtifacts() throws {
+    // モデルの訓練と成果物の生成をテスト
+    func testModelTrainingAndArtifactGeneration() throws {
         guard let result = trainingResult else {
             XCTFail("訓練結果がnil (testModelTrainingAndArtifacts)")
             throw TestError.trainingFailed
@@ -125,60 +127,109 @@ class BinaryClassificationTests: XCTestCase {
 
         XCTAssertTrue(
             result.trainedModelFilePath.contains(testModelName),
-            "モデルファイルパスにモデル名「\(testModelName!)」不足。パス: \(result.trainedModelFilePath)"
+            "モデルファイルパスにモデル名「\(testModelName!)」が含まれていません"
         )
         XCTAssertTrue(
             result.trainedModelFilePath.contains(testModelVersion),
-            "モデルファイルパスにバージョン「\(testModelVersion!)」不足。パス: \(result.trainedModelFilePath)"
+            "モデルファイルパスにバージョン「\(testModelVersion!)」が含まれていません"
         )
         XCTAssertTrue(
             result.trainedModelFilePath.contains(trainer.classificationMethod),
-            "モデルファイルパスに分類メソッド「\(trainer.classificationMethod)」不足。パス: \(result.trainedModelFilePath)"
+            "モデルファイルパスに分類法「\(trainer.classificationMethod)」が含まれていません"
         )
     }
 
-    func testModelPredictionAccuracy() throws {
+    // モデルが予測を実行できるかテスト
+    func testModelCanPerformPrediction() throws {
         guard let finalModelURL = compiledModelURL else {
             XCTFail("コンパイル済みモデルURLがnil (testModelPredictionAccuracy)")
             throw TestError.modelFileMissing
+        }
+        guard let result = trainingResult else {
+            XCTFail("訓練結果がnil (testModelPredictionAccuracy)")
+            throw TestError.trainingFailed
         }
 
         let mlModel = try MLModel(contentsOf: finalModelURL)
         let vnCoreMLModel = try VNCoreMLModel(for: mlModel)
         let predictionRequest = VNCoreMLRequest(model: vnCoreMLModel)
 
-        let bundle = Bundle(for: type(of: self))
-        print("Bundle Path: \(bundle.bundlePath)")
-        let expectedScaryURL = bundle.url(forResource: "cat_vh", withExtension: "jpg", subdirectory: "Scary")
-        print("Attempted Scary Image URL: \(expectedScaryURL?.path ?? "nil")")
-        let expectedNotScaryURL = bundle.url(forResource: "cat_pb", withExtension: "jpg", subdirectory: "NotScary")
-        print("Attempted NotScary Image URL: \(expectedNotScaryURL?.path ?? "nil")")
+        let baseResourceURL = URL(fileURLWithPath: testResourcesRootPath)
+        print("テストリソースのベースURL: \(baseResourceURL.path)")
 
-        guard let scaryTestImageURL = expectedScaryURL,
-            let notScaryTestImageURL = expectedNotScaryURL
+        let classLabels = result.detectedClassLabelsList.sorted()
+        guard classLabels.count >= 2 else {
+            XCTFail("テストには少なくとも2つのクラスラベルが訓練結果に必要です。検出されたラベル: \(classLabels)")
+            throw TestError.setupFailed
+        }
+
+        let classLabel1 = classLabels[0]
+        let classLabel2 = classLabels[1]
+
+        print("動的に識別されたテスト用クラスラベル: '\(classLabel1)' および '\(classLabel2)'")
+
+        // classLabel1 の画像取得処理
+        let imageURL1: URL
+        do {
+            imageURL1 = try getRandomImageURL(forClassLabel: classLabel1, inBaseDirectory: baseResourceURL, validExtensions: ["jpg"])
+        } catch {
+            XCTFail("'\(classLabel1)' サブディレクトリからのランダム画像取得失敗。エラー: \(error.localizedDescription)")
+            throw error
+        }
+
+        // classLabel2 の画像取得処理
+        let imageURL2: URL
+        do {
+            imageURL2 = try getRandomImageURL(forClassLabel: classLabel2, inBaseDirectory: baseResourceURL, validExtensions: ["jpg"])
+        } catch {
+            XCTFail("'\(classLabel2)' サブディレクトリからのランダム画像取得失敗。エラー: \(error.localizedDescription)")
+            throw error
+        }
+
+        let imageHandler1 = VNImageRequestHandler(url: imageURL1, options: [:])
+        try imageHandler1.perform([predictionRequest])
+        guard let observations1 = predictionRequest.results as? [VNClassificationObservation],
+              let topResult1 = observations1.first
         else {
-            XCTFail("予測用テスト画像URL発見不可")
+            XCTFail("クラス '\(classLabel1)' 画像: 有効な分類結果オブジェクトを取得できませんでした。")
+            throw TestError.predictionFailed
+        }
+        XCTAssertNotNil(topResult1.identifier, "クラス '\(classLabel1)' 画像: 予測結果からクラスラベルを取得できませんでした。")
+        print("クラス '\(classLabel1)' 画像の予測 (正解ラベル): \(topResult1.identifier) (確信度: \(topResult1.confidence))")
+
+        let imageHandler2 = VNImageRequestHandler(url: imageURL2, options: [:])
+        try imageHandler2.perform([predictionRequest])
+        guard let observations2 = predictionRequest.results as? [VNClassificationObservation],
+              let topResult2 = observations2.first
+        else {
+            XCTFail("クラス '\(classLabel2)' 画像: 有効な分類結果オブジェクトを取得できませんでした。")
+            throw TestError.predictionFailed
+        }
+        XCTAssertNotNil(topResult2.identifier, "クラス '\(classLabel2)' 画像: 予測結果からクラスラベルを取得できませんでした。")
+        print("クラス '\(classLabel2)' 画像の予測 (正解ラベル): \(topResult2.identifier) (確信度: \(topResult2.confidence))")
+    }
+
+    private func getRandomImageURL(forClassLabel classLabel: String, inBaseDirectory baseDirectoryURL: URL, validExtensions: [String]) throws -> URL {
+        let subdirectoryURL = baseDirectoryURL.appendingPathComponent(classLabel)
+        print("'\(classLabel)' のサブディレクトリにアクセス試行: \(subdirectoryURL.path)")
+
+        var isDirectory: ObjCBool = false
+        guard fileManager.fileExists(atPath: subdirectoryURL.path, isDirectory: &isDirectory), isDirectory.boolValue else {
+            let message = "サブディレクトリ '\(classLabel)' が見つからないか、ディレクトリではありません: \(subdirectoryURL.path)"
+            XCTFail(message)
             throw TestError.testResourceMissing
         }
 
-        let scaryImageHandler = VNImageRequestHandler(url: scaryTestImageURL, options: [:])
-        try scaryImageHandler.perform([predictionRequest])
-        guard let scaryObservations = predictionRequest.results as? [VNClassificationObservation],
-              let scaryTopResult = scaryObservations.first
-        else {
-            XCTFail("Scary画像: 有効な分類結果オブジェクトを取得できませんでした。")
-            throw TestError.predictionFailed
-        }
-        XCTAssertNotNil(scaryTopResult.identifier, "Scary画像: 予測結果からクラスラベルを取得できませんでした。")
+        let allFiles = try fileManager.contentsOfDirectory(at: subdirectoryURL, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles])
+        let imageFiles = allFiles.filter { validExtensions.contains($0.pathExtension.lowercased()) }
 
-        let notScaryImageHandler = VNImageRequestHandler(url: notScaryTestImageURL, options: [:])
-        try notScaryImageHandler.perform([predictionRequest])
-        guard let notScaryObservations = predictionRequest.results as? [VNClassificationObservation],
-              let notScaryTopResult = notScaryObservations.first
-        else {
-            XCTFail("NotScary画像: 有効な分類結果オブジェクトを取得できませんでした。")
-            throw TestError.predictionFailed
+        guard let randomImageURL = imageFiles.randomElement() else {
+            let message = "サブディレクトリ '\(classLabel)' に指定拡張子 (\(validExtensions.joined(separator: ", ")) の画像ファイルが見つかりません: \(subdirectoryURL.path)"
+            XCTFail(message)
+            throw TestError.testResourceMissing
         }
-        XCTAssertNotNil(notScaryTopResult.identifier, "NotScary画像: 予測結果からクラスラベルを取得できませんでした。")
+
+        print("クラス '\(classLabel)' のテスト画像URLとして使用: \(randomImageURL.path)")
+        return randomImageURL
     }
 }
