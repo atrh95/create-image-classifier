@@ -63,7 +63,19 @@ Task {
     let selectedModel: MLModelType = .scaryCatScreeningML
     let selectedTrainer: TrainerType = .multiLabel
     let author = "akitora"
-    let maxIterations = 10
+
+    // ModelParametersの設定
+    let algorithm = MLImageClassifier.ModelParameters.ModelAlgorithmType.transferLearning(
+        featureExtractor: .scenePrint(revision: 1),
+        classifier: .logisticRegressor
+    )
+    
+    let modelParameters = MLImageClassifier.ModelParameters(
+        validation: .split(strategy: .automatic),
+        maxIterations: 10,
+        augmentation: [],
+        algorithm: algorithm
+    )
 
     guard selectedModel.supportedTrainerTypes.contains(selectedTrainer),
           let version = selectedModel.version(for: selectedTrainer)
@@ -79,7 +91,7 @@ Task {
         author: author,
         modelName: selectedModel.name,
         version: version,
-        maxIterations: maxIterations
+        modelParameters: modelParameters
     ) as? TrainingResultProtocol else {
         print("トレーニングに失敗しました")
         semaphore.signal()

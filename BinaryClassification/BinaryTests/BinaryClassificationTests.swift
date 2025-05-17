@@ -1,5 +1,6 @@
 @testable import BinaryClassification
 import CoreML
+import CreateML
 import Foundation
 import Vision
 import XCTest
@@ -39,11 +40,23 @@ class BinaryClassificationTests: XCTestCase {
         testModelVersion = "\(Int(Date().timeIntervalSince1970))"
         authorName = "Test Author Setup"
 
+        // Create ModelParameters for the test
+        let algorithm = MLImageClassifier.ModelParameters.ModelAlgorithmType.transferLearning(
+            featureExtractor: .scenePrint(revision: 1),
+            classifier: .logisticRegressor
+        )
+        let modelParameters = MLImageClassifier.ModelParameters(
+            validation: .split(strategy: .automatic),
+            maxIterations: 1, // Using 1 for test speed
+            augmentation: [],
+            algorithm: algorithm
+        )
+
         trainingResult = await trainer.train(
             author: authorName,
             modelName: testModelName,
             version: testModelVersion,
-            maxIterations: 1
+            modelParameters: modelParameters // Pass modelParameters
         )
 
         guard let result = trainingResult else {

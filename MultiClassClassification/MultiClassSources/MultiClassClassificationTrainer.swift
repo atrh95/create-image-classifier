@@ -28,7 +28,7 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
         author: String,
         modelName: String,
         version: String,
-        maxIterations: Int
+        modelParameters: CreateML.MLImageClassifier.ModelParameters
     )
         async -> MultiClassTrainingResult?
     {
@@ -77,13 +77,9 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
             print("\n🚀 多クラス分類モデル [\(modelName)] のトレーニングを開始します...")
             let trainingDataSource = MLImageClassifier.DataSource.labeledDirectories(at: trainingDataParentDir)
 
-            var parameters = MLImageClassifier.ModelParameters()
-            parameters.featureExtractor = .scenePrint(revision: 1)
-            parameters.maxIterations = maxIterations
-            parameters.validation = .split(strategy: .automatic)
-
+            print("⏳ \(modelName) モデルトレーニング実行中 (最大反復: \(modelParameters.maxIterations)回)... ")
             let startTime = Date()
-            let model = try MLImageClassifier(trainingData: trainingDataSource, parameters: parameters)
+            let model = try MLImageClassifier(trainingData: trainingDataSource, parameters: modelParameters)
             let endTime = Date()
             let duration = endTime.timeIntervalSince(startTime)
             print("🎉 [\(modelName)] のトレーニングに成功しました！ (所要時間: \(String(format: "%.2f", duration))秒)")
@@ -207,7 +203,7 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
             }
 
             // 2. 最大反復回数
-            descriptionParts.append("最大反復回数: \(maxIterations)回")
+            descriptionParts.append("最大反復回数: \(modelParameters.maxIterations)回")
 
             // 3. 正解率情報 (全体)
             descriptionParts.append(String(
@@ -250,18 +246,22 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
 
             return MultiClassTrainingResult(
                 modelName: modelName,
-                trainingDataAccuracy: trainingDataAccuracyPercentage,
-                validationDataAccuracy: validationDataAccuracyPercentage,
-                trainingDataErrorRate: trainingEvaluation.classificationError,
-                validationDataErrorRate: validationEvaluation.classificationError,
-                trainingTimeInSeconds: duration,
-                modelOutputPath: outputModelURL.path,
-                trainingDataPath: trainingDataParentDir.path,
-                classLabels: classLabelsFromFileSystem,
-                maxIterations: maxIterations,
+                trainingDataAccuracyPercentage: trainingDataAccuracyPercentage,
+                validationDataAccuracyPercentage: validationDataAccuracyPercentage,
+                trainingDurationInSeconds: duration,
+                trainedModelFilePath: outputModelURL.path,
+                sourceTrainingDataDirectoryPath: trainingDataParentDir.path,
+                detectedClassLabelsList: labelsFromConfusion,
                 macroAverageRecall: macroAverageRecallRate,
                 macroAveragePrecision: macroAveragePrecisionRate,
-                detectedClassLabelsList: labelsFromConfusion
+                perClassMetrics: detailedClassMetrics.map {
+                    .init(
+                        className: $0.label,
+                        recall: $0.recall,
+                        precision: $0.precision
+                    )
+                },
+                maxIterations: modelParameters.maxIterations
             )
 
         } catch let error as CreateML.MLCreateError {

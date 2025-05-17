@@ -25,30 +25,30 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
 
     public var outputDirPath: String {
         var dir = URL(fileURLWithPath: #filePath)
-        dir.deleteLastPathComponent() // OvOClassificationSources
-        dir.deleteLastPathComponent() // OvOClassification
+        dir.deleteLastPathComponent()
+        dir.deleteLastPathComponent()
         return dir.appendingPathComponent("OutputModels").path
     }
 
-    public var classificationMethod: String { "OvO" } // 分類手法をOvOに変更
+    public var classificationMethod: String { "OvO" }
 
     public var resourcesDirectoryPath: String {
         var dir = URL(fileURLWithPath: #filePath)
-        dir.deleteLastPathComponent() // OvOClassificationSources
-        dir.deleteLastPathComponent() // OvOClassification
+        dir.deleteLastPathComponent() 
+        dir.deleteLastPathComponent() 
         return dir.appendingPathComponent("Resources").path
     }
 
     public init() {}
 
     static let fileManager = FileManager.default
-    static let tempBaseDirName = "TempOvOTrainingData" // 一時ディレクトリ名をOvO用に変更
+    static let tempBaseDirName = "TempOvOTrainingData"
 
     public func train(
         author: String,
         modelName: String,
         version: String,
-        maxIterations: Int
+        modelParameters: CreateML.MLImageClassifier.ModelParameters
     ) async -> OvOTrainingResult? {
         let mainOutputRunURL: URL
         do {
@@ -147,7 +147,7 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
                 author: author,
                 version: version,
                 pairIndex: pairIndex,
-                maxIterations: maxIterations
+                modelParameters: modelParameters
             ) {
                 allPairTrainingResults.append(result)
                 print("  ✅ OvOペア [\(dir1.lastPathComponent)] vs [\(dir2.lastPathComponent)] トレーニング成功")
@@ -185,7 +185,7 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
         let trainingResult = OvOTrainingResult(
             modelOutputPath: finalRunOutputPath,
             trainingDataPaths: trainingDataPaths,
-            maxIterations: maxIterations,
+            maxIterations: modelParameters.maxIterations,
             individualReports: individualReports,
             numberOfClasses: allLabelSourceDirectories.count, // 総クラス数を追加
             numberOfPairs: classPairs.count // 総ペア数を追加
@@ -204,7 +204,7 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
         author: String,
         version: String,
         pairIndex _: Int,
-        maxIterations: Int
+        modelParameters: CreateML.MLImageClassifier.ModelParameters
     ) async -> OvOPairTrainingResult? {
         let class1NameOriginal = class1DirURL.lastPathComponent
         let class2NameOriginal = class2DirURL.lastPathComponent
@@ -287,13 +287,6 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
             "  準備完了: [\(class1NameForModel)] (\(class1SamplesCount)枚) vs [\(class2NameForModel)] (\(class2SamplesCount)枚)"
         )
 
-        // CreateMLトレーニングパラメータ
-        var params = MLImageClassifier.ModelParameters()
-        params.featureExtractor = .scenePrint(revision: 1)
-        params.maxIterations = maxIterations
-        params.validation = .split(strategy: .automatic)
-        // OvRでは明示的なaugmentation設定がこのブロックにないため、OvOもそれに倣う
-
         let startTime = Date()
         var trainingAccuracy: Double = 0
         var validationAccuracy: Double = 0
@@ -306,7 +299,7 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
             print("  CreateML ImageClassifier トレーニング開始: [\(class1NameForModel)] vs [\(class2NameForModel)]")
             let trainingDataSource = MLImageClassifier.DataSource.labeledDirectories(at: tempOvOPairRootURL)
 
-            let classifier = try MLImageClassifier(trainingData: trainingDataSource, parameters: params)
+            let classifier = try MLImageClassifier(trainingData: trainingDataSource, parameters: modelParameters)
 
             trainingAccuracy = 1.0 - classifier.trainingMetrics.classificationError
             trainingError = classifier.trainingMetrics.classificationError
@@ -322,7 +315,7 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
                 class2NameForModel,
                 class2SamplesCount
             ))
-            descriptionParts.append("最大反復回数: \(maxIterations)回")
+            descriptionParts.append("最大反復回数: \(modelParameters.maxIterations)回")
             descriptionParts.append(String(
                 format: "訓練正解率: %.1f%%, 検証正解率: %.1f%%",
                 trainingAccuracy * 100,

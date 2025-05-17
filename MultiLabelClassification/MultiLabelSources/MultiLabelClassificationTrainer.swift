@@ -38,7 +38,7 @@ public final class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
         author: String,
         modelName: String,
         version: String,
-        maxIterations: Int
+        modelParameters: CreateML.MLImageClassifier.ModelParameters
     ) async -> MultiLabelTrainingResult? {
         let outputDir: URL
         do {
@@ -177,7 +177,7 @@ public final class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
         }
 
         // 2. 最大反復回数
-        descriptionParts.append("最大反復回数 (指定値): \(maxIterations)回")
+        descriptionParts.append("最大反復回数 (指定値): \(modelParameters.maxIterations)回")
 
         // 3. データセット情報
         descriptionParts.append(String(format: "学習データ数: %d枚, 検証データ数: %d枚", trainSet.count, validationSet.count))
@@ -238,7 +238,7 @@ public final class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
             modelOutputPath: modelURL.path,
             trainingDataPath: manifestURL.path,
             classLabels: labels,
-            maxIterations: maxIterations,
+            maxIterations: modelParameters.maxIterations,
             meanAveragePrecision: finalMeanAP,
             perLabelMetricsSummary: finalPerLabelSummary,
             averageRecallAcrossLabels: avgRecallDouble,

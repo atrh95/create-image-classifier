@@ -48,7 +48,7 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
         author: String,
         modelName: String,
         version: String,
-        maxIterations: Int
+        modelParameters: CreateML.MLImageClassifier.ModelParameters
     ) async -> OvRTrainingResult? {
         let mainOutputRunURL: URL
         do {
@@ -128,7 +128,7 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
                 author: author,
                 version: version,
                 pairIndex: index,
-                maxIterations: maxIterations
+                modelParameters: modelParameters
             ) {
                 allPairTrainingResults.append(result)
                 print("  ✅ OvRペア [\(dir.lastPathComponent)] vs Rest トレーニング成功")
@@ -163,7 +163,7 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
         let trainingResult = OvRTrainingResult(
             modelOutputPath: finalRunOutputPath,
             trainingDataPaths: trainingDataPaths,
-            maxIterations: maxIterations,
+            maxIterations: modelParameters.maxIterations,
             individualReports: individualReports
         )
 
@@ -179,7 +179,7 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
         author: String,
         version: String,
         pairIndex: Int,
-        maxIterations: Int
+        modelParameters: CreateML.MLImageClassifier.ModelParameters
     ) async -> OvRPairTrainingResult? {
         let originalOneLabelName = oneLabelSourceDirURL.lastPathComponent
         let positiveClassNameForModel = originalOneLabelName.components(separatedBy: CharacterSet(charactersIn: "_-"))
@@ -277,12 +277,8 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
 
         do {
             let trainingStartTime = Date()
-            var modelParameters = MLImageClassifier.ModelParameters()
-            modelParameters.featureExtractor = .scenePrint(revision: 1)
-            modelParameters.maxIterations = maxIterations
-            modelParameters.validation = .split(strategy: .automatic)
 
-            print("  ⏳ OvRペア [\(positiveClassNameForModel)] モデルトレーニング実行中 (最大反復: \(maxIterations)回)...")
+            print("  ⏳ OvRペア [\(positiveClassNameForModel)] モデルトレーニング実行中 (最大反復: \(modelParameters.maxIterations)回)...")
             let imageClassifier = try MLImageClassifier(trainingData: trainingDataSource, parameters: modelParameters)
             print("  ✅ OvRペア [\(positiveClassNameForModel)] モデルトレーニング完了")
 
@@ -353,14 +349,12 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
 
             // 1. クラス構成
             descriptionParts.append(String(
-                format: "クラス構成: %@: %d枚; Rest: %d枚",
-                positiveClassNameForModel,
-                positiveCountForDesc,
-                restCountForDesc
+                format: "クラス構成 (陽性/他): %@ (%d枚) / Rest (%d枚)",
+                positiveClassNameForModel, positiveCountForDesc, restCountForDesc
             ))
 
             // 2. 最大反復回数
-            descriptionParts.append("最大反復回数: \(maxIterations)回")
+            descriptionParts.append("最大反復回数: \(modelParameters.maxIterations)回")
 
             // 3. 正解率情報
             descriptionParts.append(String(
