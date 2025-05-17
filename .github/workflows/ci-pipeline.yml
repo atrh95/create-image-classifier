@@ -15,52 +15,31 @@ jobs:
     permissions:
       contents: read
 
-  # プロジェクトのビルド (テスト用)
-  build:
-    name: Build for Testing
-    needs: setup-mint
-    uses: ./.github/workflows/build-for-testing.yml
-
   # --- ユニットテストを並列で実行 ---
   binary-tests:
     name: BinaryTests
-    needs: build
+    needs: setup-mint
     uses: ./.github/workflows/binary-tests.yml
-    with:
-      derived_data_artifact_name: ${{ needs.build.outputs.derived_data_artifact_name }}
-      derived_data_path_on_runner: ${{ needs.build.outputs.derived_data_path_on_runner }}
 
   multi-class-tests:
     name: MultiClassTests
-    needs: build
+    needs: setup-mint
     uses: ./.github/workflows/multi-class-tests.yml
-    with:
-      derived_data_artifact_name: ${{ needs.build.outputs.derived_data_artifact_name }}
-      derived_data_path_on_runner: ${{ needs.build.outputs.derived_data_path_on_runner }}
 
   multi-label-tests:
     name: MultiLabelTests
-    needs: build
+    needs: setup-mint
     uses: ./.github/workflows/multi-label-tests.yml
-    with:
-      derived_data_artifact_name: ${{ needs.build.outputs.derived_data_artifact_name }}
-      derived_data_path_on_runner: ${{ needs.build.outputs.derived_data_path_on_runner }}
 
   ovr-tests:
     name: OvRTests
-    needs: build
+    needs: setup-mint
     uses: ./.github/workflows/ovr-tests.yml
-    with:
-      derived_data_artifact_name: ${{ needs.build.outputs.derived_data_artifact_name }}
-      derived_data_path_on_runner: ${{ needs.build.outputs.derived_data_path_on_runner }}
 
   ovo-tests:
     name: OvOTests
-    needs: build
+    needs: setup-mint
     uses: ./.github/workflows/ovo-tests.yml
-    with:
-      derived_data_artifact_name: ${{ needs.build.outputs.derived_data_artifact_name }}
-      derived_data_path_on_runner: ${{ needs.build.outputs.derived_data_path_on_runner }}
 
   # テスト結果レポート生成
   report:

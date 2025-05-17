@@ -2,15 +2,6 @@ name: Run OvRTests
 
 on:
   workflow_call:
-    inputs:
-      derived_data_artifact_name:
-        description: "ビルドジョブからのDerivedDataアーティファクトの名前"
-        required: true
-        type: string
-      derived_data_path_on_runner:
-        description: "ビルドジョブによってDerivedDataが保存されたランナー上のパス"
-        required: true
-        type: string
     outputs:
       test_result:
         description: "OvRTestsの結果"
@@ -50,24 +41,14 @@ jobs:
       - name: Create Test Output Directory
         run: mkdir -p ${{ env.TEST_OUTPUT_PATH }}
 
-      - name: Create local DerivedData directory for download
-        run: mkdir -p ${{ inputs.derived_data_path_on_runner }}
-
-      - name: Download Derived Data
-        uses: actions/download-artifact@v4
-        with:
-          name: ${{ inputs.derived_data_artifact_name }}
-          path: ${{ inputs.derived_data_path_on_runner }}
-
       - name: Run OvRTests
         id: execute_tests
         run: |
           set -o pipefail
-          xcodebuild test-without-building \
+          xcodebuild test \
             -project "CatScreeningML.xcodeproj" \
             -scheme "OvRTests" \
             -destination "platform=macOS" \
-            -derivedDataPath ./${{ inputs.derived_data_path_on_runner }} \
             -enableCodeCoverage NO \
             MACOSX_DEPLOYMENT_TARGET=15.2 \
             -resultBundlePath ./${{ env.TEST_OUTPUT_PATH }}/TestResults.xcresult \
