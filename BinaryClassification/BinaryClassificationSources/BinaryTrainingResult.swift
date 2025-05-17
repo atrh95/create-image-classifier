@@ -17,7 +17,6 @@ public struct BinaryTrainingResult: TrainingResultProtocol {
     public func saveLog(
         modelAuthor: String,
         modelName: String,
-        modelDescription: String,
         modelVersion: String
     ) {
         // ファイル生成日時フォーマッタ
@@ -56,7 +55,6 @@ public struct BinaryTrainingResult: TrainingResultProtocol {
 
         ## モデルメタデータ
         作成者            : \(modelAuthor)
-        説明              : \(modelDescription)
         バージョン          : \(modelVersion)
         """
 

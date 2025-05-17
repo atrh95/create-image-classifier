@@ -18,7 +18,6 @@ public struct MultiLabelTrainingResult: TrainingResultProtocol {
     public func saveLog(
         modelAuthor: String,
         modelName: String,
-        modelDescription: String,
         modelVersion: String
     ) {
         let dateFormatter = DateFormatter()
@@ -59,9 +58,9 @@ public struct MultiLabelTrainingResult: TrainingResultProtocol {
         ## パフォーマンス指標
         トレーニング所要時間: \(durationStr) 秒
         \(metricsLog)
+        
         ## モデルメタデータ
         作成者            : \(modelAuthor)
-        説明              : \(modelDescription)
         バージョン          : \(modelVersion)
         """
 

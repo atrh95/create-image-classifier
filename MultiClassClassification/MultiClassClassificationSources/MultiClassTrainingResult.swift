@@ -19,7 +19,6 @@ public struct MultiClassTrainingResult: TrainingResultProtocol {
     public func saveLog(
         modelAuthor: String,
         modelName: String,
-        modelDescription: String,
         modelVersion: String
     ) {
         let dateFormatter = DateFormatter()
@@ -57,7 +56,6 @@ public struct MultiClassTrainingResult: TrainingResultProtocol {
 
         ## モデルメタデータ
         作成者            : \(modelAuthor)
-        説明              : \(modelDescription)
         バージョン          : \(modelVersion)
         """
 

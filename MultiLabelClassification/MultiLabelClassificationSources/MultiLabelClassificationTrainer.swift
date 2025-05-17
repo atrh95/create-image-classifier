@@ -107,8 +107,29 @@ public final class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
         let trainingTime = Date().timeIntervalSince(t0)
         print("🎉 \(String(format: "%.2f", trainingTime)) 秒でトレーニングが完了しました")
 
+        // .mlmodel のメタデータに含める shortDescription を動的に生成
+        var descriptionParts: [String] = [] 
+
+        // 1. ラベル情報
+        if !labels.isEmpty {
+            descriptionParts.append("ラベル: " + labels.joined(separator: ", "))
+        } else {
+            descriptionParts.append("ラベル情報なし")
+        }
+
+        // 2. 最大反復回数 (注: このトレーナーでは直接使用されない可能性あり)
+        descriptionParts.append("最大反復回数 (指定値): \(maxIterations)回")
+
+        // 3. データセット情報
+        descriptionParts.append(String(format: "学習データ数: %d枚, 検証データ数: %d枚", trainSet.count, validationSet.count))
+
+        // 4. 検証方法
+        descriptionParts.append("(検証: 80/20ランダム分割)")
+
+        let modelShortDescription = descriptionParts.joined(separator: "\n")
+
         let modelMetadata = ModelMetadata(
-            description: "A multi-label image classifier for cats trained on \(trainSet.count) images and validated on \(validationSet.count) images. Labels: \(labels.joined(separator: ", "))",
+            description: modelShortDescription,
             version: version,
             author: author
         )

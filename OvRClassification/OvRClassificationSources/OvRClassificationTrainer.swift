@@ -349,20 +349,38 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
             let positiveCountForDesc = (try? getFilesInDirectory(tempPositiveDataDirForML).count) ?? 0
             let restCountForDesc = (try? getFilesInDirectory(tempRestDataDirForML).count) ?? 0
 
-            var individualDesc = String(format: "訓練正解率: %.1f%%, 検証正解率: %.1f%%", trainingAccuracy, validationAccuracy)
-            individualDesc += String(
-                format: "\n陽性クラス: %@, 再現率: %.1f%%, 適合率: %.1f%%",
-                positiveClassNameForModel,
-                recall * 100,
-                precision * 100
-            )
-            individualDesc += String(
-                format: "\nクラス構成: %@: %d枚; Rest: %d枚",
+            var descriptionParts: [String] = []
+
+            // 1. クラス構成
+            descriptionParts.append(String(
+                format: "クラス構成: %@: %d枚; Rest: %d枚",
                 positiveClassNameForModel,
                 positiveCountForDesc,
                 restCountForDesc
-            )
-            individualDesc += "\n(検証: 自動分割)"
+            ))
+
+            // 2. 最大反復回数
+            descriptionParts.append("最大反復回数: \(maxIterations)回")
+
+            // 3. 正解率情報
+            descriptionParts.append(String(
+                format: "訓練正解率: %.1f%%, 検証正解率: %.1f%%",
+                trainingAccuracy,
+                validationAccuracy
+            ))
+
+            // 4. 陽性クラス情報 (再現率・適合率)
+            descriptionParts.append(String(
+                format: "陽性クラス: %@, 再現率: %.1f%%, 適合率: %.1f%%",
+                positiveClassNameForModel,
+                recall * 100,
+                precision * 100
+            ))
+            
+            // 5. 検証方法
+            descriptionParts.append("(検証: 自動分割)")
+
+            let individualDesc = descriptionParts.joined(separator: "\n")
 
             let modelMetadata = MLModelMetadata(
                 author: author,

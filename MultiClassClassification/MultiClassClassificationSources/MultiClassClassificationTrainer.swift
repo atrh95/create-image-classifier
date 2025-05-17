@@ -167,20 +167,41 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
             print("    🎯 検証データ マクロ平均適合率: \(String(format: "%.2f", macroAveragePrecisionRate * 100))%")
 
             // .mlmodel のメタデータに含める shortDescription を動的に生成
-            var modelMetadataShortDescription = String(
+            var descriptionParts: [String] = []
+
+            // 1. クラス構成 (総サンプル数で代用)
+            descriptionParts.append(String(format: "総学習サンプル数: %d枚", totalImageSamples))
+            
+            // クラスラベルリストを追加 (任意) - labelsFromConfusion を使用
+            if !labelsFromConfusion.isEmpty {
+                descriptionParts.append("検出クラス: " + labelsFromConfusion.joined(separator: ", "))
+            }
+
+
+            // 2. 最大反復回数
+            descriptionParts.append("最大反復回数: \(maxIterations)回")
+
+            // 3. 正解率情報
+            descriptionParts.append(String(
                 format: "訓練正解率: %.1f%%, 検証正解率: %.1f%%",
                 trainingDataAccuracyPercentage,
                 validationDataAccuracyPercentage
-            )
+            ))
+
+            // 4. マクロ平均再現率・適合率
             if !labelsFromConfusion.isEmpty, macroAverageRecallRate > 0 || macroAveragePrecisionRate > 0 {
-                modelMetadataShortDescription += String(
-                    format: ", マクロ平均再現率: %.1f%%, マクロ平均適合率: %.1f%% (対象: %dクラス)",
+                descriptionParts.append(String(
+                    format: "平均再現率: %.1f%%, 平均適合率: %.1f%% (対象: %dクラス)",
                     macroAverageRecallRate * 100,
                     macroAveragePrecisionRate * 100,
                     labelsFromConfusion.count
-                )
+                ))
             }
-            modelMetadataShortDescription += String(format: ", 総サンプル数: %d (自動分割)", totalImageSamples)
+            
+            // 5. 検証方法
+            descriptionParts.append("(検証: 自動分割)")
+
+            let modelMetadataShortDescription = descriptionParts.joined(separator: "\n")
 
             let metadata = MLModelMetadata(
                 author: author,

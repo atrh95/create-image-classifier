@@ -24,15 +24,20 @@ enum TrainerType {
     }
 }
 
+// --- モデル名タイプの定義 ---
+enum ModelNameType: String {
+    case scaryCatScreeningML = "ScaryCatScreeningML"
+    // 他のモデル名が必要な場合はここに追加
+}
+
 // --- トレーニング設定 ---
-let currentTrainerType: TrainerType = .binary
+let currentTrainerType: TrainerType = .ovr
 let maxTrainingIterations = 11
 
 // --- 共通のログデータ設定 ---
 let modelAuthor = "akitora"
-let modelShortDescription = "ScaryCatScreener Training"
+let modelName = ModelNameType.scaryCatScreeningML.rawValue
 let modelVersion = currentTrainerType.definedVersion
-let modelName = "ScaryCatScreeningML"
 
 print("🚀 トレーニングを開始します... 設定タイプ: \(currentTrainerType), モデル名: \(modelName), バージョン: \(modelVersion)")
 
@@ -66,12 +71,11 @@ trainingResult = await trainer.train(
 if let result = trainingResult {
     print("🎉 トレーニングが正常に完了しました。")
 
-    // 結果をログに保存 (TrainingResultDataプロトコルのsaveLogメソッドを利用)
+    // 結果をログに保存
     if let resultData = result as? any TrainingResultProtocol {
         resultData.saveLog(
             modelAuthor: modelAuthor,
             modelName: modelName,
-            modelDescription: modelShortDescription,
             modelVersion: modelVersion
         )
         print("💾 トレーニング結果をログに保存しました。")

@@ -17,7 +17,7 @@ public struct OvRTrainingResult: TrainingResultProtocol {
     public let maxIterations: Int
     public let individualReports: [IndividualModelReport]
 
-    public func saveLog(modelAuthor: String, modelName: String, modelDescription: String, modelVersion: String) {
+    public func saveLog(modelAuthor: String, modelName: String, modelVersion: String) {
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss Z"
         let generatedDateString = dateFormatter.string(from: Date())
@@ -58,7 +58,6 @@ public struct OvRTrainingResult: TrainingResultProtocol {
 
         ## 共通メタデータ
         作成者            : \(modelAuthor)
-        全体説明          : \(modelDescription) (このOvR実行全体に対して)
         バージョン        : \(modelVersion)
         """
 
