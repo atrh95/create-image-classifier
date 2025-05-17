@@ -10,7 +10,7 @@ targets:
     type: tool
     platform: macOS
     sources:
-      - path: CatScreeningML
+      - path: main.swift
     dependencies:
       - target: BinaryClassification
       - target: MultiClassClassification

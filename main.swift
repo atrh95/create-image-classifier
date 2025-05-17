@@ -85,4 +85,4 @@ if let result = trainingResult {
     print("🛑 トレーニングまたはモデルの保存中にエラーが発生しました。")
 }
 
-print("✅ すべての処理が完了しました。")
+print("✅ すべての処理が完了しました。") 

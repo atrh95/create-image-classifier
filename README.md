@@ -24,29 +24,32 @@ CatScreeningMLは、Swiftアプリケーションに典型的なモジュラー�
 
 ```
 .
-├── CatScreeningML
-│   └── main.swift
 ├── CSInterface/
 ├── BinaryClassification/
+│   ├── MultiLabelClassificationSources/
+│   ├── OutputModels/
+│   └── Resources/
 ├── MultiClassClassification/
+│   └── ...
 ├── MultiLabelClassification/
+│   └── ...
 ├── OvRClassification/
-├── .gitignore
+│   └── ...
+├── main.swift 
 ├── Mintfile
 ├── .swiftformat
 ├── .swiftlint.yml
+├── .gitignore
 ├── project.yml
 └── README.md
 ```
 
-プロジェクトの構成管理には `project.yml` が使用されています。
-
 ## 技術スタック / 依存パッケージ
 
 *   **言語** Swift
-*   **フレームワーク** Apple CoreML, Apple CreateML
-*   **インターフェース** `CSInterface`
-*   **プロジェクト管理** `project.yml` を使用
+*   **フレームワーク** CoreML, CreateML
+*   **共通のインターフェース** `CSInterface`
+*   **プロジェクト管理** `project.yml`
 
 ## 主要機能
 
@@ -57,6 +60,6 @@ CatScreeningMLは、以下の4つの異なる分類アプローチをサポー�
 | **二値分類**                | 画像を2つのカテゴリのいずれかに分類します                            | 画像が特定の特徴を含むかどうかを判断する（例 「スフィンクスか、そうでないか」）         |
 | **マルチクラス分類**          | 画像を相互に排他的ないくつかのカテゴリの1つに分類します                | 画像内の主要な特性を識別する                                                     |
 | **マルチラベル分類**          | 単一の画像に複数のラベルを割り当てます                                 | 1つの画像に共存しうる複数の特徴を検出する                                        |
-| **One-vs-Rest (OvR) 分類** | 各カテゴリに対して1つずつ、複数の二値分類器をトレーニングします        | 各カテゴリに対する特化した検出器を作成する                                       |
+| **One-vs-Rest (OvR) 分類** | 各カテゴリに対して1つずつ、複数の二値分類器をトレーニングする        | 各カテゴリに対する特化した検出器を作成する                                       |
 
 トレーニングのプロセスでは、選択された分類タイプのトレーナーが初期化され、モデルのメタデータ（作成者、説明、バージョン）と共に`train()`メソッドが呼び出されます。トレーナーは画像データを処理し、CoreML/CreateMLを使用してモデルをトレーニングし、パフォーマンスを評価して結果を返します。最後に、トレーニングプロセスとモデルのメトリクスを文書化するマークダウンレポートが生成されます。
