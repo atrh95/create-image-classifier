@@ -88,7 +88,8 @@ class MultiLabelClassificationTests: XCTestCase {
             author: authorName,
             modelName: testModelName,
             version: testModelVersion,
-            modelParameters: modelParameters // Use class-level computed property
+            modelParameters: modelParameters,
+            scenePrintRevision: 1
         )
 
         guard let result = trainingResult else {

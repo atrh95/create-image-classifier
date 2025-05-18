@@ -61,7 +61,8 @@ class MultiClassClassificationTests: XCTestCase {
             author: authorName,
             modelName: testModelName,
             version: testModelVersion,
-            modelParameters: modelParameters
+            modelParameters: modelParameters,
+            scenePrintRevision: 1
         )
 
         guard let result = trainingResult else {

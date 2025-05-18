@@ -64,7 +64,8 @@ final class OvRClassificationTests: XCTestCase {
             author: authorName,
             modelName: testModelName,
             version: testModelVersion,
-            modelParameters: modelParameters
+            modelParameters: modelParameters,
+            scenePrintRevision: 1
         )
 
         guard trainingResult != nil else {
