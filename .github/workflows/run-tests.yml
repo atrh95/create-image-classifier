@@ -37,134 +37,30 @@ jobs:
       - name: Generate Xcode Project
         run: mint run xcodegen generate
 
-      # BinaryTests
-      - name: Create BinaryTests Output Directory
-        run: mkdir -p ci-outputs/test-results/binary-tests
-      - name: Run BinaryTests
-        id: execute_binary_tests
-        continue-on-error: true # Continue even if this test suite fails to run others
-        run: |
-          set -o pipefail
-          xcodebuild test \
-            -project "CatScreeningML.xcodeproj" \
-            -scheme "BinaryTests" \
-            -destination "platform=macOS" \
-            -enableCodeCoverage NO \
-            MACOSX_DEPLOYMENT_TARGET=15.2 \
-            -resultBundlePath ./ci-outputs/test-results/binary-tests/TestResults.xcresult \
-            | xcbeautify --report junit --report-path ./ci-outputs/test-results/binary-tests/junit.xml
-      - name: Upload BinaryTests Results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: binary-test-results-${{ github.run_id }}
-          path: |
-            ci-outputs/test-results/binary-tests/TestResults.xcresult
-            ci-outputs/test-results/binary-tests/junit.xml
-          retention-days: 7
-
-      # MultiClassTests
-      - name: Create MultiClassTests Output Directory
-        run: mkdir -p ci-outputs/test-results/multi-class-tests
-      - name: Run MultiClassTests
-        id: execute_multi_class_tests
-        continue-on-error: true
+      # Run All Tests
+      - name: Create Test Output Directory
+        run: mkdir -p ci-outputs/test-results/all-tests
+      - name: Run All Tests
+        id: execute_all_tests
+        continue-on-error: true # Continue to allow artifact upload even on failure
         run: |
           set -o pipefail
           xcodebuild test \
             -project "TrainCatScreeningML.xcodeproj" \
-            -scheme "MultiClassTests" \
+            -scheme "TrainCatScreeningMLTests" \
             -destination "platform=macOS" \
             -enableCodeCoverage NO \
             MACOSX_DEPLOYMENT_TARGET=15.2 \
-            -resultBundlePath ./ci-outputs/test-results/multi-class-tests/TestResults.xcresult \
-            | xcbeautify --report junit --report-path ./ci-outputs/test-results/multi-class-tests/junit.xml
-      - name: Upload MultiClassTests Results
+            -resultBundlePath ./ci-outputs/test-results/all-tests/TestResults.xcresult \
+            | xcbeautify --report junit --report-path ./ci-outputs/test-results/all-tests/junit.xml
+      - name: Upload Test Results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: multi-class-test-results-${{ github.run_id }}
+          name: all-test-results-${{ github.run_id }}
           path: |
-            ci-outputs/test-results/multi-class-tests/TestResults.xcresult
-            ci-outputs/test-results/multi-class-tests/junit.xml
-          retention-days: 7
-
-      # MultiLabelTests
-      - name: Create MultiLabelTests Output Directory
-        run: mkdir -p ci-outputs/test-results/multi-label-tests
-      - name: Run MultiLabelTests
-        id: execute_multi_label_tests
-        continue-on-error: true
-        run: |
-          set -o pipefail
-          xcodebuild test \
-            -project "CatScreeningML.xcodeproj" \
-            -scheme "MultiLabelTests" \
-            -destination "platform=macOS" \
-            -enableCodeCoverage NO \
-            MACOSX_DEPLOYMENT_TARGET=15.2 \
-            -resultBundlePath ./ci-outputs/test-results/multi-label-tests/TestResults.xcresult \
-            | xcbeautify --report junit --report-path ./ci-outputs/test-results/multi-label-tests/junit.xml
-      - name: Upload MultiLabelTests Results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: multi-label-test-results-${{ github.run_id }}
-          path: |
-            ci-outputs/test-results/multi-label-tests/TestResults.xcresult
-            ci-outputs/test-results/multi-label-tests/junit.xml
-          retention-days: 7
-
-      # OvRTests
-      - name: Create OvRTests Output Directory
-        run: mkdir -p ci-outputs/test-results/ovr-tests
-      - name: Run OvRTests
-        id: execute_ovr_tests
-        continue-on-error: true
-        run: |
-          set -o pipefail
-          xcodebuild test \
-            -project "CatScreeningML.xcodeproj" \
-            -scheme "OvRTests" \
-            -destination "platform=macOS" \
-            -enableCodeCoverage NO \
-            MACOSX_DEPLOYMENT_TARGET=15.2 \
-            -resultBundlePath ./ci-outputs/test-results/ovr-tests/TestResults.xcresult \
-            | xcbeautify --report junit --report-path ./ci-outputs/test-results/ovr-tests/junit.xml
-      - name: Upload OvRTests Results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: ovr-test-results-${{ github.run_id }}
-          path: |
-            ci-outputs/test-results/ovr-tests/TestResults.xcresult
-            ci-outputs/test-results/ovr-tests/junit.xml
-          retention-days: 7
-
-      # OvOTests
-      - name: Create OvOTests Output Directory
-        run: mkdir -p ci-outputs/test-results/ovo-tests
-      - name: Run OvOTests
-        id: execute_ovo_tests
-        continue-on-error: true
-        run: |
-          set -o pipefail
-          xcodebuild test \
-            -project "CatScreeningML.xcodeproj" \
-            -scheme "OvOTests" \
-            -destination "platform=macOS" \
-            -enableCodeCoverage NO \
-            MACOSX_DEPLOYMENT_TARGET=15.2 \
-            -resultBundlePath ./ci-outputs/test-results/ovo-tests/TestResults.xcresult \
-            | xcbeautify --report junit --report-path ./ci-outputs/test-results/ovo-tests/junit.xml
-      - name: Upload OvOTests Results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: ovo-test-results-${{ github.run_id }}
-          path: |
-            ci-outputs/test-results/ovo-tests/TestResults.xcresult
-            ci-outputs/test-results/ovo-tests/junit.xml
+            ci-outputs/test-results/all-tests/TestResults.xcresult
+            ci-outputs/test-results/all-tests/junit.xml
           retention-days: 7
       
       # Final check for overall success
@@ -172,14 +68,10 @@ jobs:
         id: final_check
         if: always() # Ensure this step always runs
         run: |
-          if [[ "${{ steps.execute_binary_tests.outcome }}" == "success" && \
-                "${{ steps.execute_multi_class_tests.outcome }}" == "success" && \
-                "${{ steps.execute_multi_label_tests.outcome }}" == "success" && \
-                "${{ steps.execute_ovr_tests.outcome }}" == "success" && \
-                "${{ steps.execute_ovo_tests.outcome }}" == "success" ]]; then
-            echo "All test suites passed."
+          if [[ "${{ steps.execute_all_tests.outcome }}" == "success" ]]; then
+            echo "All tests passed."
             exit 0
           else
-            echo "One or more test suites failed."
+            echo "One or more tests failed."
             exit 1
           fi 
