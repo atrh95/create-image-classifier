@@ -1,16 +1,16 @@
-# CatScreeningML
+# TrainCatScreeningML
 
 ## 概要
 
-CatScreeningML は、AppleのCoreMLおよびCreateMLフレームワークを利用して猫の画像を分類するための機械学習ツールです。
+TrainCatScreeningML は、AppleのCoreMLおよびCreateMLフレームワークを利用して猫の画像を分類するための機械学習ツールです。
 
 主な目的は、猫の画像が特定の特徴（例 口を開けているか、人間の手が写っているかなど）を持つかどうかを識別する機械学習モデルのトレーニングのための構造化された仕組みを提供することです。
 
-<a href="https://deepwiki.com/atrh95/cat-screening-ml"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki"></a>
+<a href="https://deepwiki.com/atrh95/train-cat-screening-ml"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki"></a>
 
 ## 設計
 
-CatScreeningMLは、Swiftアプリケーションに典型的なモジュラーでプロトコル指向の設計パターンを採用しています。
+TrainCatScreeningMLは、Swiftアプリケーションに典型的なモジュラーでプロトコル指向の設計パターンを採用しています。
 システムは、`main.swift`から5つの分類フレームワークのいずれかを選択して実行します。各フレームワークは特化した分類アプローチを実装しつつ、共通のインターフェースとして`SCSInterface`に依存しています。
 
 主要なプロトコルとして以下が定義されています。
@@ -53,7 +53,7 @@ CatScreeningMLは、Swiftアプリケーションに典型的なモジュラー�
 
 ## 主要機能
 
-CatScreeningMLは、以下の4つの異なる分類アプローチをサポートします。
+TrainCatScreeningMLは、以下の5つの異なる分類アプローチをサポートします。
 
 | 分類タイプ                  | 説明                                                                 | ユースケース                                                                   |
 | --------------------------- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------ |

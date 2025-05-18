@@ -6,7 +6,7 @@ options:
   deploymentTarget:
     macOS: "15.2"
 targets:
-  CatScreeningML:
+  TrainCatScreeningML:
     type: tool
     platform: macOS
     sources:
@@ -19,7 +19,7 @@ targets:
       - target: OvOClassification
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.CatScreeningML
+        PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.TrainCatScreeningML
         MACOSX_DEPLOYMENT_TARGET: "15.2"
         CODE_SIGNING_ALLOWED: NO
         CODE_SIGNING_REQUIRED: NO
