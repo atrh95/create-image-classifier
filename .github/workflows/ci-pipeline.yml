@@ -15,49 +15,21 @@ jobs:
     permissions:
       contents: read
 
-  # --- ユニットテストを並列で実行 ---
-  binary-tests:
-    name: BinaryTests
+  # --- ユニットテストを実行 ---
+  run-tests:
+    name: Run Unit Tests
     needs: setup-mint
-    uses: ./.github/workflows/binary-tests.yml
-
-  multi-class-tests:
-    name: MultiClassTests
-    needs: setup-mint
-    uses: ./.github/workflows/multi-class-tests.yml
-
-  multi-label-tests:
-    name: MultiLabelTests
-    needs: setup-mint
-    uses: ./.github/workflows/multi-label-tests.yml
-
-  ovr-tests:
-    name: OvRTests
-    needs: setup-mint
-    uses: ./.github/workflows/ovr-tests.yml
-
-  ovo-tests:
-    name: OvOTests
-    needs: setup-mint
-    uses: ./.github/workflows/ovo-tests.yml
+    uses: ./.github/workflows/run-tests.yml 
 
   # テスト結果レポート生成
   report:
     name: Report Status
     needs:
-      - binary-tests
-      - multi-class-tests
-      - multi-label-tests
-      - ovr-tests
-      - ovo-tests
+      - run-tests
     if: always()
     uses: ./.github/workflows/test-reporter.yml
     with:
-      binary_tests_result: ${{ needs.binary-tests.outputs.test_result }}
-      multi_class_tests_result: ${{ needs.multi-class-tests.outputs.test_result }}
-      multi_label_tests_result: ${{ needs.multi-label-tests.outputs.test_result }}
-      ovr_tests_result: ${{ needs.ovr-tests.outputs.test_result }}
-      ovo_tests_result: ${{ needs.ovo-tests.outputs.test_result }}
+      test_run_outcome: ${{ needs.run-tests.outputs.test_result }} # Pass the single output
 
   # コードレビュー - PRの場合のみ実行
   code-review:
@@ -78,11 +50,6 @@ jobs:
     needs:
       - report
       - code-review
-      - binary-tests
-      - multi-class-tests
-      - multi-label-tests
-      - ovr-tests
-      - ovo-tests
     if: always()
     permissions:
       issues: write
@@ -97,6 +64,7 @@ jobs:
           final_message="CI Pipeline finished with failures."
 
           # Check if all critical preceding jobs succeeded
+          # 'needs.report.outputs.overall_test_result' now reflects the outcome from run_all_tests
           if [[ "${{ needs.report.outputs.overall_test_result }}" == "success" && \
                 ("${{ github.event_name }}" != "pull_request" || "${{ needs.code-review.result }}" == "success" || "${{ needs.code-review.result }}" == "skipped") ]]; then
             final_status="success"
@@ -121,13 +89,8 @@ jobs:
               issue_number: context.issue.number,
               body: `## CI Pipeline Completed ${{ steps.status_check.outputs.icon }}\n
               ${{ steps.status_check.outputs.message }}\n
-              ### ステータス概要:
+              ### ステータス概要:\n
               -   Overall Test Status: ${test_status}
-              -   BinaryTests: ${{ needs.binary-tests.result == 'success' && '✅' || (needs.binary-tests.result == 'skipped' && '⏭️' || '❌') }}
-              -   MultiClassTests: ${{ needs.multi-class-tests.result == 'success' && '✅' || (needs.multi-class-tests.result == 'skipped' && '⏭️' || '❌') }}
-              -   MultiLabelTests: ${{ needs.multi-label-tests.result == 'success' && '✅' || (needs.multi-label-tests.result == 'skipped' && '⏭️' || '❌') }}
-              -   OvRTests: ${{ needs.ovr-tests.result == 'success' && '✅' || (needs.ovr-tests.result == 'skipped' && '⏭️' || '❌') }}
-              -   OvOTests: ${{ needs.ovo-tests.result == 'success' && '✅' || (needs.ovo-tests.result == 'skipped' && '⏭️' || '❌') }}
               -   Code Review: ${review_status}
               `
             });
