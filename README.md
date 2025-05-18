@@ -23,10 +23,9 @@ TrainCatScreeningMLは、Swiftアプリケーションに典型的なモジュ�
 .
 ├── CSInterface/
 ├── BinaryClassification/
-│   ├── MultiLabelClassificationSources/
+│   ├── BinarySources/
 │   ├── OutputModels/
-│   ├── Resources/
-│   └── BinaryTests/
+│   └── Resources/
 ├── MultiClassClassification/
 │   └── ...
 ├── MultiLabelClassification/
@@ -35,7 +34,13 @@ TrainCatScreeningMLは、Swiftアプリケーションに典型的なモジュ�
 │   └── ...
 ├── OvOClassification/
 │   └── ...
-├── main.swift 
+├── UnitTests/
+│   ├── BinaryTests/
+│   ├── MultiClassTests/
+│   ├── MultiLabelTests/
+│   ├── OvRTests/
+│   └── OvOTests/
+├── main.swift
 ├── Mintfile
 ├── .swiftformat
 ├── .swiftlint.yml
