@@ -62,11 +62,11 @@ public struct OvRTrainingResult: TrainingResultProtocol {
         特徴抽出器       : \(featureExtractorDescription)
 
         ## 個別 "One" モデルのパフォーマンス指標
-        | "One" クラス名 | モデル名 (vs Rest) | 検証正解率 | 再現率 | 適合率 |
-        |----------------|----------------------|--------------|----------|----------|
+        | "One" クラス名 | モデル名 | 検証正解率 | 再現率 | 適合率 |
+        |----------------|----------|--------------|----------|----------|
         """
         for report in individualReports {
-            let valAccStr = String(format: "%.2f%%", report.validationAccuracyPercentage * 100)
+            let valAccStr = String(format: "%.2f%%", report.validationAccuracyPercentage)
             let recallStr = String(format: "%.2f%%", report.recallRate * 100)
             let precisionStr = String(format: "%.2f%%", report.precisionRate * 100)
             markdownText += "\n| \(report.positiveClassName) | \(report.modelName) | \(valAccStr) | \(recallStr) | \(precisionStr) |"

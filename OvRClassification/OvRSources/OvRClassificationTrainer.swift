@@ -226,7 +226,7 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
             .replacingOccurrences(of: "[^a-zA-Z0-9]", with: "", options: .regularExpression)
 
         let modelFileNameBase =
-            "\(modelName)_\(classificationMethod)_\(positiveClassNameForModel)_vs_Rest_\(version)"
+            "\(modelName)_\(classificationMethod)_\(positiveClassNameForModel)_\(version)"
         let tempOvRPairRootName = "\(modelFileNameBase)_TempData"
         let tempOvRPairRootURL = tempOvRBaseURL.appendingPathComponent(tempOvRPairRootName)
 
@@ -311,7 +311,7 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
         )
 
         let trainingDataSource = MLImageClassifier.DataSource.labeledDirectories(at: tempOvRPairRootURL)
-        let modelForPairName = "\(modelName)_\(classificationMethod)_\(positiveClassNameForModel)_vs_Rest"
+        let modelForPairName = "\(modelName)_\(classificationMethod)_\(positiveClassNameForModel)"
 
         do {
             let trainingStartTime = Date()
