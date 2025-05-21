@@ -357,6 +357,53 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
             let trainingErrorRate = trainingMetrics.classificationError
             let validationErrorRate = validationMetrics.classificationError
             
+            // トレーニング完了後のパフォーマンス指標を表示
+            print("\n📊 トレーニング結果サマリー")
+            print(String(format: "  訓練正解率: %.1f%%, 検証正解率: %.1f%%",
+                trainingAccuracy,
+                validationAccuracy))
+
+            let confusionMatrix = validationMetrics.confusion
+            var labelSet = Set<String>()
+            for row in confusionMatrix.rows {
+                if let actual = row["True Label"]?.stringValue { labelSet.insert(actual) }
+                if let predicted = row["Predicted"]?.stringValue { labelSet.insert(predicted) }
+            }
+
+            let labels = Array(labelSet).sorted()
+            var confusionMatrixData: [[Int]] = Array(repeating: Array(repeating: 0, count: labels.count), count: labels.count)
+
+            for row in confusionMatrix.rows {
+                guard
+                    let actual = row["True Label"]?.stringValue,
+                    let predicted = row["Predicted"]?.stringValue,
+                    let cnt = row["Count"]?.intValue,
+                    let actualIndex = labels.firstIndex(of: actual),
+                    let predictedIndex = labels.firstIndex(of: predicted)
+                else { continue }
+                confusionMatrixData[actualIndex][predictedIndex] = cnt
+            }
+
+            // 混同行列の表示
+            print("\n📊 混同行列")
+            let maxLabelLength = labels.map { $0.count }.max() ?? 0
+            let labelWidth = max(maxLabelLength, 8)
+            
+            // ヘッダー行
+            print("  ┌" + String(repeating: "─", count: labelWidth + 2) + "┬" + String(repeating: "─", count: 8) + "┬" + String(repeating: "─", count: 8) + "┐")
+            print("  │" + String(repeating: " ", count: labelWidth + 2) + "│" + " 予測値 ".padding(toLength: 8, withPad: " ", startingAt: 0) + "│" + " 実際値 ".padding(toLength: 8, withPad: " ", startingAt: 0) + "│")
+            print("  ├" + String(repeating: "─", count: labelWidth + 2) + "┼" + String(repeating: "─", count: 8) + "┼" + String(repeating: "─", count: 8) + "┤")
+            
+            // データ行
+            for (i, label) in labels.enumerated() {
+                let rowSum = confusionMatrixData[i].reduce(0, +)
+                print(String(format: "  │ %-\(labelWidth)s │ %6d │ %6d │",
+                    label,
+                    confusionMatrixData[i][i],
+                    rowSum))
+            }
+            print("  └" + String(repeating: "─", count: labelWidth + 2) + "┴" + String(repeating: "─", count: 8) + "┴" + String(repeating: "─", count: 8) + "┘")
+
             // --- Recall and Precision Calculation ---
             var recall1: Double = 0.0
             var precision1: Double = 0.0
@@ -369,17 +416,6 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
             var truePositives2: Int = 0
             var falsePositives2: Int = 0
             var falseNegatives2: Int = 0
-
-            let confusionMatrix = validationMetrics.confusion
-            // print("  デバッグ [\(modelClass1Name) vs \(modelClass2Name)]: 混同行列の内容: \(confusionMatrix.description)")
-            // print("  デバッグ [\(modelClass1Name) vs \(modelClass2Name)]: 混同行列の列名: \(confusionMatrix.columnNames)")
-            
-            var labelSet = Set<String>()
-            for row in confusionMatrix.rows {
-                if let actual = row["True Label"]?.stringValue { labelSet.insert(actual) }
-                if let predicted = row["Predicted"]?.stringValue { labelSet.insert(predicted) }
-            }
-            // print("  デバッグ [\(modelClass1Name) vs \(modelClass2Name)]: 混同行列から抽出されたラベルセット: \(labelSet)")
 
             if labelSet.contains(modelClass1Name), labelSet.contains(modelClass2Name) {
                 for row in confusionMatrix.rows {

@@ -97,7 +97,7 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
             let validationAccuracyPercentage = (1.0 - validationMetrics.classificationError) * 100.0
 
             // トレーニング完了後のパフォーマンス指標を表示
-            print("\n📊 トレーニング結果サマリー:")
+            print("\n📊 トレーニング結果サマリー")
             print(String(format: "  訓練正解率: %.1f%%, 検証正解率: %.1f%%",
                 trainingAccuracyPercentage,
                 validationAccuracyPercentage))
@@ -120,6 +120,7 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
                 var truePositives = 0
                 var falsePositives = 0
                 var falseNegatives = 0
+                var trueNegatives = 0
 
                 for row in confusionMatrix.rows {
                     guard
@@ -134,6 +135,8 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
                         falsePositives += cnt
                     } else if actual == positiveLabel, predicted == negativeLabel {
                         falseNegatives += cnt
+                    } else if actual == negativeLabel, predicted == negativeLabel {
+                        trueNegatives += cnt
                     }
                 }
 
@@ -148,6 +151,16 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
                     positiveLabel,
                     recallRate * 100,
                     precisionRate * 100))
+
+                // 混同行列の表示
+                print("\n📊 混同行列")
+                print("  ┌─────────────┬─────────────┬─────────────┐")
+                print("  │             │ 予測: 陽性  │ 予測: 陰性  │")
+                print("  ├─────────────┼─────────────┼─────────────┤")
+                print(String(format: "  │ 実際: 陽性  │    %4d     │    %4d     │", truePositives, falseNegatives))
+                print("  ├─────────────┼─────────────┼─────────────┤")
+                print(String(format: "  │ 実際: 陰性  │    %4d     │    %4d     │", falsePositives, trueNegatives))
+                print("  └─────────────┴─────────────┴─────────────┘")
             }
 
             // データ拡張の説明

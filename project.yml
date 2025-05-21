@@ -67,6 +67,21 @@ targets:
         CODE_SIGNING_ALLOWED: NO
         CODE_SIGNING_REQUIRED: NO
 
+  CSConfusionMatrix:
+    type: framework
+    platform: macOS
+    sources:
+      - path: CSConfusionMatrix
+    dependencies:
+      - target: CSInterface
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.CSConfusionMatrix
+        MACOSX_DEPLOYMENT_TARGET: "15.2"
+        DEFINES_MODULE: "YES"
+        CODE_SIGNING_ALLOWED: NO
+        CODE_SIGNING_REQUIRED: NO
+
   BinaryClassification:
     type: framework
     platform: macOS
@@ -76,6 +91,7 @@ targets:
       - path: BinaryClassification/Resources
     dependencies:
       - target: CSInterface
+      - target: CSConfusionMatrix
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.BinaryClassification
@@ -92,6 +108,7 @@ targets:
       - path: MultiClassClassification/Resources
     dependencies:
       - target: CSInterface
+      - target: CSConfusionMatrix
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.MultiClassClassification
@@ -108,6 +125,7 @@ targets:
       - path: MultiLabelClassification/Resources
     dependencies:
       - target: CSInterface
+      - target: CSConfusionMatrix
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.MultiLabelClassification
@@ -125,6 +143,7 @@ targets:
       - path: OvRClassification/Resources
     dependencies:
       - target: CSInterface
+      - target: CSConfusionMatrix
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.OvRClassification
@@ -141,6 +160,7 @@ targets:
       - path: OvOClassification/Resources
     dependencies:
       - target: CSInterface
+      - target: CSConfusionMatrix
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.OvOClassification
