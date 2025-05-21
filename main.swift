@@ -39,7 +39,7 @@ enum MLModelType: String {
                 .binary: "v5",
                 .multiClass: "v3",
                 .multiLabel: "v1",
-                .ovr: "v25",
+                .ovr: "v21",
                 .ovo: "v1",
             ]
         ),
@@ -63,7 +63,7 @@ Task {
     let selectedModel: MLModelType = .scaryCatScreeningML
     let selectedTrainer: TrainerType = .ovr
     let author = "akitora"
-    let trainingCount = 5
+    let trainingCount = 8
 
     guard trainingCount > 0 else {
         print("トレーニングの回数は1以上を指定してください")
@@ -73,7 +73,7 @@ Task {
 
     // ModelParametersの設定
     // 特徴抽出器の設定：ScenePrint の場合のみリビジョンを指定する
-    let scenePrintRevision: Int? = 2
+    let scenePrintRevision: Int? = 1
     let algorithm = MLImageClassifier.ModelParameters.ModelAlgorithmType.transferLearning(
         featureExtractor: .scenePrint(revision: scenePrintRevision),
         classifier: .logisticRegressor
@@ -81,7 +81,7 @@ Task {
 
     let modelParameters = MLImageClassifier.ModelParameters(
         validation: .split(strategy: .automatic),
-        maxIterations: 15,
+        maxIterations: 8,
         augmentation: [],
         algorithm: algorithm
     )

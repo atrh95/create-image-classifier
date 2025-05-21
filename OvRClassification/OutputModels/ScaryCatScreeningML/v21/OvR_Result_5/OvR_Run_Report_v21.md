@@ -3,19 +3,64 @@
 ## 実行概要
 モデル群         : OvRモデル群 (One-vs-Rest)
 モデルベース名   : ScaryCatScreeningML
-レポート生成日時   : 2025-05-21 19:14:13 +0900
+レポート生成日時   : 2025-05-21 19:41:53 +0900
 最大反復回数     : 8 (各ペアモデル共通)
 データ拡張       : なし
-特徴抽出器       : ScenePrint(revision: 2)
+特徴抽出器       : ScenePrint(revision: 1)
 
 ## 個別 "One" モデルのパフォーマンス指標
-| "One" クラス名 | モデル名 (vs Rest) | 検証正解率 | 再現率 | 適合率 |
-|----------------|----------------------|--------------|----------|----------|
-| Sphynx | ScaryCatScreeningML_OvR_Sphynx_vs_Rest_v21 | 9375.00% | 87.50% | 100.00% |
-| HumanHandsDetected | ScaryCatScreeningML_OvR_HumanHandsDetected_vs_Rest_v21 | 8500.00% | 80.00% | 88.89% |
-| BlackAndWhite | ScaryCatScreeningML_OvR_BlackAndWhite_vs_Rest_v21 | 9642.86% | 100.00% | 93.33% |
-| MouthOpen | ScaryCatScreeningML_OvR_MouthOpen_vs_Rest_v21 | 7142.86% | 85.71% | 66.67% |
+| "One" クラス名 | 訓練正解率 | 検証正解率 | 再現率 | 適合率 |
+|----------------|--------------|--------------|----------|----------|
+| Sphynx | 10000.00% | 87.50% | 87.50% | 87.50% |
+| HumanHandsDetected | 8644.99% | 70.00% | 60.00% | 75.00% |
+| BlackAndWhite | 9758.36% | 89.29% | 85.71% | 92.31% |
+| MouthOpen | 9151.29% | 71.43% | 85.71% | 66.67% |
 
+## 混同行列（検証データ）
+### Sphynx
+```
++----------------+----------------+----------------+
+| True Label     | Predicted      | Count          |
++----------------+----------------+----------------+
+| Sphynx         | Sphynx         |              0 |
+| Sphynx         | Rest           |              0 |
+| Rest           | Sphynx         |              0 |
+| Rest           | Rest           |              0 |
++----------------+----------------+----------------+
+```
+### HumanHandsDetected
+```
++----------------+----------------+----------------+
+| True Label     | Predicted      | Count          |
++----------------+----------------+----------------+
+| HumanHandsDete | HumanHandsDete |              0 |
+| HumanHandsDete | Rest           |              0 |
+| Rest           | HumanHandsDete |              0 |
+| Rest           | Rest           |              0 |
++----------------+----------------+----------------+
+```
+### BlackAndWhite
+```
++----------------+----------------+----------------+
+| True Label     | Predicted      | Count          |
++----------------+----------------+----------------+
+| BlackAndWhite  | BlackAndWhite  |              0 |
+| BlackAndWhite  | Rest           |              0 |
+| Rest           | BlackAndWhite  |              0 |
+| Rest           | Rest           |              0 |
++----------------+----------------+----------------+
+```
+### MouthOpen
+```
++----------------+----------------+----------------+
+| True Label     | Predicted      | Count          |
++----------------+----------------+----------------+
+| MouthOpen      | MouthOpen      |              0 |
+| MouthOpen      | Rest           |              0 |
+| Rest           | MouthOpen      |              0 |
+| Rest           | Rest           |              0 |
++----------------+----------------+----------------+
+```
 ## 共通メタデータ
 作成者            : akitora
 バージョン        : v21

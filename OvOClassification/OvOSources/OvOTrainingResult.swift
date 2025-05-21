@@ -9,6 +9,14 @@ public struct IndividualModelReport: Codable, Sendable {
     public let recallRate: Double
     public let precisionRate: Double
     public let modelDescription: String
+    public let confusionMatrix: ConfusionMatrix
+}
+
+public struct ConfusionMatrix: Codable, Sendable {
+    public let truePositive: Int
+    public let falsePositive: Int
+    public let falseNegative: Int
+    public let trueNegative: Int
 }
 
 public struct OvOTrainingResult: TrainingResultProtocol {
@@ -84,6 +92,33 @@ public struct OvOTrainingResult: TrainingResultProtocol {
                 markdownText += "\n| \(report.positiveClassName) | \(trainAccStr) | \(valAccStr) |"
             }
             markdownText += "\n"
+
+            // 混同行列の追加
+            markdownText += """
+
+            ## 混同行列（検証データ）
+            """
+            for report in individualReports {
+                let classes = report.positiveClassName.split(separator: "_vs_")
+                if classes.count == 2 {
+                    let class1 = String(classes[0])
+                    let class2 = String(classes[1])
+                    markdownText += """
+
+                    ### \(report.positiveClassName)
+                    ```
+                    +----------------+----------------+----------------+
+                    | True Label     | Predicted      | Count          |
+                    +----------------+----------------+----------------+
+                    | \(class1.padding(toLength: 14, withPad: " ", startingAt: 0)) | \(class1.padding(toLength: 14, withPad: " ", startingAt: 0)) | \(String(format: "%14d", report.confusionMatrix.truePositive)) |
+                    | \(class1.padding(toLength: 14, withPad: " ", startingAt: 0)) | \(class2.padding(toLength: 14, withPad: " ", startingAt: 0)) | \(String(format: "%14d", report.confusionMatrix.falseNegative)) |
+                    | \(class2.padding(toLength: 14, withPad: " ", startingAt: 0)) | \(class1.padding(toLength: 14, withPad: " ", startingAt: 0)) | \(String(format: "%14d", report.confusionMatrix.falsePositive)) |
+                    | \(class2.padding(toLength: 14, withPad: " ", startingAt: 0)) | \(class2.padding(toLength: 14, withPad: " ", startingAt: 0)) | \(String(format: "%14d", report.confusionMatrix.trueNegative)) |
+                    +----------------+----------------+----------------+
+                    ```
+                    """
+                }
+            }
         }
 
         markdownText += """

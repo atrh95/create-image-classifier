@@ -22,6 +22,10 @@ private struct OvOPairTrainingResult {
     let precisionRateClass1: Double
     let recallRateClass2: Double
     let precisionRateClass2: Double
+    let truePositives1: Int
+    let falsePositives1: Int
+    let falseNegatives1: Int
+    let truePositives2: Int
 }
 
 public class OvOClassificationTrainer: ScreeningTrainerProtocol {
@@ -212,14 +216,21 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
                 // 詳細は individualModelDescription に含まれる。
                 recallRate: result.recallRateClass1,
                 precisionRate: result.precisionRateClass1,
-                modelDescription: result.individualModelDescription
+                modelDescription: result.individualModelDescription,
+                confusionMatrix: ConfusionMatrix(
+                    truePositive: result.truePositives1,
+                    falsePositive: result.falsePositives1,
+                    falseNegative: result.falseNegatives1,
+                    trueNegative: result.truePositives2
+                )
             )
         }
 
         let trainingDataPaths = allPairTrainingResults.map(\.trainingDataPath).joined(separator: "; ")
         let finalRunOutputPath = mainOutputRunURL.path
 
-        print("🎉 OvOトレーニング全体完了。結果出力先: \(finalRunOutputPath)")
+        print("🎉 OvOトレーニング全体完了")
+        print("結果出力先: \(finalRunOutputPath)")
 
         let trainingResult = OvOTrainingResult(
             modelOutputPath: finalRunOutputPath,
@@ -489,7 +500,11 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
                 recallRateClass1: recall1,
                 precisionRateClass1: precision1,
                 recallRateClass2: recall2,
-                precisionRateClass2: precision2
+                precisionRateClass2: precision2,
+                truePositives1: truePositives1,
+                falsePositives1: falsePositives1,
+                falseNegatives1: falseNegatives1,
+                truePositives2: truePositives2
             )
 
         } catch let createMLError as CreateML.MLCreateError {

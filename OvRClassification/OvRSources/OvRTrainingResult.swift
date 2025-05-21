@@ -9,6 +9,14 @@ public struct IndividualModelReport: Codable, Sendable {
     public let recallRate: Double
     public let precisionRate: Double
     public let modelDescription: String
+    public let confusionMatrix: ConfusionMatrix
+}
+
+public struct ConfusionMatrix: Codable, Sendable {
+    public let truePositive: Int
+    public let falsePositive: Int
+    public let falseNegative: Int
+    public let trueNegative: Int
 }
 
 public struct OvRTrainingResult: TrainingResultProtocol {
@@ -73,6 +81,28 @@ public struct OvRTrainingResult: TrainingResultProtocol {
             markdownText += "\n| \(report.positiveClassName) | \(trainAccStr) | \(valAccStr) | \(recallStr) | \(precisionStr) |"
         }
         markdownText += "\n"
+
+        // 混同行列の追加
+        markdownText += """
+
+        ## 混同行列（検証データ）
+        """
+        for report in individualReports {
+            markdownText += """
+
+            ### \(report.positiveClassName)
+            ```
+            +----------------+----------------+----------------+
+            | True Label     | Predicted      | Count          |
+            +----------------+----------------+----------------+
+            | \(report.positiveClassName.padding(toLength: 14, withPad: " ", startingAt: 0)) | \(report.positiveClassName.padding(toLength: 14, withPad: " ", startingAt: 0)) | \(String(format: "%14d", report.confusionMatrix.truePositive)) |
+            | \(report.positiveClassName.padding(toLength: 14, withPad: " ", startingAt: 0)) | Rest           | \(String(format: "%14d", report.confusionMatrix.falseNegative)) |
+            | Rest           | \(report.positiveClassName.padding(toLength: 14, withPad: " ", startingAt: 0)) | \(String(format: "%14d", report.confusionMatrix.falsePositive)) |
+            | Rest           | Rest           | \(String(format: "%14d", report.confusionMatrix.trueNegative)) |
+            +----------------+----------------+----------------+
+            ```
+            """
+        }
 
         markdownText += """
 
