@@ -5,7 +5,7 @@ import Foundation
 import Vision
 import XCTest
 
-class MultiLabelClassificationTests: XCTestCase {
+final class MultiLabelClassificationTests: XCTestCase {
     var trainer: MultiLabelClassificationTrainer!
     let fileManager = FileManager.default
     let authorName: String = "Test Author"
@@ -120,7 +120,7 @@ class MultiLabelClassificationTests: XCTestCase {
         try super.tearDownWithError()
     }
 
-    func testTrainerInitialization() throws {
+    func testTrainerDIConfiguration() {
         XCTAssertNotNil(trainer, "MultiLabelClassificationTrainerの初期化失敗")
         XCTAssertEqual(trainer.resourcesDirectoryPath, testResourcesRootPath, "トレーナーのリソースパスが期待値と不一致")
         XCTAssertEqual(trainer.outputDirPath, temporaryOutputDirectoryURL.path, "トレーナーの出力パスが期待値と不一致")

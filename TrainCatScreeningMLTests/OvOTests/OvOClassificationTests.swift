@@ -88,7 +88,7 @@ final class OvOClassificationTests: XCTestCase {
         try super.tearDownWithError()
     }
 
-    func testTrainerInitialization() throws {
+    func testTrainerDIConfiguration() throws {
         XCTAssertNotNil(trainer, "OvOClassificationTrainerの初期化失敗")
         XCTAssertEqual(trainer.resourcesDirectoryPath, testResourcesRootPath, "トレーナーのリソースパスが期待値と不一致")
         XCTAssertEqual(trainer.outputDirPath, temporaryOutputDirectoryURL.path, "トレーナーの出力パスが期待値と不一致")

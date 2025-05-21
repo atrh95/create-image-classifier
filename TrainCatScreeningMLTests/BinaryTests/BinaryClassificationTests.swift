@@ -76,7 +76,6 @@ final class BinaryClassificationTests: XCTestCase {
 
     override func tearDownWithError() throws {
         if let tempDir = temporaryOutputDirectoryURL, fileManager.fileExists(atPath: tempDir.path) {
-            print("一時ディレクトリを削除します: \(tempDir.path)")
             try? fileManager.removeItem(at: tempDir)
         }
         temporaryOutputDirectoryURL = nil
@@ -90,11 +89,10 @@ final class BinaryClassificationTests: XCTestCase {
         try super.tearDownWithError()
     }
 
-    // BinaryClassificationTrainer の初期化をテスト
-    func testTrainerInitialization() {
+    func testTrainerDIConfiguration() {
         XCTAssertNotNil(trainer, "BinaryClassificationTrainerの初期化失敗")
-        XCTAssertEqual(trainer.resourcesDirectoryPath, testResourcesRootPath, "トレーナーのリソースパスがオーバーライド値と不一致")
-        XCTAssertEqual(trainer.outputDirPath, temporaryOutputDirectoryURL.path, "トレーナーの出力パスがオーバーライド値と不一致")
+        XCTAssertEqual(trainer.resourcesDirectoryPath, testResourcesRootPath, "トレーナーのリソースパスが期待値と不一致")
+        XCTAssertEqual(trainer.outputDirPath, temporaryOutputDirectoryURL.path, "トレーナーの出力パスが期待値と不一致")
     }
 
     enum TestError: Error {

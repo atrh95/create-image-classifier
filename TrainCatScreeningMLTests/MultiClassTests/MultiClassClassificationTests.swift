@@ -5,7 +5,7 @@ import Foundation
 import Vision
 import XCTest
 
-class MultiClassClassificationTests: XCTestCase {
+final class MultiClassClassificationTests: XCTestCase {
     var trainer: MultiClassClassificationTrainer!
     let fileManager = FileManager.default
     let authorName: String = "Test Author"
@@ -92,9 +92,8 @@ class MultiClassClassificationTests: XCTestCase {
         try super.tearDownWithError()
     }
 
-    func testTrainerInitialization() {
+    func testTrainerDIConfiguration() {
         XCTAssertNotNil(trainer, "MultiClassClassificationTrainerの初期化失敗")
-
         XCTAssertEqual(trainer.resourcesDirectoryPath, testResourcesRootPath, "トレーナーのリソースパスが期待値と不一致")
         XCTAssertEqual(trainer.outputDirPath, temporaryOutputDirectoryURL.path, "トレーナーの出力パスが期待値と不一致")
     }
