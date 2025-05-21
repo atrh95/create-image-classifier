@@ -75,14 +75,13 @@ public struct OvOTrainingResult: TrainingResultProtocol {
             markdownText += """
 
             ## 個別ペアモデルのパフォーマンス指標
-            | ペアモデル名 (Class1 vs Class2) | 検証正解率 |
-            |---------------------------------|--------------|
+            | ペア (Class1 vs Class2) | 訓練正解率 | 検証正解率 |
+            |-------------------------|--------------|--------------|
             """
             for report in individualReports {
-                let modelNameDisplay = "\(report.modelName) (\(report.positiveClassName))"
+                let trainAccStr = String(format: "%.2f%%", report.trainingAccuracyRate * 100)
                 let valAccStr = String(format: "%.2f%%", report.validationAccuracyPercentage)
-
-                markdownText += "\n| \(modelNameDisplay) | \(valAccStr) |"
+                markdownText += "\n| \(report.positiveClassName) | \(trainAccStr) | \(valAccStr) |"
             }
             markdownText += "\n"
         }
