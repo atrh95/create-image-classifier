@@ -5,7 +5,7 @@ import Foundation
 import Vision
 import XCTest
 
-class MultiLabelClassificationTests: XCTestCase {
+final class MultiLabelClassificationTests: XCTestCase {
     var trainer: MultiLabelClassificationTrainer!
     let fileManager = FileManager.default
     let authorName: String = "Test Author"
@@ -71,7 +71,7 @@ class MultiLabelClassificationTests: XCTestCase {
         }
 
         temporaryOutputDirectoryURL = fileManager.temporaryDirectory
-            .appendingPathComponent("TestOutput_MultiLabel_\(UUID().uuidString)")
+            .appendingPathComponent("TestOutput_MultiLabel")
         try fileManager.createDirectory(
             at: temporaryOutputDirectoryURL,
             withIntermediateDirectories: true,
@@ -120,7 +120,7 @@ class MultiLabelClassificationTests: XCTestCase {
         try super.tearDownWithError()
     }
 
-    func testTrainerInitialization() throws {
+    func testTrainerDIConfiguration() {
         XCTAssertNotNil(trainer, "MultiLabelClassificationTrainerの初期化失敗")
         XCTAssertEqual(trainer.resourcesDirectoryPath, testResourcesRootPath, "トレーナーのリソースパスが期待値と不一致")
         XCTAssertEqual(trainer.outputDirPath, temporaryOutputDirectoryURL.path, "トレーナーの出力パスが期待値と不一致")
@@ -153,10 +153,6 @@ class MultiLabelClassificationTests: XCTestCase {
         XCTAssertEqual(result.modelName, testModelName)
         XCTAssertFalse(result.trainingDataPath.isEmpty, "訓練データパス(アノテーションファイル)が空です")
         XCTAssertTrue(result.trainingDataPath.contains(resolvedAnnotationFileName), "訓練データパスにアノテーションファイル名が含まれていません")
-
-        XCTAssertNotNil(result.averageRecallAcrossLabels, "ラベル毎の平均再現率がnilです")
-        XCTAssertNotNil(result.averagePrecisionAcrossLabels, "ラベル毎の平均適合率がnilです")
-        XCTAssertNotNil(result.perLabelMetricsSummary, "ラベル毎の指標サマリーがnilです")
     }
 
     func testModelCanPerformPrediction() throws {

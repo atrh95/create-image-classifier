@@ -5,7 +5,7 @@ import Foundation
 import Vision
 import XCTest
 
-class MultiClassClassificationTests: XCTestCase {
+final class MultiClassClassificationTests: XCTestCase {
     var trainer: MultiClassClassificationTrainer!
     let fileManager = FileManager.default
     let authorName: String = "Test Author"
@@ -40,7 +40,7 @@ class MultiClassClassificationTests: XCTestCase {
         try await super.setUp()
 
         temporaryOutputDirectoryURL = fileManager.temporaryDirectory
-            .appendingPathComponent("TestOutput_\(UUID().uuidString)")
+            .appendingPathComponent("TestOutput_MultiClass")
         try fileManager.createDirectory(
             at: temporaryOutputDirectoryURL,
             withIntermediateDirectories: true,
@@ -92,9 +92,8 @@ class MultiClassClassificationTests: XCTestCase {
         try super.tearDownWithError()
     }
 
-    func testTrainerInitialization() {
+    func testTrainerDIConfiguration() {
         XCTAssertNotNil(trainer, "MultiClassClassificationTrainerの初期化失敗")
-
         XCTAssertEqual(trainer.resourcesDirectoryPath, testResourcesRootPath, "トレーナーのリソースパスが期待値と不一致")
         XCTAssertEqual(trainer.outputDirPath, temporaryOutputDirectoryURL.path, "トレーナーの出力パスが期待値と不一致")
     }
@@ -142,9 +141,9 @@ class MultiClassClassificationTests: XCTestCase {
         }
 
         XCTAssertEqual(
-            Set(result.detectedClassLabelsList.sorted()),
+            Set(result.classLabels.sorted()),
             Set(expectedClassLabels),
-            "検出されたクラスラベル「\(result.detectedClassLabelsList.sorted())」が期待されるラベル「\(expectedClassLabels)」と一致しません"
+            "検出されたクラスラベル「\(result.classLabels.sorted())」が期待されるラベル「\(expectedClassLabels)」と一致しません"
         )
 
         result.saveLog(modelAuthor: authorName, modelName: testModelName, modelVersion: testModelVersion)
@@ -201,7 +200,7 @@ class MultiClassClassificationTests: XCTestCase {
 
         let baseResourceURL = URL(fileURLWithPath: predictionTestResourcePath)
 
-        let classLabelsForPredictionTest = result.detectedClassLabelsList.sorted()
+        let classLabelsForPredictionTest = result.classLabels.sorted()
 
         guard !classLabelsForPredictionTest.isEmpty else {
             XCTFail("予測テストの実行には、訓練結果に最低1つのクラスラベルが必要です。検出されたラベルはありません。")

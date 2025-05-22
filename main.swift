@@ -36,10 +36,10 @@ enum MLModelType: String {
         .scaryCatScreeningML: ModelConfig(
             name: "ScaryCatScreeningML",
             supportedTrainerVersions: [
-                .binary: "v5",
+                .binary: "v6",
                 .multiClass: "v3",
                 .multiLabel: "v1",
-                .ovr: "v6",
+                .ovr: "v20",
                 .ovo: "v1",
             ]
         ),
@@ -61,8 +61,15 @@ let semaphore = DispatchSemaphore(value: 0)
 
 Task {
     let selectedModel: MLModelType = .scaryCatScreeningML
-    let selectedTrainer: TrainerType = .ovo
+    let selectedTrainer: TrainerType = .multiLabel
     let author = "akitora"
+    let trainingCount = 1
+
+    guard trainingCount > 0 else {
+        print("トレーニングの回数は1以上を指定してください")
+        semaphore.signal()
+        return
+    }
 
     // ModelParametersの設定
     // 特徴抽出器の設定：ScenePrint の場合のみリビジョンを指定する
@@ -74,7 +81,7 @@ Task {
 
     let modelParameters = MLImageClassifier.ModelParameters(
         validation: .split(strategy: .automatic),
-        maxIterations: 10,
+        maxIterations: 8,
         augmentation: [],
         algorithm: algorithm
     )
@@ -89,25 +96,30 @@ Task {
 
     let trainer = selectedTrainer.makeTrainer()
 
-    guard let result = await trainer.train(
-        author: author,
-        modelName: selectedModel.name,
-        version: version,
-        modelParameters: modelParameters,
-        scenePrintRevision: scenePrintRevision
-    ) as? TrainingResultProtocol else {
-        print("トレーニングに失敗しました")
-        semaphore.signal()
-        return
+    // 指定された回数分トレーニングを実行
+    for i in 1 ... trainingCount {
+        print("トレーニング開始: \(i)/\(trainingCount)")
+
+        guard let result = await trainer.train(
+            author: author,
+            modelName: selectedModel.name,
+            version: version,
+            modelParameters: modelParameters,
+            scenePrintRevision: scenePrintRevision
+        ) as? TrainingResultProtocol else {
+            print("トレーニングに失敗しました: \(i)/\(trainingCount)")
+            continue
+        }
+
+        result.saveLog(
+            modelAuthor: author,
+            modelName: selectedModel.name,
+            modelVersion: version
+        )
+
+        print("トレーニング完了: \(selectedModel.name) [\(selectedTrainer.rawValue)] - \(i)/\(trainingCount)")
     }
 
-    result.saveLog(
-        modelAuthor: author,
-        modelName: selectedModel.name,
-        modelVersion: version
-    )
-
-    print("トレーニング完了: \(selectedModel.name) [\(selectedTrainer.rawValue)]")
     semaphore.signal()
 }
 

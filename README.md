@@ -22,6 +22,7 @@ TrainCatScreeningMLは、Swiftアプリケーションに典型的なモジュ�
 ```
 .
 ├── CSInterface/
+├── CSConfusionMatrix/
 ├── BinaryClassification/
 │   ├── BinarySources/
 │   ├── OutputModels/
@@ -35,6 +36,7 @@ TrainCatScreeningMLは、Swiftアプリケーションに典型的なモジュ�
 ├── OvOClassification/
 │   └── ...
 ├── UnitTests/
+│   ├── CSConfusionMatrixTests/
 │   ├── BinaryTests/
 │   ├── MultiClassTests/
 │   ├── MultiLabelTests/

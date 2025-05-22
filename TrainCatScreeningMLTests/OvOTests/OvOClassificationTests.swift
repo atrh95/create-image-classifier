@@ -48,7 +48,7 @@ final class OvOClassificationTests: XCTestCase {
         try await super.setUp()
 
         temporaryOutputDirectoryURL = fileManager.temporaryDirectory
-            .appendingPathComponent("TestOutput_OvO_\(UUID().uuidString)")
+            .appendingPathComponent("TestOutput_OvO")
         try fileManager.createDirectory(
             at: temporaryOutputDirectoryURL,
             withIntermediateDirectories: true,
@@ -88,7 +88,7 @@ final class OvOClassificationTests: XCTestCase {
         try super.tearDownWithError()
     }
 
-    func testTrainerInitialization() throws {
+    func testTrainerDIConfiguration() throws {
         XCTAssertNotNil(trainer, "OvOClassificationTrainerの初期化失敗")
         XCTAssertEqual(trainer.resourcesDirectoryPath, testResourcesRootPath, "トレーナーのリソースパスが期待値と不一致")
         XCTAssertEqual(trainer.outputDirPath, temporaryOutputDirectoryURL.path, "トレーナーの出力パスが期待値と不一致")
@@ -100,7 +100,7 @@ final class OvOClassificationTests: XCTestCase {
             throw TestError.trainingFailed
         }
 
-        let modelOutputDir = URL(fileURLWithPath: result.modelOutputPath)
+        let modelOutputDir = URL(fileURLWithPath: result.trainedModelFilePath)
         XCTAssertTrue(
             fileManager.fileExists(atPath: modelOutputDir.path),
             "訓練モデル出力ディレクトリが期待されるパス「\(modelOutputDir.path)」に見つかりません"
@@ -126,7 +126,7 @@ final class OvOClassificationTests: XCTestCase {
             throw TestError.trainingFailed
         }
 
-        let modelOutputDir = URL(fileURLWithPath: result.modelOutputPath)
+        let modelOutputDir = URL(fileURLWithPath: result.trainedModelFilePath)
         let contents = try fileManager.contentsOfDirectory(
             at: modelOutputDir,
             includingPropertiesForKeys: nil,

@@ -1,60 +1,53 @@
+import CSConfusionMatrix
 import CSInterface
 import Foundation
 
 public struct MultiClassTrainingResult: TrainingResultProtocol {
+    // 基本情報
     public let modelName: String
-    public let trainingDataAccuracy: Double
-    public let validationDataAccuracy: Double
-    public let trainingDataErrorRate: Double
-    public let validationDataErrorRate: Double
-    public let trainingTimeInSeconds: TimeInterval
     public let modelOutputPath: String
     public let trainingDataPath: String
+
+    // トレーニング設定
     public let classLabels: [String]
     public let maxIterations: Int
-    public let macroAverageRecall: Double
-    public let macroAveragePrecision: Double
-    public let detectedClassLabelsList: [String]
     public let dataAugmentationDescription: String
     public let featureExtractorDescription: String
 
+    // パフォーマンス指標
+    public let trainingMetrics: (accuracy: Double, errorRate: Double)
+    public let validationMetrics: (accuracy: Double, errorRate: Double)
+    public let trainingTimeInSeconds: TimeInterval
+
+    // 詳細な性能指標
+    public let confusionMatrix: CSMultiClassConfusionMatrix?
+    public let classMetrics: [ClassMetrics]
+
     public init(
         modelName: String,
-        trainingDataAccuracy: Double,
-        validationDataAccuracy: Double,
-        trainingDataErrorRate: Double,
-        validationDataErrorRate: Double,
-        trainingTimeInSeconds: TimeInterval,
         modelOutputPath: String,
         trainingDataPath: String,
         classLabels: [String],
         maxIterations: Int,
-        macroAverageRecall: Double,
-        macroAveragePrecision: Double,
-        detectedClassLabelsList: [String],
         dataAugmentationDescription: String,
-        baseFeatureExtractorDescription: String,
-        scenePrintRevision: Int?
+        featureExtractorDescription: String,
+        trainingMetrics: (accuracy: Double, errorRate: Double),
+        validationMetrics: (accuracy: Double, errorRate: Double),
+        trainingTimeInSeconds: TimeInterval,
+        confusionMatrix: CSMultiClassConfusionMatrix?
     ) {
         self.modelName = modelName
-        self.trainingDataAccuracy = trainingDataAccuracy
-        self.validationDataAccuracy = validationDataAccuracy
-        self.trainingDataErrorRate = trainingDataErrorRate
-        self.validationDataErrorRate = validationDataErrorRate
-        self.trainingTimeInSeconds = trainingTimeInSeconds
         self.modelOutputPath = modelOutputPath
         self.trainingDataPath = trainingDataPath
         self.classLabels = classLabels
         self.maxIterations = maxIterations
-        self.macroAverageRecall = macroAverageRecall
-        self.macroAveragePrecision = macroAveragePrecision
-        self.detectedClassLabelsList = detectedClassLabelsList
         self.dataAugmentationDescription = dataAugmentationDescription
-        if let revision = scenePrintRevision {
-            self.featureExtractorDescription = "\(baseFeatureExtractorDescription)(revision: \(revision))"
-        } else {
-            self.featureExtractorDescription = baseFeatureExtractorDescription
-        }
+        self.featureExtractorDescription = featureExtractorDescription
+        self.trainingMetrics = trainingMetrics
+        self.validationMetrics = validationMetrics
+        self.trainingTimeInSeconds = trainingTimeInSeconds
+        self.confusionMatrix = confusionMatrix
+        classMetrics = confusionMatrix?.calculateMetrics() ?? []
     }
 
     public func saveLog(
@@ -64,14 +57,15 @@ public struct MultiClassTrainingResult: TrainingResultProtocol {
     ) {
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss Z"
+        dateFormatter.timeZone = TimeZone(identifier: "Asia/Tokyo")
         let generatedDateString = dateFormatter.string(from: Date())
 
         let classLabelsString = classLabels.isEmpty ? "不明" : classLabels.joined(separator: ", ")
 
-        let trainingAccStr = String(format: "%.2f", trainingDataAccuracy)
-        let validationAccStr = String(format: "%.2f", validationDataAccuracy)
-        let trainingErrStr = String(format: "%.2f", trainingDataErrorRate * 100)
-        let validationErrStr = String(format: "%.2f", validationDataErrorRate * 100)
+        let trainingAccStr = String(format: "%.2f", trainingMetrics.accuracy)
+        let validationAccStr = String(format: "%.2f", validationMetrics.accuracy)
+        let trainingErrStr = String(format: "%.2f", trainingMetrics.errorRate * 100)
+        let validationErrStr = String(format: "%.2f", validationMetrics.errorRate * 100)
         let durationStr = String(format: "%.2f", trainingTimeInSeconds)
 
         var markdownText = """
@@ -94,6 +88,24 @@ public struct MultiClassTrainingResult: TrainingResultProtocol {
         検証データ正解率 (学習時自動検証) : \(validationAccStr)%
         検証誤分類率 (学習時自動検証) : \(validationErrStr)%
         """
+
+        if let confusionMatrix {
+            markdownText += """
+            ## クラス別性能指標
+            \(classMetrics.map { metric in
+                """
+
+                ### \(metric.label)
+                再現率: \(String(format: "%.1f%%", metric.recall * 100.0)), \
+                適合率: \(String(format: "%.1f%%", metric.precision * 100.0)), \
+                F1スコア: \(String(format: "%.1f%%", metric.f1Score * 100.0))
+                """
+            }.joined(separator: "\n"))
+
+            ## 混同行列
+            \(confusionMatrix.getMatrixGraph())
+            """
+        }
 
         markdownText += """
 

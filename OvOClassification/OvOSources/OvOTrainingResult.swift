@@ -1,104 +1,108 @@
+import CSConfusionMatrix
 import CSInterface
 import Foundation
 
-public struct IndividualModelReport: Codable, Sendable {
+public struct IndividualModelReport {
     public let modelName: String
     public let positiveClassName: String
     public let trainingAccuracyRate: Double
     public let validationAccuracyPercentage: Double
-    public let recallRate: Double
-    public let precisionRate: Double
-    public let modelDescription: String
+    public let confusionMatrix: CSBinaryConfusionMatrix?
 }
 
 public struct OvOTrainingResult: TrainingResultProtocol {
-    public let modelOutputPath: String
-    public let trainingDataPaths: String 
-    public let maxIterations: Int       
-    public let individualReports: [IndividualModelReport]
-    public let numberOfClasses: Int
-    public let numberOfPairs: Int
+    public let modelName: String
+    public let trainingDurationInSeconds: TimeInterval
+    public let trainedModelFilePath: String
+    public let sourceTrainingDataDirectoryPath: String
+    public let detectedClassLabelsList: [String]
+    public let maxIterations: Int
     public let dataAugmentationDescription: String
     public let featureExtractorDescription: String
+    public let individualReports: [IndividualModelReport]
 
-    // イニシャライザ更新
-    public init(
-        modelOutputPath: String,
-        trainingDataPaths: String,
-        maxIterations: Int,
-        individualReports: [IndividualModelReport],
-        numberOfClasses: Int,
-        numberOfPairs: Int,
-        dataAugmentationDescription: String,
-        baseFeatureExtractorDescription: String,
-        scenePrintRevision: Int?
-    ) {
-        self.modelOutputPath = modelOutputPath
-        self.trainingDataPaths = trainingDataPaths
-        self.maxIterations = maxIterations
-        self.individualReports = individualReports
-        self.numberOfClasses = numberOfClasses
-        self.numberOfPairs = numberOfPairs
-        self.dataAugmentationDescription = dataAugmentationDescription
-        if let revision = scenePrintRevision {
-            self.featureExtractorDescription = "\(baseFeatureExtractorDescription)(revision: \(revision))"
-        } else {
-            self.featureExtractorDescription = baseFeatureExtractorDescription
-        }
+    public var modelOutputPath: String {
+        URL(fileURLWithPath: trainedModelFilePath).deletingLastPathComponent().path
     }
 
-    public func saveLog(modelAuthor: String, modelName: String, modelVersion: String) {
+    public init(
+        modelName: String,
+        trainingDurationInSeconds: TimeInterval,
+        trainedModelFilePath: String,
+        sourceTrainingDataDirectoryPath: String,
+        detectedClassLabelsList: [String],
+        maxIterations: Int,
+        dataAugmentationDescription: String,
+        featureExtractorDescription: String,
+        individualReports: [IndividualModelReport]
+    ) {
+        self.modelName = modelName
+        self.trainingDurationInSeconds = trainingDurationInSeconds
+        self.trainedModelFilePath = trainedModelFilePath
+        self.sourceTrainingDataDirectoryPath = sourceTrainingDataDirectoryPath
+        self.detectedClassLabelsList = detectedClassLabelsList
+        self.maxIterations = maxIterations
+        self.dataAugmentationDescription = dataAugmentationDescription
+        self.featureExtractorDescription = featureExtractorDescription
+        self.individualReports = individualReports
+    }
+
+    public func saveLog(modelAuthor _: String, modelName: String, modelVersion: String) {
+        // ファイル生成日時フォーマッタ
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss Z"
-        dateFormatter.timeZone = TimeZone(identifier: "Asia/Tokyo") // 日本時間に設定
+        dateFormatter.timeZone = TimeZone(identifier: "Asia/Tokyo")
         let generatedDateString = dateFormatter.string(from: Date())
 
-        let reportFileName = "OvO_Run_Report_\(modelVersion).md"
-        let modelDir = URL(fileURLWithPath: modelOutputPath)
-        let reportURL = modelDir.appendingPathComponent(reportFileName)
+        // 各ペアの個別指標を表示
+        var individualPairSections = ""
+        for report in individualReports {
+            individualPairSections += """
+            ## \(report.positiveClassName)
+            - 訓練正解率: \(String(format: "%.1f%%", report.trainingAccuracyRate))
+            - 検証正解率: \(String(format: "%.1f%%", report.validationAccuracyPercentage))
+            """
+            if let confusionMatrix = report.confusionMatrix {
+                individualPairSections += """
 
-        var markdownText = """
+                - 再現率 (Recall)    : \(String(format: "%.1f%%", confusionMatrix.recall * 100.0))
+                - 適合率 (Precision) : \(String(format: "%.1f%%", confusionMatrix.precision * 100.0))
+                - F1スコア          : \(String(format: "%.1f%%", confusionMatrix.f1Score * 100.0))
+
+                \(confusionMatrix.getMatrixGraph())
+                """
+            } else {
+                individualPairSections += "\n⚠️ 検証データが不十分なため、混同行列の計算をスキップしました\n"
+            }
+            individualPairSections += "\n"
+        }
+
+        let markdown = """
         # OvO (One-vs-One) トレーニング実行レポート
 
         ## 実行概要
         モデル群         : OvOモデル群 (One-vs-One)
         モデルベース名   : \(modelName)
         レポート生成日時   : \(generatedDateString)
-        総クラス数       : \(numberOfClasses)
-        総ペア数         : \(numberOfPairs)
         最大反復回数     : \(maxIterations) (各ペアモデル共通)
-        データ拡張       : \(dataAugmentationDescription) (各ペアモデル共通)
-        特徴抽出器       : \(featureExtractorDescription) (各ペアモデル共通)
+        データ拡張       : \(dataAugmentationDescription)
+        特徴抽出器       : \(featureExtractorDescription)
+        検出されたクラス: \(detectedClassLabelsList.joined(separator: ", "))
+
+        ## 個別ペアのトレーニング結果
+        \(individualPairSections)
         """
 
-        if !individualReports.isEmpty {
-            markdownText += """
-
-            ## 個別ペアモデルのパフォーマンス指標
-            | ペアモデル名 (Class1 vs Class2) | 検証正解率 |
-            |---------------------------------|--------------|
-            """
-            for report in individualReports {
-                let modelNameDisplay = "\(report.modelName) (\(report.positiveClassName))"
-                let valAccStr = String(format: "%.2f%%", report.validationAccuracyPercentage)
-
-                markdownText += "\n| \(modelNameDisplay) | \(valAccStr) |"
-            }
-            markdownText += "\n"
-        }
-
-        markdownText += """
-
-        ## 共通メタデータ
-        作成者            : \(modelAuthor)
-        バージョン        : \(modelVersion)
-        """
+        // モデルファイルと同じディレクトリに保存
+        let outputDir = URL(fileURLWithPath: trainedModelFilePath)
+        let textFileName = "OvO_Run_Report_\(modelVersion).md"
+        let textFilePath = outputDir.appendingPathComponent(textFileName).path
 
         do {
-            try markdownText.write(to: reportURL, atomically: true, encoding: .utf8)
-            print("✅ OvO実行レポートを保存しました: \(reportURL.path)")
+            try markdown.write(toFile: textFilePath, atomically: true, encoding: .utf8)
+            print("✅ ログファイル保存完了: \(textFilePath)")
         } catch {
-            print("❌ OvO実行レポートの保存エラー: \(error.localizedDescription) (Path: \(reportURL.path))")
+            print("❌ エラー: ログファイル保存失敗: \(error.localizedDescription)")
         }
     }
 }

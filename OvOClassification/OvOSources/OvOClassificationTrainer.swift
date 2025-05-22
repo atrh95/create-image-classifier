@@ -1,6 +1,7 @@
 import Combine
 import CoreML
 import CreateML
+import CSConfusionMatrix
 import CSInterface
 import Foundation
 import TabularData
@@ -17,11 +18,7 @@ private struct OvOPairTrainingResult {
     let validationErrorRate: Double
     let trainingTime: TimeInterval
     let trainingDataPath: String // このペアのトレーニングに使用されたデータのパス
-    let individualModelDescription: String
-    let recallRateClass1: Double
-    let precisionRateClass1: Double
-    let recallRateClass2: Double
-    let precisionRateClass2: Double
+    let confusionMatrix: CSBinaryConfusionMatrix?
 }
 
 public class OvOClassificationTrainer: ScreeningTrainerProtocol {
@@ -151,19 +148,17 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
         print("  生成されたOvOペア数: \(classPairs.count)")
 
         // 各ペアモデル共通設定の記述を生成 (TrainingResult用)
-        let commonDataAugmentationDesc: String
-        if !modelParameters.augmentationOptions.isEmpty {
-            commonDataAugmentationDesc = String(describing: modelParameters.augmentationOptions)
+        let commonDataAugmentationDesc = if !modelParameters.augmentationOptions.isEmpty {
+            String(describing: modelParameters.augmentationOptions)
         } else {
-            commonDataAugmentationDesc = "なし"
+            "なし"
         }
-        
-        let featureExtractorString = String(describing: modelParameters.featureExtractor)
-        var commonFeatureExtractorDesc: String
-        if let revision = scenePrintRevision {
-            commonFeatureExtractorDesc = "\(featureExtractorString)(revision: \(revision))"
+
+        let featureExtractorDescription = String(describing: modelParameters.featureExtractor)
+        var featureExtractorDesc: String = if let revision = scenePrintRevision {
+            "\(featureExtractorDescription)(revision: \(revision))"
         } else {
-            commonFeatureExtractorDesc = featureExtractorString
+            featureExtractorDescription
         }
 
         var allPairTrainingResults: [OvOPairTrainingResult] = []
@@ -204,33 +199,41 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
         let individualReports: [IndividualModelReport] = allPairTrainingResults.map { result in
             IndividualModelReport(
                 modelName: result.modelName,
-                // OvOでは「陽性クラス」という概念がOvRと異なるため、ペアの情報を格納する
                 positiveClassName: "\(result.class1Name)_vs_\(result.class2Name)",
                 trainingAccuracyRate: result.trainingAccuracyRate,
                 validationAccuracyPercentage: result.validationAccuracyRate,
-                // OvOの再現率・適合率は各クラス視点で計算可能。ここではclass1の値を代表として格納。
-                // 詳細は individualModelDescription に含まれる。
-                recallRate: result.recallRateClass1,
-                precisionRate: result.precisionRateClass1,
-                modelDescription: result.individualModelDescription
+                confusionMatrix: result.confusionMatrix
             )
         }
 
         let trainingDataPaths = allPairTrainingResults.map(\.trainingDataPath).joined(separator: "; ")
         let finalRunOutputPath = mainOutputRunURL.path
 
-        print("🎉 OvOトレーニング全体完了。結果出力先: \(finalRunOutputPath)")
+        print("🎉 OvOトレーニング全体完了")
+        print("結果出力先: \(finalRunOutputPath)")
+        print("📁 デバッグ: 出力ディレクトリの内容:")
+        do {
+            let contents = try FileManager.default.contentsOfDirectory(
+                at: mainOutputRunURL,
+                includingPropertiesForKeys: nil
+            )
+            for url in contents {
+                print("  - \(url.lastPathComponent)")
+            }
+        } catch {
+            print("❌ デバッグ: ディレクトリ内容の取得に失敗: \(error.localizedDescription)")
+        }
 
         let trainingResult = OvOTrainingResult(
-            modelOutputPath: finalRunOutputPath,
-            trainingDataPaths: trainingDataPaths,
+            modelName: modelName,
+            trainingDurationInSeconds: allPairTrainingResults.map(\.trainingTime).reduce(0.0, +),
+            trainedModelFilePath: finalRunOutputPath,
+            sourceTrainingDataDirectoryPath: trainingDataPaths,
+            detectedClassLabelsList: allLabelSourceDirectories.map(\.lastPathComponent),
             maxIterations: modelParameters.maxIterations,
-            individualReports: individualReports,
-            numberOfClasses: allLabelSourceDirectories.count,
-            numberOfPairs: classPairs.count,
             dataAugmentationDescription: commonDataAugmentationDesc,
-            baseFeatureExtractorDescription: featureExtractorString,
-            scenePrintRevision: scenePrintRevision
+            featureExtractorDescription: featureExtractorDesc,
+            individualReports: individualReports
         )
 
         return trainingResult
@@ -264,7 +267,8 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
             .replacingOccurrences(of: "[^a-zA-Z0-9]", with: "", options: .regularExpression)
 
         // モデルファイル名と一時ディレクトリ名を作成
-        let modelFileNameBase = "\(modelName)_\(classificationMethod)_\(modelClass1Name)_vs_\(modelClass2Name)_\(version)"
+        let modelFileNameBase =
+            "\(modelName)_\(classificationMethod)_\(modelClass1Name)_vs_\(modelClass2Name)_\(version)"
         // Ensure unique temp dir per pair using pairIndex
         let tempOvOPairRootName = "\(modelFileNameBase)_TempData_idx\(pairIndex)"
         let tempOvOPairRootURL = tempOvOBaseURL.appendingPathComponent(tempOvOPairRootName)
@@ -324,14 +328,16 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
         print(
             "  準備完了: [\(modelClass1Name)] (\(class1SamplesCount)枚) vs [\(modelClass2Name)] (\(class2SamplesCount)枚)"
         )
-        
+
         let trainingDataSource = MLImageClassifier.DataSource.labeledDirectories(at: tempOvOPairRootURL)
         let modelFilePath = mainRunURL.appendingPathComponent("\(modelFileNameBase).mlmodel").path
 
         do {
             let trainingStartTime = Date()
 
-            print("  ⏳ OvOペア [\(modelClass1Name) vs \(modelClass2Name)] モデルトレーニング実行中 (最大反復: \(modelParameters.maxIterations)回)... ")
+            print(
+                "  ⏳ OvOペア [\(modelClass1Name) vs \(modelClass2Name)] モデルトレーニング実行中 (最大反復: \(modelParameters.maxIterations)回)... "
+            )
             let imageClassifier = try MLImageClassifier(trainingData: trainingDataSource, parameters: modelParameters)
             print("  ✅ OvOペア [\(modelClass1Name) vs \(modelClass2Name)] モデルトレーニング完了")
 
@@ -341,104 +347,62 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
             let trainingMetrics = imageClassifier.trainingMetrics
             let validationMetrics = imageClassifier.validationMetrics
 
-            let trainingAccuracy = (1.0 - trainingMetrics.classificationError) * 100.0
-            let validationAccuracy = (1.0 - validationMetrics.classificationError) * 100.0
+            let trainingAccuracyPercent = (1.0 - trainingMetrics.classificationError) * 100.0
+            let validationAccuracyPercent = (1.0 - validationMetrics.classificationError) * 100.0
             let trainingErrorRate = trainingMetrics.classificationError
             let validationErrorRate = validationMetrics.classificationError
-            
-            // --- Recall and Precision Calculation ---
-            var recall1: Double = 0.0
-            var precision1: Double = 0.0
-            var truePositives1: Int = 0
-            var falsePositives1: Int = 0
-            var falseNegatives1: Int = 0
 
-            var recall2: Double = 0.0
-            var precision2: Double = 0.0
-            var truePositives2: Int = 0
-            var falsePositives2: Int = 0
-            var falseNegatives2: Int = 0
+            // トレーニング完了後のパフォーマンス指標を表示
+            print("\n📊 トレーニング結果サマリー")
+            print(String(
+                format: "  訓練正解率: %.1f%%, 検証正解率: %.1f%%",
+                trainingAccuracyPercent,
+                validationAccuracyPercent
+            ))
 
-            let confusionMatrix = validationMetrics.confusion
-            // print("  デバッグ [\(modelClass1Name) vs \(modelClass2Name)]: 混同行列の内容: \(confusionMatrix.description)")
-            // print("  デバッグ [\(modelClass1Name) vs \(modelClass2Name)]: 混同行列の列名: \(confusionMatrix.columnNames)")
-            
-            var labelSet = Set<String>()
-            for row in confusionMatrix.rows {
-                if let actual = row["True Label"]?.stringValue { labelSet.insert(actual) }
-                if let predicted = row["Predicted"]?.stringValue { labelSet.insert(predicted) }
-            }
-            // print("  デバッグ [\(modelClass1Name) vs \(modelClass2Name)]: 混同行列から抽出されたラベルセット: \(labelSet)")
+            // 混同行列の計算をCSBinaryConfusionMatrixに委任
+            let confusionMatrix = CSBinaryConfusionMatrix(
+                dataTable: validationMetrics.confusion,
+                predictedColumn: "Predicted",
+                actualColumn: "True Label"
+            )
 
-            if labelSet.contains(modelClass1Name), labelSet.contains(modelClass2Name) {
-                for row in confusionMatrix.rows {
-                    guard
-                        let actual = row["True Label"]?.stringValue,
-                        let predicted = row["Predicted"]?.stringValue,
-                        let cnt = row["Count"]?.intValue
-                    else { continue }
-
-                    // modelClass1Name metrics
-                    if actual == modelClass1Name, predicted == modelClass1Name {
-                        truePositives1 += cnt
-                    } else if actual == modelClass2Name, predicted == modelClass1Name {
-                        falsePositives1 += cnt
-                    } else if actual == modelClass1Name, predicted == modelClass2Name {
-                        falseNegatives1 += cnt
-                    }
-
-                    // modelClass2Name metrics
-                    if actual == modelClass2Name, predicted == modelClass2Name {
-                        truePositives2 += cnt
-                    } else if actual == modelClass1Name, predicted == modelClass2Name {
-                        falsePositives2 += cnt
-                    } else if actual == modelClass2Name, predicted == modelClass1Name {
-                        falseNegatives2 += cnt
-                    }
-                }
-
-                if (truePositives1 + falseNegatives1) > 0 {
-                    recall1 = Double(truePositives1) / Double(truePositives1 + falseNegatives1)
-                }
-                if (truePositives1 + falsePositives1) > 0 {
-                    precision1 = Double(truePositives1) / Double(truePositives1 + falsePositives1)
-                }
-
-                if (truePositives2 + falseNegatives2) > 0 {
-                    recall2 = Double(truePositives2) / Double(truePositives2 + falseNegatives2)
-                }
-                if (truePositives2 + falsePositives2) > 0 {
-                    precision2 = Double(truePositives2) / Double(truePositives2 + falsePositives2)
-                }
+            if let confusionMatrix {
+                // 混同行列の表示
+                print(confusionMatrix.getMatrixGraph())
             } else {
-                print("  ⚠️ OvOペア [\(modelClass1Name) vs \(modelClass2Name)]: 混同行列から期待されるラベル (\'\(modelClass1Name)\', \'\(modelClass2Name)\') が見つからず、再現率/適合率計算スキップ。")
+                print("⚠️ 警告: 検証データが不十分なため、混同行列の計算をスキップしました")
             }
-            // --- End of Recall and Precision Calculation ---
 
+            // モデルの説明文を構築
             var descriptionParts: [String] = []
             descriptionParts.append(String(
                 format: "クラス構成 (%@/%@): %@ (%d枚) / %@ (%d枚)",
-                modelClass1Name, modelClass2Name, modelClass1Name, class1SamplesCount, modelClass2Name, class2SamplesCount
+                modelClass1Name, modelClass2Name, modelClass1Name, class1SamplesCount, modelClass2Name,
+                class2SamplesCount
             ))
             descriptionParts.append("最大反復回数: \(modelParameters.maxIterations)回")
             descriptionParts.append(String(
                 format: "訓練正解率: %.1f%%, 検証正解率: %.1f%%",
-                trainingAccuracy, // Already a percentage
-                validationAccuracy  // Already a percentage
+                trainingAccuracyPercent,
+                validationAccuracyPercent
             ))
-            descriptionParts.append(String(
-                format: "クラス '%@': 再現率 %.1f%%, 適合率 %.1f%%",
-                modelClass1Name,
-                max(0.0, recall1 * 100),
-                max(0.0, precision1 * 100)
-            ))
-            descriptionParts.append(String(
-                format: "クラス '%@': 再現率 %.1f%%, 適合率 %.1f%%",
-                modelClass2Name,
-                max(0.0, recall2 * 100),
-                max(0.0, precision2 * 100)
-            ))
-            
+
+            if let confusionMatrix {
+                descriptionParts.append(String(
+                    format: "クラス '%@': 再現率 %.1f%%, 適合率 %.1f%%",
+                    modelClass1Name,
+                    confusionMatrix.recall * 100.0,
+                    confusionMatrix.precision * 100.0
+                ))
+                descriptionParts.append(String(
+                    format: "クラス '%@': 再現率 %.1f%%, 適合率 %.1f%%",
+                    modelClass2Name,
+                    confusionMatrix.recall * 100.0,
+                    confusionMatrix.precision * 100.0
+                ))
+            }
+
             let augmentationFinalDescription: String
             if !modelParameters.augmentationOptions.isEmpty {
                 augmentationFinalDescription = String(describing: modelParameters.augmentationOptions)
@@ -448,48 +412,65 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
                 descriptionParts.append("データ拡張: なし")
             }
 
-            let featureExtractorStringForPair = String(describing: modelParameters.featureExtractor)
+            let featureExtractorDescriptionForPair = String(describing: modelParameters.featureExtractor)
             var featureExtractorDescForPairMetadata: String
             if let revision = scenePrintRevision {
-                featureExtractorDescForPairMetadata = "\(featureExtractorStringForPair)(revision: \(revision))"
+                featureExtractorDescForPairMetadata = "\(featureExtractorDescriptionForPair)(revision: \(revision))"
                 descriptionParts.append("特徴抽出器: \(featureExtractorDescForPairMetadata)")
             } else {
-                featureExtractorDescForPairMetadata = featureExtractorStringForPair
+                featureExtractorDescForPairMetadata = featureExtractorDescriptionForPair
                 descriptionParts.append("特徴抽出器: \(featureExtractorDescForPairMetadata)")
             }
-            
-            let individualDesc = descriptionParts.joined(separator: "\n")
 
+            // モデルのメタデータを作成
             let modelMetadata = MLModelMetadata(
                 author: author,
-                shortDescription: individualDesc,
+                shortDescription: """
+                クラス: \(modelClass1Name), \(modelClass2Name)
+                訓練正解率: \(String(format: "%.1f%%", trainingAccuracyPercent))
+                検証正解率: \(String(format: "%.1f%%", validationAccuracyPercent))
+                \(confusionMatrix.map { matrix in
+                    """
+                    再現率: \(String(format: "%.1f%%", matrix.recall * 100.0)), \
+                    適合率: \(String(format: "%.1f%%", matrix.precision * 100.0)), \
+                    F1スコア: \(String(format: "%.1f%%", matrix.f1Score * 100.0))
+                    """
+                } ?? "")
+                データ拡張: \(augmentationFinalDescription)
+                特徴抽出器: \(featureExtractorDescForPairMetadata)
+                """,
                 version: version
             )
 
             print("💾 OvOペア [\(modelClass1Name) vs \(modelClass2Name)] モデル保存中: \(modelFilePath)")
             try imageClassifier.write(to: URL(fileURLWithPath: modelFilePath), metadata: modelMetadata)
             print("✅ OvOペア [\(modelClass1Name) vs \(modelClass2Name)] モデル保存完了")
-            
-            print(String(format: "  ⏱️ OvOペア [\(modelClass1Name) vs \(modelClass2Name)] トレーニング所要時間: %.2f 秒", trainingDurationSeconds))
-            print(String(format: "  📊 OvOペア [\(modelClass1Name) vs \(modelClass2Name)] 訓練正解率: %.2f%%", trainingAccuracy)) // trainingAccuracy is already %
-            print(String(format: "  📈 OvOペア [\(modelClass1Name) vs \(modelClass2Name)] 検証正解率: %.2f%%", validationAccuracy)) // validationAccuracy is already %
+
+            print(String(
+                format: "  ⏱️ OvOペア [\(modelClass1Name) vs \(modelClass2Name)] トレーニング所要時間: %.2f 秒",
+                trainingDurationSeconds
+            ))
+            print(String(
+                format: "  📊 OvOペア [\(modelClass1Name) vs \(modelClass2Name)] 訓練正解率: %.2f%%",
+                trainingAccuracyPercent
+            ))
+            print(String(
+                format: "  📈 OvOペア [\(modelClass1Name) vs \(modelClass2Name)] 検証正解率: %.2f%%",
+                validationAccuracyPercent
+            ))
 
             return OvOPairTrainingResult(
                 modelPath: modelFilePath,
                 modelName: modelFileNameBase,
                 class1Name: modelClass1Name,
                 class2Name: modelClass2Name,
-                trainingAccuracyRate: trainingAccuracy, // Store as percentage
-                validationAccuracyRate: validationAccuracy, // Store as percentage
+                trainingAccuracyRate: trainingAccuracyPercent,
+                validationAccuracyRate: validationAccuracyPercent,
                 trainingErrorRate: trainingErrorRate,
                 validationErrorRate: validationErrorRate,
                 trainingTime: trainingDurationSeconds,
                 trainingDataPath: tempOvOPairRootURL.path,
-                individualModelDescription: individualDesc,
-                recallRateClass1: recall1,
-                precisionRateClass1: precision1,
-                recallRateClass2: recall2,
-                precisionRateClass2: precision2
+                confusionMatrix: confusionMatrix
             )
 
         } catch let createMLError as CreateML.MLCreateError {
