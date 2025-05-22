@@ -22,7 +22,13 @@ public struct OvRTrainingResult: TrainingResultProtocol {
     public let individualReports: [IndividualModelReport]
 
     public var modelOutputPath: String {
-        URL(fileURLWithPath: trainedModelFilePath).deletingLastPathComponent().path
+        // trainedModelFilePathがディレクトリの場合はそのまま使用
+        if FileManager.default.fileExists(atPath: trainedModelFilePath) && 
+           (try? FileManager.default.attributesOfItem(atPath: trainedModelFilePath)[.type] as? FileAttributeType) == .typeDirectory {
+            return trainedModelFilePath
+        }
+        // ファイルの場合は親ディレクトリを返す
+        return URL(fileURLWithPath: trainedModelFilePath).deletingLastPathComponent().path
     }
 
     public init(

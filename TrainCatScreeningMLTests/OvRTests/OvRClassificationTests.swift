@@ -100,7 +100,7 @@ final class OvRClassificationTests: XCTestCase {
             throw TestError.trainingFailed
         }
 
-        let modelOutputDir = URL(fileURLWithPath: result.modelOutputPath)
+        let modelOutputDir = URL(fileURLWithPath: result.trainedModelFilePath)
         XCTAssertTrue(
             fileManager.fileExists(atPath: modelOutputDir.path),
             "訓練モデル出力ディレクトリが期待されるパス「\(modelOutputDir.path)」に見つかりません"
