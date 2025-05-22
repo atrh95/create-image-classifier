@@ -46,9 +46,9 @@ public protocol CSMultiClassConfusionMatrixProtocol {
     /// 各クラスの性能指標を計算する
     /// 例：labels = ["猫", "犬", "鳥"] の場合、
     /// 戻り値: [
-    ///     (label: "猫", recall: 0.77, precision: 0.91),  // 猫の再現率と適合率
-    ///     (label: "犬", recall: 0.94, precision: 0.83),  // 犬の再現率と適合率
-    ///     (label: "鳥", recall: 0.89, precision: 0.89)   // 鳥の再現率と適合率
+    ///     (label: "猫", recall: 0.77, precision: 0.91, f1Score: 0.83),  // 猫の再現率、適合率、F1スコア
+    ///     (label: "犬", recall: 0.94, precision: 0.83, f1Score: 0.88),  // 犬の再現率、適合率、F1スコア
+    ///     (label: "鳥", recall: 0.89, precision: 0.89, f1Score: 0.89)   // 鳥の再現率、適合率、F1スコア
     /// ]
-    func calculateMetrics() -> [(label: String, recall: Double, precision: Double)]
+    func calculateMetrics() -> [(label: String, recall: Double, precision: Double, f1Score: Double)]
 } 

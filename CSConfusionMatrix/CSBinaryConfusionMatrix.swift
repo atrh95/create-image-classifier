@@ -1,4 +1,5 @@
 import CSInterface
+import CreateML
 
 public struct CSBinaryConfusionMatrix: CSBinaryConfusionMatrixProtocol {
     public let truePositive: Int
@@ -6,11 +7,62 @@ public struct CSBinaryConfusionMatrix: CSBinaryConfusionMatrixProtocol {
     public let falseNegative: Int
     public let trueNegative: Int
     
-    public init(truePositive: Int, falsePositive: Int, falseNegative: Int, trueNegative: Int) {
-        self.truePositive = truePositive
-        self.falsePositive = falsePositive
-        self.falseNegative = falseNegative
-        self.trueNegative = trueNegative
+    public init(dataTable: MLDataTable, predictedColumn: String, actualColumn: String) {
+        // 必要なカラムが存在するか確認
+        guard dataTable.columnNames.contains(predictedColumn),
+              dataTable.columnNames.contains(actualColumn) else {
+            self.truePositive = 0
+            self.falsePositive = 0
+            self.falseNegative = 0
+            self.trueNegative = 0
+            return
+        }
+        
+        var labelSet = Set<String>()
+        for row in dataTable.rows {
+            if let actual = row[actualColumn]?.stringValue { labelSet.insert(actual) }
+            if let predicted = row[predictedColumn]?.stringValue { labelSet.insert(predicted) }
+        }
+        
+        // ラベルが2つあることを確認
+        guard labelSet.count == 2 else {
+            self.truePositive = 0
+            self.falsePositive = 0
+            self.falseNegative = 0
+            self.trueNegative = 0
+            return
+        }
+        
+        let labels = Array(labelSet).sorted()
+        let positiveLabel = labels[1]
+        let negativeLabel = labels[0]
+        
+        var tp = 0
+        var fp = 0
+        var fn = 0
+        var tn = 0
+        
+        for row in dataTable.rows {
+            guard
+                let actual = row[actualColumn]?.stringValue,
+                let predicted = row[predictedColumn]?.stringValue
+            else { continue }
+            
+            if actual == positiveLabel && predicted == positiveLabel {
+                tp += 1
+            } else if actual == negativeLabel && predicted == positiveLabel {
+                fp += 1
+            } else if actual == positiveLabel && predicted == negativeLabel {
+                fn += 1
+            } else if actual == negativeLabel && predicted == negativeLabel {
+                tn += 1
+            }
+        }
+        
+        self.truePositive = tp
+        self.falsePositive = fp
+        self.falseNegative = fn
+        self.trueNegative = tn
     }
     
     public var recall: Double {

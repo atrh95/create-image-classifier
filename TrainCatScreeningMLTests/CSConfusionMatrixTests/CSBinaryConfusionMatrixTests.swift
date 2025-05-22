@@ -1,18 +1,64 @@
 import XCTest
+import CreateML
 @testable import CSConfusionMatrix
 
 final class CSBinaryConfusionMatrixTests: XCTestCase {
+    private func createBinaryDataTable(
+        truePositive: Int,
+        falsePositive: Int,
+        falseNegative: Int,
+        trueNegative: Int
+    ) -> MLDataTable {
+        var predictedValues: [String] = []
+        var actualValues: [String] = []
+        
+        // Add TP samples
+        for _ in 0..<truePositive {
+            predictedValues.append("positive")
+            actualValues.append("positive")
+        }
+        
+        // Add FP samples
+        for _ in 0..<falsePositive {
+            predictedValues.append("positive")
+            actualValues.append("negative")
+        }
+        
+        // Add FN samples
+        for _ in 0..<falseNegative {
+            predictedValues.append("negative")
+            actualValues.append("positive")
+        }
+        
+        // Add TN samples
+        for _ in 0..<trueNegative {
+            predictedValues.append("negative")
+            actualValues.append("negative")
+        }
+        
+        return try! MLDataTable(dictionary: [
+            "predicted": predictedValues,
+            "actual": actualValues
+        ])
+    }
+    
     func testMetrics() {
         // 猫vs犬の判定の例（各クラス100サンプル）
         // TP: 実際が猫で予測も猫 = 80
         // FP: 実際は犬だが予測が猫 = 20
         // FN: 実際は猫だが予測が犬 = 20
         // TN: 実際が犬で予測も犬 = 80
-        let matrix = CSBinaryConfusionMatrix(
+        let dataTable = createBinaryDataTable(
             truePositive: 80,
             falsePositive: 20,
             falseNegative: 20,
             trueNegative: 80
+        )
+        
+        let matrix = CSBinaryConfusionMatrix(
+            dataTable: dataTable,
+            predictedColumn: "predicted",
+            actualColumn: "actual"
         )
         
         // 再現率 = TP / (TP + FN) = 80 / 100 = 0.8 (80%)
@@ -31,11 +77,17 @@ final class CSBinaryConfusionMatrixTests: XCTestCase {
     
     func testZeroDivision() {
         // 全て0の場合（0%）
-        let matrix = CSBinaryConfusionMatrix(
+        let dataTable = createBinaryDataTable(
             truePositive: 0,
             falsePositive: 0,
             falseNegative: 0,
             trueNegative: 0
+        )
+        
+        let matrix = CSBinaryConfusionMatrix(
+            dataTable: dataTable,
+            predictedColumn: "predicted",
+            actualColumn: "actual"
         )
         
         XCTAssertEqual(matrix.recall, 0.0)
@@ -46,11 +98,17 @@ final class CSBinaryConfusionMatrixTests: XCTestCase {
     
     func testPerfectScore() {
         // 全て正解の場合（100%）
-        let matrix = CSBinaryConfusionMatrix(
+        let dataTable = createBinaryDataTable(
             truePositive: 100,
             falsePositive: 0,
             falseNegative: 0,
             trueNegative: 100
+        )
+        
+        let matrix = CSBinaryConfusionMatrix(
+            dataTable: dataTable,
+            predictedColumn: "predicted",
+            actualColumn: "actual"
         )
         
         XCTAssertEqual(matrix.recall, 1.0)
@@ -61,11 +119,17 @@ final class CSBinaryConfusionMatrixTests: XCTestCase {
     
     func testHalfCorrect() {
         // 50%正解の場合
-        let matrix = CSBinaryConfusionMatrix(
+        let dataTable = createBinaryDataTable(
             truePositive: 50,
             falsePositive: 50,
             falseNegative: 50,
             trueNegative: 50
+        )
+        
+        let matrix = CSBinaryConfusionMatrix(
+            dataTable: dataTable,
+            predictedColumn: "predicted",
+            actualColumn: "actual"
         )
         
         // 全ての指標が0.5（50%）になる
