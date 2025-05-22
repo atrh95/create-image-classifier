@@ -173,11 +173,11 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
             }
 
             // 特徴抽出器の説明
-            let baseFeatureExtractorString = String(describing: modelParameters.featureExtractor)
+            let featureExtractorDescription = String(describing: modelParameters.featureExtractor)
             let featureExtractorDesc: String = if let revision = scenePrintRevision {
-                "\(baseFeatureExtractorString)(revision: \(revision))"
+                "\(featureExtractorDescription)(revision: \(revision))"
             } else {
-                baseFeatureExtractorString
+                featureExtractorDescription
             }
 
             // モデルのメタデータを作成
@@ -200,27 +200,26 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
                 version: version
             )
 
-            let outputModelFileURL = outputDirectoryURL
-                .appendingPathComponent("\(modelName)_\(classificationMethod)_\(version).mlmodel")
+            let modelFileName = "\(modelName)_\(classificationMethod)_\(version).mlmodel"
+            let modelFilePath = outputDirectoryURL.appendingPathComponent(modelFileName).path
 
-            print("💾 モデルファイル保存中: \(outputModelFileURL.path)")
-            try imageClassifier.write(to: outputModelFileURL, metadata: modelMetadata)
+            print("💾 モデルファイル保存中: \(modelFilePath)")
+            try imageClassifier.write(to: URL(fileURLWithPath: modelFilePath), metadata: modelMetadata)
             print("✅ モデルファイル保存完了")
 
             return BinaryTrainingResult(
                 modelName: modelName,
                 trainingDataAccuracyPercentage: (1.0 - trainingMetrics.classificationError) * 100.0,
-                validationDataAccuracyPercentage: confusionMatrix.map { $0.accuracy * 100.0 },
+                validationDataAccuracyPercentage: (1.0 - validationMetrics.classificationError) * 100.0,
                 trainingDataMisclassificationRate: trainingMetrics.classificationError,
-                validationDataMisclassificationRate: confusionMatrix.map { 1.0 - $0.accuracy },
+                validationDataMisclassificationRate: validationMetrics.classificationError,
                 trainingDurationInSeconds: trainingDurationSeconds,
-                trainedModelFilePath: outputModelFileURL.path,
+                trainedModelFilePath: modelFilePath,
                 sourceTrainingDataDirectoryPath: trainingDataParentDirURL.path,
                 detectedClassLabelsList: classLabelDirURLs.map(\.lastPathComponent),
                 maxIterations: modelParameters.maxIterations,
                 dataAugmentationDescription: augmentationFinalDescription,
-                baseFeatureExtractorDescription: baseFeatureExtractorString,
-                scenePrintRevision: scenePrintRevision,
+                featureExtractorDescription: featureExtractorDesc,
                 confusionMatrix: confusionMatrix
             )
 

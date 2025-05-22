@@ -30,8 +30,7 @@ public struct BinaryTrainingResult: TrainingResultProtocol {
         detectedClassLabelsList: [String],
         maxIterations: Int,
         dataAugmentationDescription: String,
-        baseFeatureExtractorDescription: String,
-        scenePrintRevision: Int?,
+        featureExtractorDescription: String,
         confusionMatrix: CSBinaryConfusionMatrix?
     ) {
         self.modelName = modelName
@@ -45,11 +44,7 @@ public struct BinaryTrainingResult: TrainingResultProtocol {
         self.detectedClassLabelsList = detectedClassLabelsList
         self.maxIterations = maxIterations
         self.dataAugmentationDescription = dataAugmentationDescription
-        if let revision = scenePrintRevision {
-            featureExtractorDescription = "\(baseFeatureExtractorDescription)(revision: \(revision))"
-        } else {
-            featureExtractorDescription = baseFeatureExtractorDescription
-        }
+        self.featureExtractorDescription = featureExtractorDescription
         self.confusionMatrix = confusionMatrix
     }
 

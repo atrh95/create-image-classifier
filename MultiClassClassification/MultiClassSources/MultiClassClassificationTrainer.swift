@@ -1,6 +1,7 @@
 import CoreML
 import CreateML
 import CSInterface
+import CSConfusionMatrix
 import Foundation
 
 public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
@@ -135,6 +136,21 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
                 let trainingAccuracyPercentage = (1.0 - trainingMetrics.classificationError) * 100.0
                 let validationAccuracyPercentage = (1.0 - validationMetrics.classificationError) * 100.0
 
+                // データ拡張の説明
+                let commonDataAugmentationDesc = if !modelParameters.augmentationOptions.isEmpty {
+                    String(describing: modelParameters.augmentationOptions)
+                } else {
+                    "なし"
+                }
+
+                // 特徴抽出器の説明
+                let baseFeatureExtractorString = String(describing: modelParameters.featureExtractor)
+                let commonFeatureExtractorDesc: String = if let revision = scenePrintRevision {
+                    "\(baseFeatureExtractorString)(revision: \(revision))"
+                } else {
+                    baseFeatureExtractorString
+                }
+
                 // トレーニング完了後のパフォーマンス指標を表示
                 print("\n📊 トレーニング結果サマリー")
                 print(String(
@@ -143,163 +159,75 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
                     validationAccuracyPercentage
                 ))
 
-                let confusionMatrix = validationMetrics.confusion
-                var labelSet = Set<String>()
-                for row in confusionMatrix.rows {
-                    if let actual = row["True Label"]?.stringValue { labelSet.insert(actual) }
-                    if let predicted = row["Predicted"]?.stringValue { labelSet.insert(predicted) }
-                }
-
-                let labels = Array(labelSet).sorted()
-                var confusionMatrixData: [[Int]] = Array(
-                    repeating: Array(repeating: 0, count: labels.count),
-                    count: labels.count
+                // 混同行列の計算をCSMultiClassConfusionMatrixに委任
+                let confusionMatrix = CSMultiClassConfusionMatrix(
+                    dataTable: validationMetrics.confusion,
+                    predictedColumn: "Predicted",
+                    actualColumn: "True Label"
                 )
 
-                for row in confusionMatrix.rows {
-                    guard
-                        let actual = row["True Label"]?.stringValue,
-                        let predicted = row["Predicted"]?.stringValue,
-                        let cnt = row["Count"]?.intValue,
-                        let actualIndex = labels.firstIndex(of: actual),
-                        let predictedIndex = labels.firstIndex(of: predicted)
-                    else { continue }
-                    confusionMatrixData[actualIndex][predictedIndex] = cnt
-                }
+                if let confusionMatrix {
+                    // 混同行列の表示
+                    print("\n📊 混同行列")
+                    print(confusionMatrix.getMatrixGraph())
 
-                // 混同行列の表示
-                print("\n📊 混同行列")
-                let maxLabelLength = labels.map(\.count).max() ?? 0
-                let labelWidth = max(maxLabelLength, 8)
-
-                // ヘッダー行
-                print(
-                    "  ┌" + String(repeating: "─", count: labelWidth + 2) + "┬" + String(repeating: "─", count: 8) +
-                        "┬" + String(repeating: "─", count: 8) + "┐"
-                )
-                print(
-                    "  │" + String(repeating: " ", count: labelWidth + 2) + "│" + " 予測値 "
-                        .padding(toLength: 8, withPad: " ", startingAt: 0) + "│" + " 実際値 "
-                        .padding(toLength: 8, withPad: " ", startingAt: 0) + "│"
-                )
-                print(
-                    "  ├" + String(repeating: "─", count: labelWidth + 2) + "┼" + String(repeating: "─", count: 8) +
-                        "┼" + String(repeating: "─", count: 8) + "┤"
-                )
-
-                // データ行
-                for (i, label) in labels.enumerated() {
-                    let rowSum = confusionMatrixData[i].reduce(0, +)
-                    print(String(
-                        format: "  │ %-\(labelWidth)s │ %6d │ %6d │",
-                        label,
-                        confusionMatrixData[i][i],
-                        rowSum
-                    ))
-                }
-                print(
-                    "  └" + String(repeating: "─", count: labelWidth + 2) + "┴" + String(repeating: "─", count: 8) +
-                        "┴" + String(repeating: "─", count: 8) + "┘"
-                )
-
-                var detailedClassMetrics: [(label: String, recall: Double, precision: Double)] = []
-
-                for label in labels {
-                    var truePositives = 0
-                    var falsePositives = 0
-                    var falseNegatives = 0
-
-                    for row in confusionMatrix.rows {
-                        guard
-                            let actual = row["True Label"]?.stringValue,
-                            let predicted = row["Predicted"]?.stringValue,
-                            let cnt = row["Count"]?.intValue
-                        else { continue }
-
-                        if actual == label, predicted == label {
-                            truePositives += cnt
-                        } else if actual != label, predicted == label {
-                            falsePositives += cnt
-                        } else if actual == label, predicted != label {
-                            falseNegatives += cnt
-                        }
+                    // 各クラスの性能指標を表示
+                    print("\n📊 クラス別性能指標")
+                    for metric in confusionMatrix.calculateMetrics() {
+                        print(String(
+                            format: "  %@: 再現率 %.1f%%, 適合率 %.1f%%, F1スコア %.1f%%",
+                            metric.label,
+                            metric.recall * 100.0,
+                            metric.precision * 100.0,
+                            metric.f1Score * 100.0
+                        ))
                     }
-
-                    var recall = 0.0
-                    var precision = 0.0
-
-                    if (truePositives + falseNegatives) > 0 {
-                        recall = Double(truePositives) / Double(truePositives + falseNegatives)
-                    }
-                    if (truePositives + falsePositives) > 0 {
-                        precision = Double(truePositives) / Double(truePositives + falsePositives)
-                    }
-
-                    detailedClassMetrics.append((label: label, recall: recall, precision: precision))
-                    print(String(
-                        format: "  %@: 再現率 %.1f%%, 適合率 %.1f%%",
-                        label,
-                        recall * 100,
-                        precision * 100
-                    ))
-                }
-
-                // マクロ平均の計算
-                let macroAverageRecallRate = detailedClassMetrics.map(\.recall)
-                    .reduce(0, +) / Double(detailedClassMetrics.count)
-                let macroAveragePrecisionRate = detailedClassMetrics.map(\.precision)
-                    .reduce(0, +) / Double(detailedClassMetrics.count)
-
-                // データ拡張の説明
-                let augmentationFinalDescription = if !modelParameters.augmentationOptions.isEmpty {
-                    String(describing: modelParameters.augmentationOptions)
                 } else {
-                    "なし"
-                }
-
-                // 特徴抽出器の説明
-                let featureExtractorString = String(describing: modelParameters.featureExtractor)
-                var featureExtractorDesc: String = if let revision = scenePrintRevision {
-                    "\(featureExtractorString)(revision: \(revision))"
-                } else {
-                    featureExtractorString
+                    print("⚠️ 警告: 検証データが不十分なため、混同行列の計算をスキップしました")
                 }
 
                 // モデルのメタデータを作成
                 let modelMetadata = MLModelMetadata(
                     author: author,
                     shortDescription: """
-                    クラス: \(classLabelsFromFileSystem.joined(separator: ", "))
-                    訓練正解率: \(String(format: "%.1f%%", trainingAccuracyPercentage))
-                    検証正解率: \(String(format: "%.1f%%", validationAccuracyPercentage))
-                    データ拡張: \(augmentationFinalDescription)
-                    特徴抽出器: \(featureExtractorDesc)
+                    クラス: \(classLabelDirURLs.map(\.lastPathComponent).joined(separator: ", "))
+                    訓練正解率: \(String(format: "%.1f%%", (1.0 - trainingMetrics.classificationError) * 100.0))
+                    検証正解率: \(String(format: "%.1f%%", (1.0 - validationMetrics.classificationError) * 100.0))
+                    \(
+                        confusionMatrix != nil ?
+                            confusionMatrix!.calculateMetrics().map { metric in
+                                """
+                                【\(metric.label)】
+                                再現率: \(String(format: "%.1f%%", metric.recall * 100.0)), \
+                                適合率: \(String(format: "%.1f%%", metric.precision * 100.0)), \
+                                F1スコア: \(String(format: "%.1f%%", metric.f1Score * 100.0))
+                                """
+                            }.joined(separator: "\n") :
+                            ""
+                    )
+                    データ拡張: \(commonDataAugmentationDesc)
+                    特徴抽出器: \(commonFeatureExtractorDesc)
                     """,
                     version: version
                 )
 
-                let outputModelFileURL = finalOutputDir
-                    .appendingPathComponent("\(modelName)_\(classificationMethod)_\(version).mlmodel")
+                let modelFileName = "\(modelName)_\(classificationMethod)_\(version).mlmodel"
+                let modelFilePath = finalOutputDir.appendingPathComponent(modelFileName).path
 
-                try imageClassifier.write(to: outputModelFileURL, metadata: modelMetadata)
+                try imageClassifier.write(to: URL(fileURLWithPath: modelFilePath), metadata: modelMetadata)
 
                 return MultiClassTrainingResult(
                     modelName: modelName,
-                    trainingDataAccuracy: trainingAccuracyPercentage / 100.0,
-                    validationDataAccuracy: validationAccuracyPercentage / 100.0,
-                    trainingDataErrorRate: trainingMetrics.classificationError,
-                    validationDataErrorRate: validationMetrics.classificationError,
-                    trainingTimeInSeconds: trainingDurationSeconds,
-                    modelOutputPath: outputModelFileURL.path,
+                    modelOutputPath: modelFilePath,
                     trainingDataPath: trainingDataParentDirURL.path,
                     classLabels: classLabelsFromFileSystem,
                     maxIterations: modelParameters.maxIterations,
-                    macroAverageRecall: macroAverageRecallRate,
-                    macroAveragePrecision: macroAveragePrecisionRate,
-                    detectedClassLabelsList: classLabelsFromFileSystem,
-                    dataAugmentationDescription: augmentationFinalDescription,
-                    baseFeatureExtractorDescription: featureExtractorString,
-                    scenePrintRevision: scenePrintRevision
+                    dataAugmentationDescription: commonDataAugmentationDesc,
+                    featureExtractorDescription: commonFeatureExtractorDesc,
+                    trainingMetrics: (accuracy: 1.0 - trainingMetrics.classificationError, errorRate: trainingMetrics.classificationError),
+                    validationMetrics: (accuracy: 1.0 - validationMetrics.classificationError, errorRate: validationMetrics.classificationError),
+                    trainingTimeInSeconds: trainingDurationSeconds,
+                    confusionMatrix: confusionMatrix
                 )
 
             } catch let createMLError as CreateML.MLCreateError {

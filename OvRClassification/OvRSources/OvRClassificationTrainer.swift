@@ -136,11 +136,11 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
             "なし"
         }
 
-        let featureExtractorString = String(describing: modelParameters.featureExtractor)
-        var commonFeatureExtractorDesc: String = if let revision = scenePrintRevision {
-            "\(featureExtractorString)(revision: \(revision))"
+        let featureExtractorDescription = String(describing: modelParameters.featureExtractor)
+        var featureExtractorDesc: String = if let revision = scenePrintRevision {
+            "\(featureExtractorDescription)(revision: \(revision))"
         } else {
-            featureExtractorString
+            featureExtractorDescription
         }
 
         var allPairTrainingResults: [OvRPairTrainingResult] = []
@@ -161,7 +161,7 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
                 modelParameters: modelParameters,
                 scenePrintRevision: scenePrintRevision,
                 commonDataAugmentationDesc: commonDataAugmentationDesc,
-                commonFeatureExtractorDesc: commonFeatureExtractorDesc
+                commonFeatureExtractorDesc: featureExtractorDesc
             ) {
                 allPairTrainingResults.append(result)
                 print("  ✅ OvRペア [\(dir.lastPathComponent)] vs Rest トレーニング成功")
@@ -214,8 +214,7 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
             detectedClassLabelsList: allLabelSourceDirectories.map(\.lastPathComponent),
             maxIterations: modelParameters.maxIterations,
             dataAugmentationDescription: commonDataAugmentationDesc,
-            baseFeatureExtractorDescription: commonFeatureExtractorDesc,
-            scenePrintRevision: scenePrintRevision,
+            featureExtractorDescription: featureExtractorDesc,
             individualReports: individualReports
         )
 

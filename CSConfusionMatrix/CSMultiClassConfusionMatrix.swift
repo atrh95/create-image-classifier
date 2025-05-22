@@ -126,7 +126,7 @@ public final class CSMultiClassConfusionMatrix: CSMultiClassConfusionMatrixProto
     public func getMatrixGraph() -> String {
         var result = ""
         
-        // ヘッダー行
+        // ヘッダー
         result += "Actual\\Predicted"
         for label in labels {
             result += "\t\(label)"

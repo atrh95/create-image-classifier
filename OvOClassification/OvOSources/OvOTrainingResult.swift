@@ -18,8 +18,7 @@ public struct OvOTrainingResult: TrainingResultProtocol {
     public let detectedClassLabelsList: [String]
     public let maxIterations: Int
     public let dataAugmentationDescription: String
-    public let baseFeatureExtractorDescription: String
-    public let scenePrintRevision: Int?
+    public let featureExtractorDescription: String
     public let individualReports: [IndividualModelReport]
 
     public var modelOutputPath: String {
@@ -34,8 +33,7 @@ public struct OvOTrainingResult: TrainingResultProtocol {
         detectedClassLabelsList: [String],
         maxIterations: Int,
         dataAugmentationDescription: String,
-        baseFeatureExtractorDescription: String,
-        scenePrintRevision: Int?,
+        featureExtractorDescription: String,
         individualReports: [IndividualModelReport]
     ) {
         self.modelName = modelName
@@ -45,8 +43,7 @@ public struct OvOTrainingResult: TrainingResultProtocol {
         self.detectedClassLabelsList = detectedClassLabelsList
         self.maxIterations = maxIterations
         self.dataAugmentationDescription = dataAugmentationDescription
-        self.baseFeatureExtractorDescription = baseFeatureExtractorDescription
-        self.scenePrintRevision = scenePrintRevision
+        self.featureExtractorDescription = featureExtractorDescription
         self.individualReports = individualReports
     }
 
@@ -89,7 +86,7 @@ public struct OvOTrainingResult: TrainingResultProtocol {
         レポート生成日時   : \(generatedDateString)
         最大反復回数     : \(maxIterations) (各ペアモデル共通)
         データ拡張       : \(dataAugmentationDescription)
-        特徴抽出器       : \(baseFeatureExtractorDescription)
+        特徴抽出器       : \(featureExtractorDescription)
         検出されたクラス: \(detectedClassLabelsList.joined(separator: ", "))
 
         ## 個別ペアのトレーニング結果

@@ -154,11 +154,11 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
             "なし"
         }
 
-        let featureExtractorString = String(describing: modelParameters.featureExtractor)
-        var commonFeatureExtractorDesc: String = if let revision = scenePrintRevision {
-            "\(featureExtractorString)(revision: \(revision))"
+        let featureExtractorDescription = String(describing: modelParameters.featureExtractor)
+        var featureExtractorDesc: String = if let revision = scenePrintRevision {
+            "\(featureExtractorDescription)(revision: \(revision))"
         } else {
-            featureExtractorString
+            featureExtractorDescription
         }
 
         var allPairTrainingResults: [OvOPairTrainingResult] = []
@@ -229,8 +229,7 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
             detectedClassLabelsList: allLabelSourceDirectories.map(\.lastPathComponent),
             maxIterations: modelParameters.maxIterations,
             dataAugmentationDescription: commonDataAugmentationDesc,
-            baseFeatureExtractorDescription: featureExtractorString,
-            scenePrintRevision: scenePrintRevision,
+            featureExtractorDescription: featureExtractorDesc,
             individualReports: individualReports
         )
 
@@ -410,13 +409,13 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
                 descriptionParts.append("データ拡張: なし")
             }
 
-            let featureExtractorStringForPair = String(describing: modelParameters.featureExtractor)
+            let featureExtractorDescriptionForPair = String(describing: modelParameters.featureExtractor)
             var featureExtractorDescForPairMetadata: String
             if let revision = scenePrintRevision {
-                featureExtractorDescForPairMetadata = "\(featureExtractorStringForPair)(revision: \(revision))"
+                featureExtractorDescForPairMetadata = "\(featureExtractorDescriptionForPair)(revision: \(revision))"
                 descriptionParts.append("特徴抽出器: \(featureExtractorDescForPairMetadata)")
             } else {
-                featureExtractorDescForPairMetadata = featureExtractorStringForPair
+                featureExtractorDescForPairMetadata = featureExtractorDescriptionForPair
                 descriptionParts.append("特徴抽出器: \(featureExtractorDescForPairMetadata)")
             }
 
