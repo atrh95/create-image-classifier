@@ -61,7 +61,7 @@ let semaphore = DispatchSemaphore(value: 0)
 
 Task {
     let selectedModel: MLModelType = .scaryCatScreeningML
-    let selectedTrainer: TrainerType = .ovr
+    let selectedTrainer: TrainerType = .ovo
     let author = "akitora"
     let trainingCount = 1
 
