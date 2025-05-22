@@ -118,7 +118,7 @@ public final class CSBinaryConfusionMatrix: CSBinaryConfusionMatrixProtocol {
     }
 
     public func getMatrixGraph() -> String {
-        var result = "\n"
+        var result = ""
         
         // ヘッダー行
         result += "Actual\\Predicted\tPositive\tNegative\n"

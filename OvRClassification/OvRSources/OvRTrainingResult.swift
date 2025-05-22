@@ -61,19 +61,17 @@ public struct OvRTrainingResult: TrainingResultProtocol {
         var individualPairSections = ""
         for report in individualReports {
             individualPairSections += """
-            ### \(report.positiveClassName)
+            ## \(report.positiveClassName)
             - 訓練正解率: \(String(format: "%.1f%%", report.trainingAccuracyRate))
             - 検証正解率: \(String(format: "%.1f%%", report.validationAccuracyPercentage))
             """
             if let confusionMatrix = report.confusionMatrix {
                 individualPairSections += """
                 
-                #### 混同行列分析
                 - 再現率 (Recall)    : \(String(format: "%.1f%%", confusionMatrix.recall * 100.0))
                 - 適合率 (Precision) : \(String(format: "%.1f%%", confusionMatrix.precision * 100.0))
                 - F1スコア          : \(String(format: "%.1f%%", confusionMatrix.f1Score * 100.0))
                 
-                #### 混同行列
                 \(confusionMatrix.getMatrixGraph())
                 """
             } else {
@@ -91,14 +89,10 @@ public struct OvRTrainingResult: TrainingResultProtocol {
         レポート生成日時   : \(generatedDateString)
         最大反復回数     : \(maxIterations) (各ペアモデル共通)
         データ拡張       : \(dataAugmentationDescription)
-        特徴抽出器       : \(baseFeatureExtractorDescription)\(scenePrintRevision.map { " (revision: \($0))" } ?? "")
+        特徴抽出器       : \(baseFeatureExtractorDescription)
         検出されたクラス: \(detectedClassLabelsList.joined(separator: ", "))
 
-        ## データソース
-        トレーニングデータディレクトリ: \(sourceTrainingDataDirectoryPath)
-        モデルファイル: \(trainedModelFilePath)
-
-        # 個別ペアのトレーニング結果
+        ## 個別ペアのトレーニング結果
         \(individualPairSections)
         """
 

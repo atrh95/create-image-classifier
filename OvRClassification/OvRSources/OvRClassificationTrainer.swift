@@ -237,7 +237,7 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
         commonFeatureExtractorDesc: String
     ) async -> OvRPairTrainingResult? {
         let positiveClassNameForModel = oneLabelSourceDirURL.lastPathComponent
-        let modelFileNameBase = "\(modelName)_\(classificationMethod)_\(version)"
+        let modelFileNameBase = "\(modelName)_\(classificationMethod)_\(positiveClassNameForModel)_\(version)"
         let tempOvRPairRootURL = tempOvRBaseURL.appendingPathComponent(modelFileNameBase)
 
         let tempPositiveDataDirForML = tempOvRPairRootURL.appendingPathComponent(positiveClassNameForModel)

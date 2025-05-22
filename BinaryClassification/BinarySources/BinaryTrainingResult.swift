@@ -77,7 +77,6 @@ public struct BinaryTrainingResult: TrainingResultProtocol {
         // 混同行列から計算した指標
         let confusionMatrixSection = if let confusionMatrix {
             """
-            ## 混同行列分析
             - 再現率 (Recall)    : \(String(format: "%.1f%%", confusionMatrix.recall * 100.0))
               - 正例を正しく識別する能力を示す指標
             - 適合率 (Precision) : \(String(format: "%.1f%%", confusionMatrix.precision * 100.0))
@@ -85,7 +84,6 @@ public struct BinaryTrainingResult: TrainingResultProtocol {
             - F1スコア          : \(String(format: "%.1f%%", confusionMatrix.f1Score * 100.0))
               - 再現率と適合率の調和平均。両方の指標のバランスを表し、1に近いほどモデルの性能が高いことを示す
 
-            ### 混同行列
             \(confusionMatrix.getMatrixGraph())
             """
         } else {
