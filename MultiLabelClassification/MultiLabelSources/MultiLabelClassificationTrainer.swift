@@ -204,17 +204,27 @@ public final class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
 
         // トレーニング完了後のパフォーマンス指標を表示
         print("\n📊 トレーニング結果サマリー")
-        
+
         // 混同行列の表示
         print("\n📊 混同行列")
-        let maxLabelLength = labels.map { $0.count }.max() ?? 0
+        let maxLabelLength = labels.map(\.count).max() ?? 0
         let labelWidth = max(maxLabelLength, 8)
-        
+
         // ヘッダー行
-        print("  ┌" + String(repeating: "─", count: labelWidth + 2) + "┬" + String(repeating: "─", count: 8) + "┬" + String(repeating: "─", count: 8) + "┐")
-        print("  │" + String(repeating: " ", count: labelWidth + 2) + "│" + " 予測値 ".padding(toLength: 8, withPad: " ", startingAt: 0) + "│" + " 実際値 ".padding(toLength: 8, withPad: " ", startingAt: 0) + "│")
-        print("  ├" + String(repeating: "─", count: labelWidth + 2) + "┼" + String(repeating: "─", count: 8) + "┼" + String(repeating: "─", count: 8) + "┤")
-        
+        print(
+            "  ┌" + String(repeating: "─", count: labelWidth + 2) + "┬" + String(repeating: "─", count: 8) + "┬" +
+                String(repeating: "─", count: 8) + "┐"
+        )
+        print(
+            "  │" + String(repeating: " ", count: labelWidth + 2) + "│" + " 予測値 "
+                .padding(toLength: 8, withPad: " ", startingAt: 0) + "│" + " 実際値 "
+                .padding(toLength: 8, withPad: " ", startingAt: 0) + "│"
+        )
+        print(
+            "  ├" + String(repeating: "─", count: labelWidth + 2) + "┼" + String(repeating: "─", count: 8) + "┼" +
+                String(repeating: "─", count: 8) + "┤"
+        )
+
         // データ行
         for label in labels.sorted() {
             if let counts = perLabelMetricsResults[label] {
@@ -226,14 +236,19 @@ public final class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
                     precision: precision
                 ))
                 print(
-                    String(format: "  │ %-\(labelWidth)s │ %6d │ %6d │",
+                    String(
+                        format: "  │ %-\(labelWidth)s │ %6d │ %6d │",
                         label,
                         counts.tp,
-                        counts.tp + counts.fn)
+                        counts.tp + counts.fn
+                    )
                 )
             }
         }
-        print("  └" + String(repeating: "─", count: labelWidth + 2) + "┴" + String(repeating: "─", count: 8) + "┴" + String(repeating: "─", count: 8) + "┘")
+        print(
+            "  └" + String(repeating: "─", count: labelWidth + 2) + "┴" + String(repeating: "─", count: 8) + "┴" +
+                String(repeating: "─", count: 8) + "┘"
+        )
 
         // 各ラベルの詳細な指標を表示
         for label in labels.sorted() {
@@ -288,11 +303,10 @@ public final class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
 
         // 特徴抽出器 (Feature Extractor)
         let featureExtractorTypeDescription = "ImageFeaturePrint"
-        let featureExtractorDescForMetadata: String
-        if let revision = scenePrintRevision {
-            featureExtractorDescForMetadata = "\(featureExtractorTypeDescription)(revision: \(revision))"
+        let featureExtractorDescForMetadata = if let revision = scenePrintRevision {
+            "\(featureExtractorTypeDescription)(revision: \(revision))"
         } else {
-            featureExtractorDescForMetadata = "\(featureExtractorTypeDescription)(revision: 1)"
+            "\(featureExtractorTypeDescription)(revision: 1)"
         }
         descriptionParts.append("特徴抽出器: \(featureExtractorDescForMetadata)")
 

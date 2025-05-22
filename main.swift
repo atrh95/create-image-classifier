@@ -97,9 +97,9 @@ Task {
     let trainer = selectedTrainer.makeTrainer()
 
     // 指定された回数分トレーニングを実行
-    for i in 1...trainingCount {
+    for i in 1 ... trainingCount {
         print("トレーニング開始: \(i)/\(trainingCount)")
-        
+
         guard let result = await trainer.train(
             author: author,
             modelName: selectedModel.name,
@@ -119,7 +119,7 @@ Task {
 
         print("トレーニング完了: \(selectedModel.name) [\(selectedTrainer.rawValue)] - \(i)/\(trainingCount)")
     }
-    
+
     semaphore.signal()
 }
 

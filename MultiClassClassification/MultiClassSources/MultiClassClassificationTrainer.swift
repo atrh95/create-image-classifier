@@ -9,7 +9,7 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
     // DI 用のプロパティ
     private let resourcesDirectoryPathOverride: String?
     private let outputDirectoryPathOverride: String?
-    
+
     // ファイルマネージャーの静的プロパティを追加
     private static let fileManager = FileManager.default
 
@@ -122,7 +122,10 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
 
             do {
                 let trainingStartTime = Date()
-                let imageClassifier = try MLImageClassifier(trainingData: trainingDataSource, parameters: modelParameters)
+                let imageClassifier = try MLImageClassifier(
+                    trainingData: trainingDataSource,
+                    parameters: modelParameters
+                )
                 let trainingEndTime = Date()
                 let trainingDurationSeconds = trainingEndTime.timeIntervalSince(trainingStartTime)
 
@@ -134,9 +137,11 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
 
                 // トレーニング完了後のパフォーマンス指標を表示
                 print("\n📊 トレーニング結果サマリー")
-                print(String(format: "  訓練正解率: %.1f%%, 検証正解率: %.1f%%",
+                print(String(
+                    format: "  訓練正解率: %.1f%%, 検証正解率: %.1f%%",
                     trainingAccuracyPercentage,
-                    validationAccuracyPercentage))
+                    validationAccuracyPercentage
+                ))
 
                 let confusionMatrix = validationMetrics.confusion
                 var labelSet = Set<String>()
@@ -146,7 +151,10 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
                 }
 
                 let labels = Array(labelSet).sorted()
-                var confusionMatrixData: [[Int]] = Array(repeating: Array(repeating: 0, count: labels.count), count: labels.count)
+                var confusionMatrixData: [[Int]] = Array(
+                    repeating: Array(repeating: 0, count: labels.count),
+                    count: labels.count
+                )
 
                 for row in confusionMatrix.rows {
                     guard
@@ -161,23 +169,38 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
 
                 // 混同行列の表示
                 print("\n📊 混同行列")
-                let maxLabelLength = labels.map { $0.count }.max() ?? 0
+                let maxLabelLength = labels.map(\.count).max() ?? 0
                 let labelWidth = max(maxLabelLength, 8)
-                
+
                 // ヘッダー行
-                print("  ┌" + String(repeating: "─", count: labelWidth + 2) + "┬" + String(repeating: "─", count: 8) + "┬" + String(repeating: "─", count: 8) + "┐")
-                print("  │" + String(repeating: " ", count: labelWidth + 2) + "│" + " 予測値 ".padding(toLength: 8, withPad: " ", startingAt: 0) + "│" + " 実際値 ".padding(toLength: 8, withPad: " ", startingAt: 0) + "│")
-                print("  ├" + String(repeating: "─", count: labelWidth + 2) + "┼" + String(repeating: "─", count: 8) + "┼" + String(repeating: "─", count: 8) + "┤")
-                
+                print(
+                    "  ┌" + String(repeating: "─", count: labelWidth + 2) + "┬" + String(repeating: "─", count: 8) +
+                        "┬" + String(repeating: "─", count: 8) + "┐"
+                )
+                print(
+                    "  │" + String(repeating: " ", count: labelWidth + 2) + "│" + " 予測値 "
+                        .padding(toLength: 8, withPad: " ", startingAt: 0) + "│" + " 実際値 "
+                        .padding(toLength: 8, withPad: " ", startingAt: 0) + "│"
+                )
+                print(
+                    "  ├" + String(repeating: "─", count: labelWidth + 2) + "┼" + String(repeating: "─", count: 8) +
+                        "┼" + String(repeating: "─", count: 8) + "┤"
+                )
+
                 // データ行
                 for (i, label) in labels.enumerated() {
                     let rowSum = confusionMatrixData[i].reduce(0, +)
-                    print(String(format: "  │ %-\(labelWidth)s │ %6d │ %6d │",
+                    print(String(
+                        format: "  │ %-\(labelWidth)s │ %6d │ %6d │",
                         label,
                         confusionMatrixData[i][i],
-                        rowSum))
+                        rowSum
+                    ))
                 }
-                print("  └" + String(repeating: "─", count: labelWidth + 2) + "┴" + String(repeating: "─", count: 8) + "┴" + String(repeating: "─", count: 8) + "┘")
+                print(
+                    "  └" + String(repeating: "─", count: labelWidth + 2) + "┴" + String(repeating: "─", count: 8) +
+                        "┴" + String(repeating: "─", count: 8) + "┘"
+                )
 
                 var detailedClassMetrics: [(label: String, recall: Double, precision: Double)] = []
 
@@ -213,31 +236,33 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
                     }
 
                     detailedClassMetrics.append((label: label, recall: recall, precision: precision))
-                    print(String(format: "  %@: 再現率 %.1f%%, 適合率 %.1f%%",
+                    print(String(
+                        format: "  %@: 再現率 %.1f%%, 適合率 %.1f%%",
                         label,
                         recall * 100,
-                        precision * 100))
+                        precision * 100
+                    ))
                 }
 
                 // マクロ平均の計算
-                let macroAverageRecallRate = detailedClassMetrics.map(\.recall).reduce(0, +) / Double(detailedClassMetrics.count)
-                let macroAveragePrecisionRate = detailedClassMetrics.map(\.precision).reduce(0, +) / Double(detailedClassMetrics.count)
+                let macroAverageRecallRate = detailedClassMetrics.map(\.recall)
+                    .reduce(0, +) / Double(detailedClassMetrics.count)
+                let macroAveragePrecisionRate = detailedClassMetrics.map(\.precision)
+                    .reduce(0, +) / Double(detailedClassMetrics.count)
 
                 // データ拡張の説明
-                let augmentationFinalDescription: String
-                if !modelParameters.augmentationOptions.isEmpty {
-                    augmentationFinalDescription = String(describing: modelParameters.augmentationOptions)
+                let augmentationFinalDescription = if !modelParameters.augmentationOptions.isEmpty {
+                    String(describing: modelParameters.augmentationOptions)
                 } else {
-                    augmentationFinalDescription = "なし"
+                    "なし"
                 }
 
                 // 特徴抽出器の説明
                 let featureExtractorString = String(describing: modelParameters.featureExtractor)
-                var featureExtractorDesc: String
-                if let revision = scenePrintRevision {
-                    featureExtractorDesc = "\(featureExtractorString)(revision: \(revision))"
+                var featureExtractorDesc: String = if let revision = scenePrintRevision {
+                    "\(featureExtractorString)(revision: \(revision))"
                 } else {
-                    featureExtractorDesc = featureExtractorString
+                    featureExtractorString
                 }
 
                 // モデルのメタデータを作成

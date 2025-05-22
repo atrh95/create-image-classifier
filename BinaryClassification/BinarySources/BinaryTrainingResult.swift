@@ -1,3 +1,4 @@
+import CSConfusionMatrix
 import CSInterface
 import Foundation
 
@@ -15,6 +16,7 @@ public struct BinaryTrainingResult: TrainingResultProtocol {
     public let maxIterations: Int
     public let dataAugmentationDescription: String
     public let featureExtractorDescription: String
+    public let confusionMatrix: CSBinaryConfusionMatrix?
 
     public init(
         modelName: String,
@@ -29,7 +31,8 @@ public struct BinaryTrainingResult: TrainingResultProtocol {
         maxIterations: Int,
         dataAugmentationDescription: String,
         baseFeatureExtractorDescription: String,
-        scenePrintRevision: Int?
+        scenePrintRevision: Int?,
+        confusionMatrix: CSBinaryConfusionMatrix?
     ) {
         self.modelName = modelName
         self.trainingDataAccuracyPercentage = trainingDataAccuracyPercentage
@@ -43,10 +46,11 @@ public struct BinaryTrainingResult: TrainingResultProtocol {
         self.maxIterations = maxIterations
         self.dataAugmentationDescription = dataAugmentationDescription
         if let revision = scenePrintRevision {
-            self.featureExtractorDescription = "\(baseFeatureExtractorDescription)(revision: \(revision))"
+            featureExtractorDescription = "\(baseFeatureExtractorDescription)(revision: \(revision))"
         } else {
-            self.featureExtractorDescription = baseFeatureExtractorDescription
+            featureExtractorDescription = baseFeatureExtractorDescription
         }
+        self.confusionMatrix = confusionMatrix
     }
 
     public func saveLog(
@@ -66,8 +70,35 @@ public struct BinaryTrainingResult: TrainingResultProtocol {
         let trainingAccStr = String(format: "%.2f", trainingDataAccuracyPercentage)
         let validationAccStr = validationDataAccuracyPercentage.map { String(format: "%.2f", $0) } ?? "N/A"
         let trainingErrStr = String(format: "%.2f", trainingDataMisclassificationRate * 100) // %表示に変更
-        let validationErrStr = validationDataMisclassificationRate.map { String(format: "%.2f", $0 * 100) } ?? "N/A" // %表示に変更
+        let validationErrStr = validationDataMisclassificationRate
+            .map { String(format: "%.2f", $0 * 100) } ?? "N/A" // %表示に変更
         let durationStr = String(format: "%.2f", trainingDurationInSeconds)
+
+        // 混同行列から計算した指標
+        var confusionMatrixSection = ""
+        if let confusionMatrix {
+            let recallStr = String(format: "%.2f", confusionMatrix.recall * 100)
+            let precisionStr = String(format: "%.2f", confusionMatrix.precision * 100)
+            let f1ScoreStr = String(format: "%.2f", confusionMatrix.f1Score * 100)
+
+            confusionMatrixSection = """
+
+            ## 混同行列の指標
+
+            ### 性能指標
+            再現率 (Recall)    : \(recallStr)%
+            実際に正しいと判断すべきサンプルのうち、正しく予測できた割合
+
+            適合率 (Precision) : \(precisionStr)%
+            モデルが正しいと予測したサンプルのうち、実際に正しかった割合
+
+            F1スコア          : \(f1ScoreStr)%
+            再現率と適合率の調和平均。両方の指標のバランスを表し、1に近いほどモデルの性能が高いことを示す
+
+            ### 混同行列
+            \(confusionMatrix.getMatrixGraph())
+            """
+        }
 
         // Markdownの内容
         let infoText = """
@@ -89,6 +120,8 @@ public struct BinaryTrainingResult: TrainingResultProtocol {
         訓練データ正解率 : \(trainingAccStr)% ※モデルが学習に使用したデータでの正解率
         検証データ正解率 : \(validationAccStr)% ※モデルが学習に使用していない未知のデータでの正解率
         検証誤分類率       : \(validationErrStr)%
+
+        \(confusionMatrixSection)
 
         ## モデルメタデータ
         作成者            : \(modelAuthor)

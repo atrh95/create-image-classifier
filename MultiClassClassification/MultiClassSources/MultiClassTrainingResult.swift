@@ -51,9 +51,9 @@ public struct MultiClassTrainingResult: TrainingResultProtocol {
         self.detectedClassLabelsList = detectedClassLabelsList
         self.dataAugmentationDescription = dataAugmentationDescription
         if let revision = scenePrintRevision {
-            self.featureExtractorDescription = "\(baseFeatureExtractorDescription)(revision: \(revision))"
+            featureExtractorDescription = "\(baseFeatureExtractorDescription)(revision: \(revision))"
         } else {
-            self.featureExtractorDescription = baseFeatureExtractorDescription
+            featureExtractorDescription = baseFeatureExtractorDescription
         }
     }
 

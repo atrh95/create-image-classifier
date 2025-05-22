@@ -45,9 +45,9 @@ public struct MultiLabelTrainingResult: TrainingResultProtocol {
         self.averagePrecisionAcrossLabels = averagePrecisionAcrossLabels
         self.dataAugmentationDescription = dataAugmentationDescription
         if let revision = scenePrintRevision {
-            self.featureExtractorDescription = "\(baseFeatureExtractorDescription) (revision: \(revision))"
+            featureExtractorDescription = "\(baseFeatureExtractorDescription) (revision: \(revision))"
         } else {
-            self.featureExtractorDescription = "\(baseFeatureExtractorDescription) (revision: 1)"
+            featureExtractorDescription = "\(baseFeatureExtractorDescription) (revision: 1)"
         }
     }
 

@@ -42,9 +42,9 @@ public struct OvRTrainingResult: TrainingResultProtocol {
         self.individualReports = individualReports
         self.dataAugmentationDescription = dataAugmentationDescription
         if let revision = scenePrintRevision {
-            self.featureExtractorDescription = "\(baseFeatureExtractorDescription)(revision: \(revision))"
+            featureExtractorDescription = "\(baseFeatureExtractorDescription)(revision: \(revision))"
         } else {
-            self.featureExtractorDescription = baseFeatureExtractorDescription
+            featureExtractorDescription = baseFeatureExtractorDescription
         }
     }
 
@@ -78,7 +78,8 @@ public struct OvRTrainingResult: TrainingResultProtocol {
             let valAccStr = String(format: "%.2f%%", report.validationAccuracyPercentage)
             let recallStr = String(format: "%.2f%%", report.recallRate * 100)
             let precisionStr = String(format: "%.2f%%", report.precisionRate * 100)
-            markdownText += "\n| \(report.positiveClassName) | \(trainAccStr) | \(valAccStr) | \(recallStr) | \(precisionStr) |"
+            markdownText +=
+                "\n| \(report.positiveClassName) | \(trainAccStr) | \(valAccStr) | \(recallStr) | \(precisionStr) |"
         }
         markdownText += "\n"
 
@@ -95,9 +96,20 @@ public struct OvRTrainingResult: TrainingResultProtocol {
             +----------------+----------------+----------------+
             | True Label     | Predicted      | Count          |
             +----------------+----------------+----------------+
-            | \(report.positiveClassName.padding(toLength: 14, withPad: " ", startingAt: 0)) | \(report.positiveClassName.padding(toLength: 14, withPad: " ", startingAt: 0)) | \(String(format: "%14d", report.confusionMatrix.truePositive)) |
-            | \(report.positiveClassName.padding(toLength: 14, withPad: " ", startingAt: 0)) | Rest           | \(String(format: "%14d", report.confusionMatrix.falseNegative)) |
-            | Rest           | \(report.positiveClassName.padding(toLength: 14, withPad: " ", startingAt: 0)) | \(String(format: "%14d", report.confusionMatrix.falsePositive)) |
+            | \(report.positiveClassName.padding(toLength: 14, withPad: " ", startingAt: 0)) | \(report
+                .positiveClassName
+                .padding(toLength: 14, withPad: " ", startingAt: 0)) | \(String(format: "%14d",
+                                                                                report.confusionMatrix.truePositive)) |
+            | \(report.positiveClassName.padding(
+                toLength: 14,
+                withPad: " ",
+                startingAt: 0
+            )) | Rest           | \(String(format: "%14d", report.confusionMatrix.falseNegative)) |
+            | Rest           | \(report.positiveClassName.padding(
+                toLength: 14,
+                withPad: " ",
+                startingAt: 0
+            )) | \(String(format: "%14d", report.confusionMatrix.falsePositive)) |
             | Rest           | Rest           | \(String(format: "%14d", report.confusionMatrix.trueNegative)) |
             +----------------+----------------+----------------+
             ```

@@ -131,19 +131,17 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
         print("  処理対象主要ラベル数 ('safe'除く): \(primaryLabelSourceDirs.count)")
 
         // データ拡張と特徴抽出器の説明を生成 (モデル全体で共通、TrainingResult用)
-        let commonDataAugmentationDesc: String
-        if !modelParameters.augmentationOptions.isEmpty {
-            commonDataAugmentationDesc = String(describing: modelParameters.augmentationOptions)
+        let commonDataAugmentationDesc = if !modelParameters.augmentationOptions.isEmpty {
+            String(describing: modelParameters.augmentationOptions)
         } else {
-            commonDataAugmentationDesc = "なし"
+            "なし"
         }
-        
+
         let featureExtractorString = String(describing: modelParameters.featureExtractor)
-        var commonFeatureExtractorDesc: String
-        if let revision = scenePrintRevision {
-            commonFeatureExtractorDesc = "\(featureExtractorString)(revision: \(revision))"
+        var commonFeatureExtractorDesc: String = if let revision = scenePrintRevision {
+            "\(featureExtractorString)(revision: \(revision))"
         } else {
-            commonFeatureExtractorDesc = featureExtractorString
+            featureExtractorString
         }
 
         var allPairTrainingResults: [OvRPairTrainingResult] = []
@@ -179,12 +177,14 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
         // トレーニング完了後のパフォーマンス指標を表示
         print("\n📊 トレーニング結果サマリー")
         for result in allPairTrainingResults {
-            print(String(format: "  %@: 訓練正解率 %.1f%%, 検証正解率 %.1f%%, 再現率 %.1f%%, 適合率 %.1f%%",
+            print(String(
+                format: "  %@: 訓練正解率 %.1f%%, 検証正解率 %.1f%%, 再現率 %.1f%%, 適合率 %.1f%%",
                 result.positiveClassName,
                 result.trainingAccuracyRate,
                 result.validationAccuracyRate,
                 result.recallRate * 100,
-                result.precisionRate * 100))
+                result.precisionRate * 100
+            ))
         }
 
         let individualReports: [IndividualModelReport] = allPairTrainingResults.map { result in
@@ -235,7 +235,7 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
         modelName: String,
         author: String,
         version: String,
-        pairIndex: Int,
+        pairIndex _: Int,
         modelParameters: CreateML.MLImageClassifier.ModelParameters,
         scenePrintRevision: Int?
     ) async -> OvRPairTrainingResult? {
@@ -412,7 +412,8 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
             ))
 
             if classLabelsFromConfusion.count == 2 {
-                let positiveLabelForDesc = classLabelsFromConfusion.first { $0 == positiveClassNameForModel } ?? classLabelsFromConfusion[1]
+                let positiveLabelForDesc = classLabelsFromConfusion
+                    .first { $0 == positiveClassNameForModel } ?? classLabelsFromConfusion[1]
                 descriptionParts.append(String(
                     format: "陽性クラス (%@): 再現率 %.1f%%, 適合率 %.1f%%",
                     positiveLabelForDesc,
@@ -469,7 +470,9 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
             )
 
         } catch let createMLError as CreateML.MLCreateError {
-            print("🛑 エラー: OvRペア [\(positiveClassNameForModel)] トレーニング/保存失敗 (CreateML): \(createMLError.localizedDescription)")
+            print(
+                "🛑 エラー: OvRペア [\(positiveClassNameForModel)] トレーニング/保存失敗 (CreateML): \(createMLError.localizedDescription)"
+            )
             return nil
         } catch {
             print("🛑 エラー: OvRペア [\(positiveClassNameForModel)] トレーニング/保存中に予期しないエラー: \(error.localizedDescription)")

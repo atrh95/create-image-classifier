@@ -21,8 +21,8 @@ public struct ConfusionMatrix: Codable, Sendable {
 
 public struct OvOTrainingResult: TrainingResultProtocol {
     public let modelOutputPath: String
-    public let trainingDataPaths: String 
-    public let maxIterations: Int       
+    public let trainingDataPaths: String
+    public let maxIterations: Int
     public let individualReports: [IndividualModelReport]
     public let numberOfClasses: Int
     public let numberOfPairs: Int
@@ -49,9 +49,9 @@ public struct OvOTrainingResult: TrainingResultProtocol {
         self.numberOfPairs = numberOfPairs
         self.dataAugmentationDescription = dataAugmentationDescription
         if let revision = scenePrintRevision {
-            self.featureExtractorDescription = "\(baseFeatureExtractorDescription)(revision: \(revision))"
+            featureExtractorDescription = "\(baseFeatureExtractorDescription)(revision: \(revision))"
         } else {
-            self.featureExtractorDescription = baseFeatureExtractorDescription
+            featureExtractorDescription = baseFeatureExtractorDescription
         }
     }
 
@@ -110,10 +110,22 @@ public struct OvOTrainingResult: TrainingResultProtocol {
                     +----------------+----------------+----------------+
                     | True Label     | Predicted      | Count          |
                     +----------------+----------------+----------------+
-                    | \(class1.padding(toLength: 14, withPad: " ", startingAt: 0)) | \(class1.padding(toLength: 14, withPad: " ", startingAt: 0)) | \(String(format: "%14d", report.confusionMatrix.truePositive)) |
-                    | \(class1.padding(toLength: 14, withPad: " ", startingAt: 0)) | \(class2.padding(toLength: 14, withPad: " ", startingAt: 0)) | \(String(format: "%14d", report.confusionMatrix.falseNegative)) |
-                    | \(class2.padding(toLength: 14, withPad: " ", startingAt: 0)) | \(class1.padding(toLength: 14, withPad: " ", startingAt: 0)) | \(String(format: "%14d", report.confusionMatrix.falsePositive)) |
-                    | \(class2.padding(toLength: 14, withPad: " ", startingAt: 0)) | \(class2.padding(toLength: 14, withPad: " ", startingAt: 0)) | \(String(format: "%14d", report.confusionMatrix.trueNegative)) |
+                    | \(class1.padding(toLength: 14, withPad: " ", startingAt: 0)) | \(class1
+                        .padding(toLength: 14, withPad: " ", startingAt: 0)) | \(String(format: "%14d",
+                                                                                        report.confusionMatrix
+                                                                                            .truePositive)) |
+                    | \(class1.padding(toLength: 14, withPad: " ", startingAt: 0)) | \(class2
+                        .padding(toLength: 14, withPad: " ", startingAt: 0)) | \(String(format: "%14d",
+                                                                                        report.confusionMatrix
+                                                                                            .falseNegative)) |
+                    | \(class2.padding(toLength: 14, withPad: " ", startingAt: 0)) | \(class1
+                        .padding(toLength: 14, withPad: " ", startingAt: 0)) | \(String(format: "%14d",
+                                                                                        report.confusionMatrix
+                                                                                            .falsePositive)) |
+                    | \(class2.padding(toLength: 14, withPad: " ", startingAt: 0)) | \(class2
+                        .padding(toLength: 14, withPad: " ", startingAt: 0)) | \(String(format: "%14d",
+                                                                                        report.confusionMatrix
+                                                                                            .trueNegative)) |
                     +----------------+----------------+----------------+
                     ```
                     """

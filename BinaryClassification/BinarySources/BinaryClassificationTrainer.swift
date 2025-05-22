@@ -1,8 +1,8 @@
 import CoreML
 import CreateML
+import CSConfusionMatrix
 import CSInterface
 import Foundation
-import CSConfusionMatrix
 
 public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
     public typealias TrainingResultType = BinaryTrainingResult
@@ -41,10 +41,10 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
         let baseDirURL = URL(fileURLWithPath: outputDirPath)
             .appendingPathComponent(modelName)
             .appendingPathComponent(version)
-        
+
         let fileManager = FileManager.default
         var resultNumber = 1
-        
+
         // 既存のディレクトリを確認して次の番号を決定
         do {
             let contents = try fileManager.contentsOfDirectory(at: baseDirURL, includingPropertiesForKeys: nil)
@@ -54,7 +54,7 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
                 let numberStr = dirName.replacingOccurrences(of: "\(classificationMethod)_Result_", with: "")
                 return Int(numberStr)
             }
-            
+
             if let maxNumber = existingNumbers.max() {
                 resultNumber = maxNumber + 1
             }
@@ -62,15 +62,15 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
             // ディレクトリが存在しない場合は1から開始
             resultNumber = 1
         }
-        
+
         let outputDirURL = baseDirURL.appendingPathComponent("\(classificationMethod)_Result_\(resultNumber)")
-        
+
         try fileManager.createDirectory(
             at: outputDirURL,
             withIntermediateDirectories: true,
             attributes: nil
         )
-        
+
         return outputDirURL
     }
 
@@ -83,7 +83,7 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
     ) async -> BinaryTrainingResult? {
         let resourcesPath = resourcesDirectoryPath
         let resourcesDirURL = URL(fileURLWithPath: resourcesPath)
-        
+
         print("📁 リソースディレクトリ: \(resourcesPath)")
 
         // 出力ディレクトリ設定
@@ -125,7 +125,7 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
 
         let trainingDataParentDirURL = classLabelDirURLs[0].deletingLastPathComponent()
         print("📁 トレーニングデータ親ディレクトリ: \(trainingDataParentDirURL.path)")
-        
+
         let trainingDataSource = MLImageClassifier.DataSource.labeledDirectories(at: trainingDataParentDirURL)
         print("📊 トレーニングデータソース作成完了")
 
@@ -141,10 +141,6 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
             let validationMetrics = imageClassifier.validationMetrics
 
             // 混同行列の計算をCSBinaryConfusionMatrixに委任
-            print("\n🔍 検証データの混同行列情報:")
-            print("  データテーブルの行数: \(validationMetrics.confusion.rows.count)")
-            print("  利用可能な列: \(validationMetrics.confusion.columnNames.joined(separator: ", "))")
-            
             let confusionMatrix = CSBinaryConfusionMatrix(
                 dataTable: validationMetrics.confusion,
                 predictedColumn: "Predicted",
@@ -153,33 +149,35 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
 
             // トレーニング完了後のパフォーマンス指標を表示
             print("\n📊 トレーニング結果サマリー")
-            print(String(format: "  訓練正解率: %.1f%%",
-                (1.0 - trainingMetrics.classificationError) * 100.0))
-            
-            if let confusionMatrix = confusionMatrix {
-                print(String(format: "  検証正解率: %.1f%%",
-                    confusionMatrix.accuracy * 100.0))
+            print(String(
+                format: "  訓練正解率: %.1f%%",
+                (1.0 - trainingMetrics.classificationError) * 100.0
+            ))
+
+            if let confusionMatrix {
+                print(String(
+                    format: "  検証正解率: %.1f%%",
+                    confusionMatrix.accuracy * 100.0
+                ))
                 // 混同行列の表示
-                confusionMatrix.printMatrix()
+                print(confusionMatrix.getMatrixGraph())
             } else {
                 print("⚠️ 警告: 検証データが不十分なため、混同行列の計算をスキップしました")
             }
 
             // データ拡張の説明
-            let augmentationFinalDescription: String
-            if !modelParameters.augmentationOptions.isEmpty {
-                augmentationFinalDescription = String(describing: modelParameters.augmentationOptions)
+            let augmentationFinalDescription = if !modelParameters.augmentationOptions.isEmpty {
+                String(describing: modelParameters.augmentationOptions)
             } else {
-                augmentationFinalDescription = "なし"
+                "なし"
             }
 
             // 特徴抽出器の説明
             let baseFeatureExtractorString = String(describing: modelParameters.featureExtractor)
-            var featureExtractorDesc: String
-            if let revision = scenePrintRevision {
-                featureExtractorDesc = "\(baseFeatureExtractorString)(revision: \(revision))"
+            let featureExtractorDesc: String = if let revision = scenePrintRevision {
+                "\(baseFeatureExtractorString)(revision: \(revision))"
             } else {
-                featureExtractorDesc = baseFeatureExtractorString
+                baseFeatureExtractorString
             }
 
             // モデルのメタデータを作成
@@ -188,7 +186,14 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
                 shortDescription: """
                 クラス: \(classLabelDirURLs.map(\.lastPathComponent).joined(separator: ", "))
                 訓練正解率: \(String(format: "%.1f%%", (1.0 - trainingMetrics.classificationError) * 100.0))
-                \(confusionMatrix != nil ? "検証正解率: \(String(format: "%.1f%%", confusionMatrix!.accuracy * 100.0))" : "")
+                検証正解率: \(String(format: "%.1f%%", (1.0 - validationMetrics.classificationError) * 100.0))
+                \(
+                    confusionMatrix != nil ?
+                        "性能指標: [再現率: \(String(format: "%.1f%%", confusionMatrix!.recall * 100.0)), " +
+                        "適合率: \(String(format: "%.1f%%", confusionMatrix!.precision * 100.0)), " +
+                        "F1スコア: \(String(format: "%.1f%%", confusionMatrix!.f1Score * 100.0))]" :
+                        ""
+                )
                 データ拡張: \(augmentationFinalDescription)
                 特徴抽出器: \(featureExtractorDesc)
                 """,
@@ -197,7 +202,7 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
 
             let outputModelFileURL = outputDirectoryURL
                 .appendingPathComponent("\(modelName)_\(classificationMethod)_\(version).mlmodel")
-            
+
             print("💾 モデルファイル保存中: \(outputModelFileURL.path)")
             try imageClassifier.write(to: outputModelFileURL, metadata: modelMetadata)
             print("✅ モデルファイル保存完了")
@@ -215,7 +220,8 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
                 maxIterations: modelParameters.maxIterations,
                 dataAugmentationDescription: augmentationFinalDescription,
                 baseFeatureExtractorDescription: baseFeatureExtractorString,
-                scenePrintRevision: scenePrintRevision
+                scenePrintRevision: scenePrintRevision,
+                confusionMatrix: confusionMatrix
             )
 
         } catch let createMLError as CreateML.MLCreateError {
