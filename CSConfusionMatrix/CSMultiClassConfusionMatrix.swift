@@ -1,8 +1,7 @@
 import CreateML
-import CSInterface
 import Foundation
 
-public final class CSMultiClassConfusionMatrix: CSMultiClassConfusionMatrixProtocol {
+public final class CSMultiClassConfusionMatrix {
     private let dataTable: MLDataTable
     private let predictedColumn: String
     private let actualColumn: String

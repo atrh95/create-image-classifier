@@ -72,8 +72,6 @@ targets:
     platform: macOS
     sources:
       - path: CSConfusionMatrix
-    dependencies:
-      - target: CSInterface
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.CSConfusionMatrix
