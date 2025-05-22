@@ -1,6 +1,13 @@
 import CreateML
 import Foundation
 
+public struct ClassMetrics {
+    public let label: String
+    public let recall: Double
+    public let precision: Double
+    public let f1Score: Double
+}
+
 public final class CSMultiClassConfusionMatrix {
     private let dataTable: MLDataTable
     private let predictedColumn: String
@@ -77,6 +84,10 @@ public final class CSMultiClassConfusionMatrix {
         let labelToIndex = Dictionary(uniqueKeysWithValues: labels.enumerated().map { ($1, $0) })
 
         // 混同行列の計算
+        calculateConfusionMatrix(labelToIndex: labelToIndex)
+    }
+
+    private func calculateConfusionMatrix(labelToIndex: [String: Int]) {
         for row in dataTable.rows {
             guard let actualLabel = row[actualColumn]?.stringValue,
                   let predictedLabel = row[predictedColumn]?.stringValue,
@@ -90,7 +101,7 @@ public final class CSMultiClassConfusionMatrix {
         }
     }
 
-    public func calculateMetrics() -> [(label: String, recall: Double, precision: Double, f1Score: Double)] {
+    public func calculateMetrics() -> [ClassMetrics] {
         labels.enumerated().map { index, label in
             let row = matrix[index]
             let column = matrix.map { $0[index] }
@@ -103,7 +114,12 @@ public final class CSMultiClassConfusionMatrix {
             let precision = calculatePrecision(truePositives: truePositives, falsePositives: falsePositives)
             let f1Score = calculateF1Score(recall: recall, precision: precision)
 
-            return (label: label, recall: recall, precision: precision, f1Score: f1Score)
+            return ClassMetrics(
+                label: label,
+                recall: recall,
+                precision: precision,
+                f1Score: f1Score
+            )
         }
     }
 

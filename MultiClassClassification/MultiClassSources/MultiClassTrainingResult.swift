@@ -21,7 +21,7 @@ public struct MultiClassTrainingResult: TrainingResultProtocol {
 
     // 詳細な性能指標
     public let confusionMatrix: CSMultiClassConfusionMatrix?
-    public let classMetrics: [(label: String, recall: Double, precision: Double, f1Score: Double)]
+    public let classMetrics: [ClassMetrics]
 
     public init(
         modelName: String,

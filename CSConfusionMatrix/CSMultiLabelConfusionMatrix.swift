@@ -1,7 +1,31 @@
 import Foundation
 
+public struct LabelMetrics {
+    public let label: String
+    public var truePositives: Int
+    public var falsePositives: Int
+    public var falseNegatives: Int
+
+    public var recall: Double? {
+        let denominator = truePositives + falseNegatives
+        return denominator == 0 ? nil : Double(truePositives) / Double(denominator)
+    }
+
+    public var precision: Double? {
+        let denominator = truePositives + falsePositives
+        return denominator == 0 ? nil : Double(truePositives) / Double(denominator)
+    }
+
+    public var f1Score: Double? {
+        guard let precision,
+              let recall else { return nil }
+        let denominator = precision + recall
+        return denominator == 0 ? nil : 2 * precision * recall / denominator
+    }
+}
+
 public struct CSMultiLabelConfusionMatrix {
-    private let perLabelMetrics: [String: (tp: Int, fp: Int, fn: Int)]
+    private let perLabelMetrics: [String: LabelMetrics]
     private let labels: [String]
     private let predictionThreshold: Float
 
@@ -13,9 +37,14 @@ public struct CSMultiLabelConfusionMatrix {
         self.labels = labels
         self.predictionThreshold = predictionThreshold
 
-        var metrics: [String: (tp: Int, fp: Int, fn: Int)] = [:]
+        var metrics: [String: LabelMetrics] = [:]
         for label in labels {
-            metrics[label] = (tp: 0, fp: 0, fn: 0)
+            metrics[label] = LabelMetrics(
+                label: label,
+                truePositives: 0,
+                falsePositives: 0,
+                falseNegatives: 0
+            )
         }
 
         for (trueLabels, predictedLabels) in predictions {
@@ -24,11 +53,11 @@ public struct CSMultiLabelConfusionMatrix {
                 let predictedHasLabel = predictedLabels.contains(label)
 
                 if trulyHasLabel, predictedHasLabel {
-                    metrics[label]?.tp += 1
+                    metrics[label]?.truePositives += 1
                 } else if !trulyHasLabel, predictedHasLabel {
-                    metrics[label]?.fp += 1
+                    metrics[label]?.falsePositives += 1
                 } else if trulyHasLabel, !predictedHasLabel {
-                    metrics[label]?.fn += 1
+                    metrics[label]?.falseNegatives += 1
                 }
             }
         }
@@ -52,54 +81,6 @@ public struct CSMultiLabelConfusionMatrix {
     }
 
     public func calculateMetrics() -> [LabelMetrics] {
-        var metrics: [LabelMetrics] = []
-
-        for label in labels.sorted() {
-            if let counts = perLabelMetrics[label] {
-                let recall = (counts.tp + counts.fn == 0) ? nil : Double(counts.tp) / Double(counts.tp + counts.fn)
-                let precision = (counts.tp + counts.fp == 0) ? nil : Double(counts.tp) / Double(counts.tp + counts.fp)
-                let f1Score: Double? = if let p = precision, let r = recall, p + r != 0 {
-                    2 * p * r / (p + r)
-                } else {
-                    nil
-                }
-
-                metrics.append(LabelMetrics(
-                    label: label,
-                    recall: recall,
-                    precision: precision,
-                    f1Score: f1Score,
-                    truePositives: counts.tp,
-                    falsePositives: counts.fp,
-                    falseNegatives: counts.fn
-                ))
-            }
-        }
-
-        return metrics
+        labels.sorted().compactMap { perLabelMetrics[$0] }
     }
-
-    public func getAverageMetrics() -> (recall: Double, precision: Double, f1Score: Double)? {
-        let metrics = calculateMetrics()
-        guard !metrics.isEmpty else { return nil }
-
-        let validMetrics = metrics.filter { $0.recall != nil && $0.precision != nil && $0.f1Score != nil }
-        guard !validMetrics.isEmpty else { return nil }
-
-        let avgRecall = validMetrics.map(\.recall!).reduce(0, +) / Double(validMetrics.count)
-        let avgPrecision = validMetrics.map(\.precision!).reduce(0, +) / Double(validMetrics.count)
-        let avgF1Score = validMetrics.map(\.f1Score!).reduce(0, +) / Double(validMetrics.count)
-
-        return (recall: avgRecall, precision: avgPrecision, f1Score: avgF1Score)
-    }
-}
-
-public struct LabelMetrics {
-    public let label: String
-    public let recall: Double?
-    public let precision: Double?
-    public let f1Score: Double?
-    public let truePositives: Int
-    public let falsePositives: Int
-    public let falseNegatives: Int
 }

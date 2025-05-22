@@ -23,8 +23,10 @@ public struct OvRTrainingResult: TrainingResultProtocol {
 
     public var modelOutputPath: String {
         // trainedModelFilePathがディレクトリの場合はそのまま使用
-        if FileManager.default.fileExists(atPath: trainedModelFilePath) && 
-           (try? FileManager.default.attributesOfItem(atPath: trainedModelFilePath)[.type] as? FileAttributeType) == .typeDirectory {
+        if FileManager.default.fileExists(atPath: trainedModelFilePath),
+           (try? FileManager.default.attributesOfItem(atPath: trainedModelFilePath)[.type] as? FileAttributeType) ==
+           .typeDirectory
+        {
             return trainedModelFilePath
         }
         // ファイルの場合は親ディレクトリを返す

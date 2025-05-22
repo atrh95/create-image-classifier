@@ -193,18 +193,16 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
                     クラス: \(classLabelDirURLs.map(\.lastPathComponent).joined(separator: ", "))
                     訓練正解率: \(String(format: "%.1f%%", (1.0 - trainingMetrics.classificationError) * 100.0))
                     検証正解率: \(String(format: "%.1f%%", (1.0 - validationMetrics.classificationError) * 100.0))
-                    \(
-                        confusionMatrix != nil ?
-                            confusionMatrix!.calculateMetrics().map { metric in
-                                """
-                                【\(metric.label)】
-                                再現率: \(String(format: "%.1f%%", metric.recall * 100.0)), \
-                                適合率: \(String(format: "%.1f%%", metric.precision * 100.0)), \
-                                F1スコア: \(String(format: "%.1f%%", metric.f1Score * 100.0))
-                                """
-                            }.joined(separator: "\n") :
-                            ""
-                    )
+                    \(confusionMatrix.map { matrix in
+                        matrix.calculateMetrics().map { metric in
+                            """
+                            【\(metric.label)】
+                            再現率: \(String(format: "%.1f%%", metric.recall * 100.0)), \
+                            適合率: \(String(format: "%.1f%%", metric.precision * 100.0)), \
+                            F1スコア: \(String(format: "%.1f%%", metric.f1Score * 100.0))
+                            """
+                        }.joined(separator: "\n")
+                    } ?? "")
                     データ拡張: \(commonDataAugmentationDesc)
                     特徴抽出器: \(commonFeatureExtractorDesc)
                     """,

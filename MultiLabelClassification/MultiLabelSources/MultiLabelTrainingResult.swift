@@ -1,27 +1,27 @@
-import CSInterface
 import CSConfusionMatrix
+import CSInterface
 import Foundation
 
 public struct MultiLabelTrainingResult: TrainingResultProtocol {
     // 型定義
     public typealias LabelMetric = LabelMetrics
-    
+
     // 基本情報
     public let modelName: String
     public let modelOutputPath: String
     public let trainingDataPath: String
-    
+
     // トレーニング設定
     public let classLabels: [String]
     public let maxIterations: Int
     public let dataAugmentationDescription: String
     public let featureExtractorDescription: String
-    
+
     // パフォーマンス指標
     public let trainingMetrics: (accuracy: Double, errorRate: Double)
     public let validationMetrics: (accuracy: Double, errorRate: Double)
     public let trainingDurationInSeconds: TimeInterval
-    
+
     // 詳細な性能指標
     public let confusionMatrix: CSMultiLabelConfusionMatrix?
     public let labelMetrics: [LabelMetric]?
@@ -37,7 +37,7 @@ public struct MultiLabelTrainingResult: TrainingResultProtocol {
         validationMetrics: (accuracy: Double, errorRate: Double),
         dataAugmentationDescription: String,
         featureExtractorDescription: String,
-        scenePrintRevision: Int?,
+        scenePrintRevision _: Int?,
         confusionMatrix: CSMultiLabelConfusionMatrix? = nil
     ) {
         self.modelName = modelName
@@ -51,7 +51,7 @@ public struct MultiLabelTrainingResult: TrainingResultProtocol {
         self.dataAugmentationDescription = dataAugmentationDescription
         self.featureExtractorDescription = featureExtractorDescription
         self.confusionMatrix = confusionMatrix
-        self.labelMetrics = confusionMatrix?.calculateMetrics()
+        labelMetrics = confusionMatrix?.calculateMetrics()
     }
 
     public func saveLog(
@@ -101,9 +101,9 @@ public struct MultiLabelTrainingResult: TrainingResultProtocol {
                     let recallStr = metric.recall.map { String(format: "%.1f%%", $0 * 100.0) } ?? "計算不可"
                     let precisionStr = metric.precision.map { String(format: "%.1f%%", $0 * 100.0) } ?? "計算不可"
                     let f1ScoreStr = metric.f1Score.map { String(format: "%.1f%%", $0 * 100.0) } ?? "計算不可"
-                    
+
                     markdownText += """
-                    
+
                     ### \(metric.label)
                     再現率: \(recallStr), \
                     適合率: \(precisionStr), \

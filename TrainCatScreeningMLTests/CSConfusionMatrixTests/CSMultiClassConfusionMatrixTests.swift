@@ -6,7 +6,7 @@ final class CSMultiClassConfusionMatrixTests: XCTestCase {
     private func createMultiClassDataTable(
         matrix: [[Int]],
         labels: [String]
-    ) -> MLDataTable {
+    ) throws -> MLDataTable {
         var predictedValues: [String] = []
         var actualValues: [String] = []
         var countValues: [Int] = []
@@ -22,14 +22,14 @@ final class CSMultiClassConfusionMatrixTests: XCTestCase {
             }
         }
 
-        return try! MLDataTable(dictionary: [
+        return try MLDataTable(dictionary: [
             "Predicted": predictedValues,
             "True Label": actualValues,
             "Count": countValues,
         ])
     }
 
-    func testValidateDataTable() {
+    func testValidateDataTable() throws {
         // 正常なデータテーブル
         let matrix = [
             [80, 10, 10],
@@ -38,7 +38,7 @@ final class CSMultiClassConfusionMatrixTests: XCTestCase {
         ]
         let labels = ["猫", "犬", "鳥"]
 
-        let validDataTable = createMultiClassDataTable(matrix: matrix, labels: labels)
+        let validDataTable = try createMultiClassDataTable(matrix: matrix, labels: labels)
         XCTAssertTrue(
             CSMultiClassConfusionMatrix.validateDataTable(
                 validDataTable,
@@ -49,7 +49,7 @@ final class CSMultiClassConfusionMatrixTests: XCTestCase {
         )
 
         // 空のデータテーブル
-        let emptyDataTable = try! MLDataTable(dictionary: [
+        let emptyDataTable = try MLDataTable(dictionary: [
             "Predicted": [String](),
             "True Label": [String](),
             "Count": [Int](),
@@ -65,7 +65,7 @@ final class CSMultiClassConfusionMatrixTests: XCTestCase {
         )
 
         // 必要な列が存在しないデータテーブル
-        let missingColumnDataTable = try! MLDataTable(dictionary: [
+        let missingColumnDataTable = try MLDataTable(dictionary: [
             "wrong_column": ["猫", "犬", "鳥"],
         ])
 
@@ -79,7 +79,7 @@ final class CSMultiClassConfusionMatrixTests: XCTestCase {
         )
 
         // ラベルが存在しないデータテーブル
-        let noLabelDataTable = try! MLDataTable(dictionary: [
+        let noLabelDataTable = try MLDataTable(dictionary: [
             "Predicted": [String](),
             "True Label": [String](),
             "Count": [Int](),
@@ -99,7 +99,7 @@ final class CSMultiClassConfusionMatrixTests: XCTestCase {
         let actualValues = ["猫", "犬", "馬"] // 馬は予測値に存在しない
         let counts = [1, 1, 1]
 
-        let mismatchedDataTable = try! MLDataTable(dictionary: [
+        let mismatchedDataTable = try MLDataTable(dictionary: [
             "Predicted": predictedValues,
             "True Label": actualValues,
             "Count": counts,
@@ -115,7 +115,7 @@ final class CSMultiClassConfusionMatrixTests: XCTestCase {
         )
     }
 
-    func testMetrics() {
+    func testMetrics() throws {
         // 猫、犬、鳥の3クラス分類の例
         // 各クラス100サンプルずつ
         let matrix = [
@@ -125,7 +125,7 @@ final class CSMultiClassConfusionMatrixTests: XCTestCase {
         ]
         let labels = ["猫", "犬", "鳥"]
 
-        let dataTable = createMultiClassDataTable(matrix: matrix, labels: labels)
+        let dataTable = try createMultiClassDataTable(matrix: matrix, labels: labels)
         guard let confusionMatrix = CSMultiClassConfusionMatrix(
             dataTable: dataTable,
             predictedColumn: "Predicted",
@@ -170,7 +170,7 @@ final class CSMultiClassConfusionMatrixTests: XCTestCase {
         XCTAssertEqual(metrics[2].f1Score, 0.8, accuracy: 0.001)
     }
 
-    func testPerfectScore() {
+    func testPerfectScore() throws {
         // 全て正解の場合（100%）
         let matrix = [
             [100, 0, 0],
@@ -179,7 +179,7 @@ final class CSMultiClassConfusionMatrixTests: XCTestCase {
         ]
         let labels = ["猫", "犬", "鳥"]
 
-        let dataTable = createMultiClassDataTable(matrix: matrix, labels: labels)
+        let dataTable = try createMultiClassDataTable(matrix: matrix, labels: labels)
         guard let confusionMatrix = CSMultiClassConfusionMatrix(
             dataTable: dataTable,
             predictedColumn: "Predicted",
@@ -198,7 +198,7 @@ final class CSMultiClassConfusionMatrixTests: XCTestCase {
         }
     }
 
-    func testHalfCorrect() {
+    func testHalfCorrect() throws {
         // 50%正解の場合
         let matrix = [
             [50, 25, 25], // 猫の行：実際が猫で、予測が[猫,犬,鳥]の数
@@ -207,7 +207,7 @@ final class CSMultiClassConfusionMatrixTests: XCTestCase {
         ]
         let labels = ["猫", "犬", "鳥"]
 
-        let dataTable = createMultiClassDataTable(matrix: matrix, labels: labels)
+        let dataTable = try createMultiClassDataTable(matrix: matrix, labels: labels)
         guard let confusionMatrix = CSMultiClassConfusionMatrix(
             dataTable: dataTable,
             predictedColumn: "Predicted",

@@ -8,7 +8,7 @@ final class CSBinaryConfusionMatrixTests: XCTestCase {
         falsePositive: Int,
         falseNegative: Int,
         trueNegative: Int
-    ) -> MLDataTable {
+    ) throws -> MLDataTable {
         var predictedValues: [String] = []
         var actualValues: [String] = []
         var countValues: [Int] = []
@@ -33,16 +33,16 @@ final class CSBinaryConfusionMatrixTests: XCTestCase {
         actualValues.append("犬")
         countValues.append(trueNegative)
 
-        return try! MLDataTable(dictionary: [
+        return try MLDataTable(dictionary: [
             "Predicted": predictedValues,
             "True Label": actualValues,
             "Count": countValues,
         ])
     }
 
-    func testValidateDataTable() {
+    func testValidateDataTable() throws {
         // 正常なデータテーブル
-        let validDataTable = createBinaryDataTable(
+        let validDataTable = try createBinaryDataTable(
             truePositive: 1,
             falsePositive: 1,
             falseNegative: 1,
@@ -59,7 +59,7 @@ final class CSBinaryConfusionMatrixTests: XCTestCase {
         )
 
         // 空のデータテーブル
-        let emptyDataTable = try! MLDataTable(dictionary: [
+        let emptyDataTable = try MLDataTable(dictionary: [
             "Predicted": [String](),
             "True Label": [String](),
             "Count": [Int](),
@@ -75,7 +75,7 @@ final class CSBinaryConfusionMatrixTests: XCTestCase {
         )
 
         // 必要な列が存在しないデータテーブル
-        let missingColumnDataTable = try! MLDataTable(dictionary: [
+        let missingColumnDataTable = try MLDataTable(dictionary: [
             "wrong_column": ["猫", "犬"],
         ])
 
@@ -93,7 +93,7 @@ final class CSBinaryConfusionMatrixTests: XCTestCase {
         let singleClassActualValues = ["猫", "猫"]
         let singleClassCounts = [1, 1]
 
-        let singleClassDataTable = try! MLDataTable(dictionary: [
+        let singleClassDataTable = try MLDataTable(dictionary: [
             "Predicted": singleClassPredictedValues,
             "True Label": singleClassActualValues,
             "Count": singleClassCounts,
@@ -113,7 +113,7 @@ final class CSBinaryConfusionMatrixTests: XCTestCase {
         let threeClassActualValues = ["猫", "犬", "鳥"]
         let threeClassCounts = [1, 1, 1]
 
-        let threeClassDataTable = try! MLDataTable(dictionary: [
+        let threeClassDataTable = try MLDataTable(dictionary: [
             "Predicted": threeClassPredictedValues,
             "True Label": threeClassActualValues,
             "Count": threeClassCounts,
@@ -129,13 +129,13 @@ final class CSBinaryConfusionMatrixTests: XCTestCase {
         )
     }
 
-    func testMetrics() {
+    func testMetrics() throws {
         // 猫vs犬の判定の例（各クラス100サンプル）
         // TP: 実際が猫で予測も猫 = 80
         // FP: 実際は犬だが予測が猫 = 20
         // FN: 実際は猫だが予測が犬 = 20
         // TN: 実際が犬で予測も犬 = 80
-        let dataTable = createBinaryDataTable(
+        let dataTable = try createBinaryDataTable(
             truePositive: 80,
             falsePositive: 20,
             falseNegative: 20,
@@ -165,9 +165,9 @@ final class CSBinaryConfusionMatrixTests: XCTestCase {
         XCTAssertEqual(matrix.f1Score, 0.8, accuracy: 0.001)
     }
 
-    func testPerfectScore() {
+    func testPerfectScore() throws {
         // 全て正解の場合（100%）
-        let dataTable = createBinaryDataTable(
+        let dataTable = try createBinaryDataTable(
             truePositive: 100,
             falsePositive: 0,
             falseNegative: 0,
@@ -189,9 +189,9 @@ final class CSBinaryConfusionMatrixTests: XCTestCase {
         XCTAssertEqual(matrix.f1Score, 1.0)
     }
 
-    func testHalfCorrect() {
+    func testHalfCorrect() throws {
         // 50%正解の場合
-        let dataTable = createBinaryDataTable(
+        let dataTable = try createBinaryDataTable(
             truePositive: 50,
             falsePositive: 50,
             falseNegative: 50,

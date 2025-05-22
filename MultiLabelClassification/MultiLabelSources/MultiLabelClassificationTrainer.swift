@@ -155,7 +155,7 @@ public final class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
         let trainingTime = Date().timeIntervalSince(t0)
 
         // 評価メトリクスを直接取得せず、混同行列に基づいて算出
-        let trainingError: Double = 1.0  // 評価指標は未算出のため仮値
+        let trainingError = 1.0 // 評価指標は未算出のため仮値
         let validationError: Double = await {
             guard let validationPredictions = try? await fittedPipeline.applied(to: validationFeatures) else {
                 return 1.0
@@ -185,7 +185,8 @@ public final class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
             // F1スコアの平均に基づいて簡易的なエラー率を推定（仮）
             let metrics = confusionMatrix.calculateMetrics()
             let avgF1 = metrics.compactMap(\.f1Score).reduce(0, +) / Double(metrics.count)
-            return 1.0 - avgF1
+            let avgRecall = metrics.compactMap(\.recall).reduce(0, +) / Double(metrics.count)
+            return 1.0 - (avgF1 + avgRecall) / 2.0
         }()
 
         var predictions: [(trueLabels: Set<String>, predictedLabels: Set<String>)] = []
@@ -232,18 +233,14 @@ public final class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
         if !metrics.isEmpty {
             descriptionParts.append("ラベル別検証指標 (しきい値: \(predictionThreshold)):")
             for metric in metrics {
-                if let recall = metric.recall,
-                   let precision = metric.precision,
-                   let f1Score = metric.f1Score {
-                    let metricsString = String(
-                        format: "    %@: 再現率 %.1f%%, 適合率 %.1f%%, F1スコア %.1f%%",
-                        metric.label,
-                        recall * 100,
-                        precision * 100,
-                        f1Score * 100
-                    )
-                    descriptionParts.append(metricsString)
-                }
+                let metricsString = String(
+                    format: "    %@: 再現率 %@, 適合率 %@, F1スコア %@",
+                    metric.label,
+                    metric.recall.map { String(format: "%.1f%%", $0 * 100) } ?? "計算不可",
+                    metric.precision.map { String(format: "%.1f%%", $0 * 100) } ?? "計算不可",
+                    metric.f1Score.map { String(format: "%.1f%%", $0 * 100) } ?? "計算不可"
+                )
+                descriptionParts.append(metricsString)
             }
         } else {
             descriptionParts.append("ラベル別検証指標: 計算スキップまたは失敗")
@@ -273,17 +270,12 @@ public final class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
             ラベル: \(labels.joined(separator: ", "))
             訓練正解率: \(String(format: "%.1f%%", (1.0 - trainingError) * 100.0))
             検証正解率: \(String(format: "%.1f%%", (1.0 - validationError) * 100.0))
-            \(confusionMatrix.calculateMetrics().compactMap { metric in
-                guard let recall = metric.recall,
-                      let precision = metric.precision,
-                      let f1Score = metric.f1Score else {
-                    return nil
-                }
-                return """
+            \(confusionMatrix.calculateMetrics().map { metric in
+                """
                 【\(metric.label)】
-                再現率: \(String(format: "%.1f%%", recall * 100.0)), \
-                適合率: \(String(format: "%.1f%%", precision * 100.0)), \
-                F1スコア: \(String(format: "%.1f%%", f1Score * 100.0))
+                再現率: \(metric.recall.map { String(format: "%.1f%%", $0 * 100.0) } ?? "計算不可"), \
+                適合率: \(metric.precision.map { String(format: "%.1f%%", $0 * 100.0) } ?? "計算不可"), \
+                F1スコア: \(metric.f1Score.map { String(format: "%.1f%%", $0 * 100.0) } ?? "計算不可")
                 """
             }.joined(separator: "\n"))
             データ拡張: \(augmentationFinalDescription)

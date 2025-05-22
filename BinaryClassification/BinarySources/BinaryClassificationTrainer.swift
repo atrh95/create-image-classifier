@@ -187,13 +187,11 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
                 クラス: \(classLabelDirURLs.map(\.lastPathComponent).joined(separator: ", "))
                 訓練正解率: \(String(format: "%.1f%%", (1.0 - trainingMetrics.classificationError) * 100.0))
                 検証正解率: \(String(format: "%.1f%%", (1.0 - validationMetrics.classificationError) * 100.0))
-                \(
-                    confusionMatrix != nil ?
-                        "性能指標: [再現率: \(String(format: "%.1f%%", confusionMatrix!.recall * 100.0)), " +
-                        "適合率: \(String(format: "%.1f%%", confusionMatrix!.precision * 100.0)), " +
-                        "F1スコア: \(String(format: "%.1f%%", confusionMatrix!.f1Score * 100.0))]" :
-                        ""
-                )
+                \(confusionMatrix.map { matrix in
+                    "性能指標: [再現率: \(String(format: "%.1f%%", matrix.recall * 100.0)), " +
+                        "適合率: \(String(format: "%.1f%%", matrix.precision * 100.0)), " +
+                        "F1スコア: \(String(format: "%.1f%%", matrix.f1Score * 100.0))]"
+                } ?? "")
                 データ拡張: \(augmentationFinalDescription)
                 特徴抽出器: \(featureExtractorDesc)
                 """,
