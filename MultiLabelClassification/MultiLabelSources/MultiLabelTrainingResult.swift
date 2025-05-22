@@ -77,7 +77,7 @@ public struct MultiLabelTrainingResult: TrainingResultProtocol {
         ## モデル詳細
         モデル名           : \(modelName)
         ファイル生成日時   : \(generatedDateString)
-        最大反復回数     : \(maxIterations) (注: CreateMLComponentsでは直接使用されません)
+        最大反復回数     : \(maxIterations)
         データ拡張       : \(dataAugmentationDescription)
         特徴抽出器       : \(featureExtractorDescription)
 
@@ -98,12 +98,16 @@ public struct MultiLabelTrainingResult: TrainingResultProtocol {
         if let confusionMatrix {
             if let labelMetrics {
                 for metric in labelMetrics {
+                    let recallStr = metric.recall.map { String(format: "%.1f%%", $0 * 100.0) } ?? "計算不可"
+                    let precisionStr = metric.precision.map { String(format: "%.1f%%", $0 * 100.0) } ?? "計算不可"
+                    let f1ScoreStr = metric.f1Score.map { String(format: "%.1f%%", $0 * 100.0) } ?? "計算不可"
+                    
                     markdownText += """
                     
                     ### \(metric.label)
-                    再現率: \(String(format: "%.1f%%", metric.recall * 100.0)), \
-                    適合率: \(String(format: "%.1f%%", metric.precision * 100.0)), \
-                    F1スコア: \(String(format: "%.1f%%", metric.f1Score * 100.0))
+                    再現率: \(recallStr), \
+                    適合率: \(precisionStr), \
+                    F1スコア: \(f1ScoreStr)
                     """
                 }
             }

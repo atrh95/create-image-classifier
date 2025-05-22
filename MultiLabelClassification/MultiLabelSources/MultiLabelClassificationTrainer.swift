@@ -184,7 +184,7 @@ public final class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
 
             // F1スコアの平均に基づいて簡易的なエラー率を推定（仮）
             let metrics = confusionMatrix.calculateMetrics()
-            let avgF1 = metrics.map(\.f1Score).reduce(0, +) / Double(metrics.count)
+            let avgF1 = metrics.compactMap(\.f1Score).reduce(0, +) / Double(metrics.count)
             return 1.0 - avgF1
         }()
 
@@ -232,14 +232,18 @@ public final class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
         if !metrics.isEmpty {
             descriptionParts.append("ラベル別検証指標 (しきい値: \(predictionThreshold)):")
             for metric in metrics {
-                let metricsString = String(
-                    format: "    %@: 再現率 %.1f%%, 適合率 %.1f%%, F1スコア %.1f%%",
-                    metric.label,
-                    metric.recall * 100,
-                    metric.precision * 100,
-                    metric.f1Score * 100
-                )
-                descriptionParts.append(metricsString)
+                if let recall = metric.recall,
+                   let precision = metric.precision,
+                   let f1Score = metric.f1Score {
+                    let metricsString = String(
+                        format: "    %@: 再現率 %.1f%%, 適合率 %.1f%%, F1スコア %.1f%%",
+                        metric.label,
+                        recall * 100,
+                        precision * 100,
+                        f1Score * 100
+                    )
+                    descriptionParts.append(metricsString)
+                }
             }
         } else {
             descriptionParts.append("ラベル別検証指標: 計算スキップまたは失敗")
@@ -269,12 +273,17 @@ public final class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
             ラベル: \(labels.joined(separator: ", "))
             訓練正解率: \(String(format: "%.1f%%", (1.0 - trainingError) * 100.0))
             検証正解率: \(String(format: "%.1f%%", (1.0 - validationError) * 100.0))
-            \(confusionMatrix.calculateMetrics().map { metric in
-                """
+            \(confusionMatrix.calculateMetrics().compactMap { metric in
+                guard let recall = metric.recall,
+                      let precision = metric.precision,
+                      let f1Score = metric.f1Score else {
+                    return nil
+                }
+                return """
                 【\(metric.label)】
-                再現率: \(String(format: "%.1f%%", metric.recall * 100.0)), \
-                適合率: \(String(format: "%.1f%%", metric.precision * 100.0)), \
-                F1スコア: \(String(format: "%.1f%%", metric.f1Score * 100.0))
+                再現率: \(String(format: "%.1f%%", recall * 100.0)), \
+                適合率: \(String(format: "%.1f%%", precision * 100.0)), \
+                F1スコア: \(String(format: "%.1f%%", f1Score * 100.0))
                 """
             }.joined(separator: "\n"))
             データ拡張: \(augmentationFinalDescription)

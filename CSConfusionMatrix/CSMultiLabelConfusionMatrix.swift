@@ -56,9 +56,13 @@ public struct CSMultiLabelConfusionMatrix {
 
         for label in labels.sorted() {
             if let counts = perLabelMetrics[label] {
-                let recall = (counts.tp + counts.fn == 0) ? 0.0 : Double(counts.tp) / Double(counts.tp + counts.fn)
-                let precision = (counts.tp + counts.fp == 0) ? 0.0 : Double(counts.tp) / Double(counts.tp + counts.fp)
-                let f1Score = (precision + recall == 0) ? 0.0 : 2 * precision * recall / (precision + recall)
+                let recall = (counts.tp + counts.fn == 0) ? nil : Double(counts.tp) / Double(counts.tp + counts.fn)
+                let precision = (counts.tp + counts.fp == 0) ? nil : Double(counts.tp) / Double(counts.tp + counts.fp)
+                let f1Score: Double? = if let p = precision, let r = recall, p + r != 0 {
+                    2 * p * r / (p + r)
+                } else {
+                    nil
+                }
 
                 metrics.append(LabelMetrics(
                     label: label,
@@ -79,9 +83,12 @@ public struct CSMultiLabelConfusionMatrix {
         let metrics = calculateMetrics()
         guard !metrics.isEmpty else { return nil }
 
-        let avgRecall = metrics.map(\.recall).reduce(0, +) / Double(metrics.count)
-        let avgPrecision = metrics.map(\.precision).reduce(0, +) / Double(metrics.count)
-        let avgF1Score = metrics.map(\.f1Score).reduce(0, +) / Double(metrics.count)
+        let validMetrics = metrics.filter { $0.recall != nil && $0.precision != nil && $0.f1Score != nil }
+        guard !validMetrics.isEmpty else { return nil }
+
+        let avgRecall = validMetrics.map(\.recall!).reduce(0, +) / Double(validMetrics.count)
+        let avgPrecision = validMetrics.map(\.precision!).reduce(0, +) / Double(validMetrics.count)
+        let avgF1Score = validMetrics.map(\.f1Score!).reduce(0, +) / Double(validMetrics.count)
 
         return (recall: avgRecall, precision: avgPrecision, f1Score: avgF1Score)
     }
@@ -89,9 +96,9 @@ public struct CSMultiLabelConfusionMatrix {
 
 public struct LabelMetrics {
     public let label: String
-    public let recall: Double
-    public let precision: Double
-    public let f1Score: Double
+    public let recall: Double?
+    public let precision: Double?
+    public let f1Score: Double?
     public let truePositives: Int
     public let falsePositives: Int
     public let falseNegatives: Int
