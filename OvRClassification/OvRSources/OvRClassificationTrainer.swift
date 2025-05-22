@@ -2,6 +2,7 @@ import Combine
 import CoreML
 import CreateML
 import CSInterface
+import CSConfusionMatrix
 import Foundation
 import TabularData
 
@@ -15,9 +16,7 @@ private struct OvRPairTrainingResult {
     let validationErrorRate: Double
     let trainingTime: TimeInterval
     let trainingDataPath: String
-    let recallRate: Double
-    let precisionRate: Double
-    let individualModelDescription: String
+    let confusionMatrix: CSBinaryConfusionMatrix?
 }
 
 public class OvRClassificationTrainer: ScreeningTrainerProtocol {
@@ -160,7 +159,9 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
                 version: version,
                 pairIndex: index,
                 modelParameters: modelParameters,
-                scenePrintRevision: scenePrintRevision
+                scenePrintRevision: scenePrintRevision,
+                commonDataAugmentationDesc: commonDataAugmentationDesc,
+                commonFeatureExtractorDesc: commonFeatureExtractorDesc
             ) {
                 allPairTrainingResults.append(result)
                 print("  ✅ OvRペア [\(dir.lastPathComponent)] vs Rest トレーニング成功")
@@ -182,27 +183,18 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
                 result.positiveClassName,
                 result.trainingAccuracyRate,
                 result.validationAccuracyRate,
-                result.recallRate * 100,
-                result.precisionRate * 100
+                result.confusionMatrix?.recall ?? 0.0 * 100,
+                result.confusionMatrix?.precision ?? 0.0 * 100
             ))
         }
 
         let individualReports: [IndividualModelReport] = allPairTrainingResults.map { result in
-            let confusionMatrix = ConfusionMatrix(
-                truePositive: 0,
-                falsePositive: 0,
-                falseNegative: 0,
-                trueNegative: 0
-            )
             let individualModelReport = IndividualModelReport(
                 modelName: result.modelName,
                 positiveClassName: result.positiveClassName,
                 trainingAccuracyRate: result.trainingAccuracyRate,
                 validationAccuracyPercentage: result.validationAccuracyRate,
-                recallRate: result.recallRate,
-                precisionRate: result.precisionRate,
-                modelDescription: result.individualModelDescription,
-                confusionMatrix: confusionMatrix
+                confusionMatrix: result.confusionMatrix
             )
             return individualModelReport
         }
@@ -215,13 +207,16 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
         print("結果出力先: \(finalRunOutputPath)")
 
         let trainingResult = OvRTrainingResult(
-            modelOutputPath: finalRunOutputPath,
-            trainingDataPaths: trainingDataPaths,
+            modelName: modelName,
+            trainingDurationInSeconds: allPairTrainingResults.map(\.trainingTime).reduce(0.0, +),
+            trainedModelFilePath: finalRunOutputPath,
+            sourceTrainingDataDirectoryPath: trainingDataPaths,
+            detectedClassLabelsList: allLabelSourceDirectories.map(\.lastPathComponent),
             maxIterations: modelParameters.maxIterations,
-            individualReports: individualReports,
             dataAugmentationDescription: commonDataAugmentationDesc,
-            baseFeatureExtractorDescription: featureExtractorString,
-            scenePrintRevision: scenePrintRevision
+            baseFeatureExtractorDescription: commonFeatureExtractorDesc,
+            scenePrintRevision: scenePrintRevision,
+            individualReports: individualReports
         )
 
         return trainingResult
@@ -237,18 +232,13 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
         version: String,
         pairIndex _: Int,
         modelParameters: CreateML.MLImageClassifier.ModelParameters,
-        scenePrintRevision: Int?
+        scenePrintRevision: Int?,
+        commonDataAugmentationDesc: String,
+        commonFeatureExtractorDesc: String
     ) async -> OvRPairTrainingResult? {
-        let originalOneLabelName = oneLabelSourceDirURL.lastPathComponent
-        let positiveClassNameForModel = originalOneLabelName.components(separatedBy: CharacterSet(charactersIn: "_-"))
-            .map(\.capitalized)
-            .joined()
-            .replacingOccurrences(of: "[^a-zA-Z0-9]", with: "", options: .regularExpression)
-
-        let modelFileNameBase =
-            "\(modelName)_\(classificationMethod)_\(positiveClassNameForModel)_\(version)"
-        let tempOvRPairRootName = "\(modelFileNameBase)_TempData"
-        let tempOvRPairRootURL = tempOvRBaseURL.appendingPathComponent(tempOvRPairRootName)
+        let positiveClassNameForModel = oneLabelSourceDirURL.lastPathComponent
+        let modelFileNameBase = "\(modelName)_\(classificationMethod)_\(version)"
+        let tempOvRPairRootURL = tempOvRBaseURL.appendingPathComponent(modelFileNameBase)
 
         let tempPositiveDataDirForML = tempOvRPairRootURL.appendingPathComponent(positiveClassNameForModel)
         let tempRestDataDirForML = tempOvRPairRootURL.appendingPathComponent("Rest")
@@ -319,7 +309,6 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
         }
 
         let trainingDataSource = MLImageClassifier.DataSource.labeledDirectories(at: tempOvRPairRootURL)
-        let modelForPairName = "\(modelName)_\(classificationMethod)_\(positiveClassNameForModel)"
 
         do {
             let trainingStartTime = Date()
@@ -330,122 +319,42 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
             let trainingMetrics = imageClassifier.trainingMetrics
             let validationMetrics = imageClassifier.validationMetrics
 
-            let trainingAccuracy = (1.0 - trainingMetrics.classificationError) * 100.0
-            let validationAccuracy = (1.0 - validationMetrics.classificationError) * 100.0
+            let trainingAccuracyPercent = (1.0 - trainingMetrics.classificationError) * 100.0
+            let validationAccuracyPercent = (1.0 - validationMetrics.classificationError) * 100.0
 
-            var recall = 0.0
-            var precision = 0.0
+            // 混同行列の計算をCSBinaryConfusionMatrixに委任
+            let confusionMatrix = CSBinaryConfusionMatrix(
+                dataTable: validationMetrics.confusion,
+                predictedColumn: "Predicted",
+                actualColumn: "True Label"
+            )
 
-            let confusionMatrix = validationMetrics.confusion
-            var labelSet = Set<String>()
-            for row in confusionMatrix.rows {
-                if let actual = row["True Label"]?.stringValue {
-                    labelSet.insert(actual)
-                }
-                if let predicted = row["Predicted"]?.stringValue {
-                    labelSet.insert(predicted)
-                }
-            }
-            let classLabelsFromConfusion = Array(labelSet).sorted()
-
-            if classLabelsFromConfusion.count == 2 {
-                let negativeLabel = classLabelsFromConfusion[0]
-                let positiveLabel = classLabelsFromConfusion[1]
-
-                var truePositives = 0
-                var falsePositives = 0
-                var falseNegatives = 0
-                var trueNegatives = 0
-
-                for row in confusionMatrix.rows {
-                    guard
-                        let actual = row["True Label"]?.stringValue,
-                        let predicted = row["Predicted"]?.stringValue,
-                        let cnt = row["Count"]?.intValue
-                    else { continue }
-
-                    if actual == positiveLabel, predicted == positiveLabel {
-                        truePositives += cnt
-                    } else if actual == negativeLabel, predicted == positiveLabel {
-                        falsePositives += cnt
-                    } else if actual == positiveLabel, predicted == negativeLabel {
-                        falseNegatives += cnt
-                    } else if actual == negativeLabel, predicted == negativeLabel {
-                        trueNegatives += cnt
-                    }
-                }
-
-                if (truePositives + falseNegatives) > 0 {
-                    recall = Double(truePositives) / Double(truePositives + falseNegatives)
-                }
-                if (truePositives + falsePositives) > 0 {
-                    precision = Double(truePositives) / Double(truePositives + falsePositives)
-                }
-
+            if let confusionMatrix {
                 // 混同行列の表示
-                print("\n📊 混同行列")
-                print("  ┌─────────────┬─────────────┬─────────────┐")
-                print("  │             │ 予測: 陽性  │ 予測: 陰性  │")
-                print("  ├─────────────┼─────────────┼─────────────┤")
-                print(String(format: "  │ 実際: 陽性  │    %4d     │    %4d     │", truePositives, falseNegatives))
-                print("  ├─────────────┼─────────────┼─────────────┤")
-                print(String(format: "  │ 実際: 陰性  │    %4d     │    %4d     │", falsePositives, trueNegatives))
-                print("  └─────────────┴─────────────┴─────────────┘")
-            }
-
-            let positiveCountForDesc = (try? getFilesInDirectory(tempPositiveDataDirForML).count) ?? 0
-            let restCountForDesc = (try? getFilesInDirectory(tempRestDataDirForML).count) ?? 0
-
-            var descriptionParts: [String] = []
-
-            descriptionParts.append(String(
-                format: "クラス構成 (陽性/他): %@ (%d枚) / Rest (%d枚)",
-                positiveClassNameForModel, positiveCountForDesc, restCountForDesc
-            ))
-
-            descriptionParts.append("最大反復回数: \(modelParameters.maxIterations)回")
-
-            descriptionParts.append(String(
-                format: "訓練正解率: %.1f%%, 検証正解率: %.1f%%",
-                trainingAccuracy,
-                validationAccuracy
-            ))
-
-            if classLabelsFromConfusion.count == 2 {
-                let positiveLabelForDesc = classLabelsFromConfusion
-                    .first { $0 == positiveClassNameForModel } ?? classLabelsFromConfusion[1]
-                descriptionParts.append(String(
-                    format: "陽性クラス (%@): 再現率 %.1f%%, 適合率 %.1f%%",
-                    positiveLabelForDesc,
-                    max(0.0, recall * 100),
-                    max(0.0, precision * 100)
-                ))
-            }
-
-            let augmentationFinalDescription: String
-            if !modelParameters.augmentationOptions.isEmpty {
-                augmentationFinalDescription = String(describing: modelParameters.augmentationOptions)
-                descriptionParts.append("データ拡張: \(augmentationFinalDescription)")
+                print(confusionMatrix.getMatrixGraph())
             } else {
-                augmentationFinalDescription = "なし"
-                descriptionParts.append("データ拡張: なし")
+                print("⚠️ 警告: 検証データが不十分なため、混同行列の計算をスキップしました")
             }
 
-            let featureExtractorStringForPair = String(describing: modelParameters.featureExtractor)
-            var featureExtractorDescForPairMetadata: String
-            if let revision = scenePrintRevision {
-                featureExtractorDescForPairMetadata = "\(featureExtractorStringForPair)(revision: \(revision))"
-                descriptionParts.append("特徴抽出器: \(featureExtractorDescForPairMetadata)")
-            } else {
-                featureExtractorDescForPairMetadata = featureExtractorStringForPair
-                descriptionParts.append("特徴抽出器: \(featureExtractorDescForPairMetadata)")
-            }
+            let trainingDataPath = tempOvRPairRootURL.path
 
-            let individualDesc = descriptionParts.joined(separator: "\n")
-
+            // モデルのメタデータを作成
             let modelMetadata = MLModelMetadata(
                 author: author,
-                shortDescription: individualDesc,
+                shortDescription: """
+                クラス: \(positiveClassNameForModel), Rest
+                訓練正解率: \(String(format: "%.1f%%", trainingAccuracyPercent))
+                検証正解率: \(String(format: "%.1f%%", validationAccuracyPercent))
+                \(
+                    confusionMatrix != nil ?
+                        "性能指標: [再現率: \(String(format: "%.1f%%", confusionMatrix!.recall * 100.0)), " +
+                        "適合率: \(String(format: "%.1f%%", confusionMatrix!.precision * 100.0)), " +
+                        "F1スコア: \(String(format: "%.1f%%", confusionMatrix!.f1Score * 100.0))]" :
+                        ""
+                )
+                データ拡張: \(commonDataAugmentationDesc)
+                特徴抽出器: \(commonFeatureExtractorDesc)
+                """,
                 version: version
             )
 
@@ -458,15 +367,13 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
                 modelPath: modelFilePath,
                 modelName: modelFileNameBase,
                 positiveClassName: positiveClassNameForModel,
-                trainingAccuracyRate: trainingAccuracy,
-                validationAccuracyRate: validationAccuracy,
+                trainingAccuracyRate: trainingAccuracyPercent,
+                validationAccuracyRate: validationAccuracyPercent,
                 trainingErrorRate: trainingMetrics.classificationError,
                 validationErrorRate: validationMetrics.classificationError,
                 trainingTime: trainingDurationSeconds,
-                trainingDataPath: tempOvRPairRootURL.path,
-                recallRate: recall,
-                precisionRate: precision,
-                individualModelDescription: individualDesc
+                trainingDataPath: trainingDataPath,
+                confusionMatrix: confusionMatrix
             )
 
         } catch let createMLError as CreateML.MLCreateError {
@@ -485,7 +392,7 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
         try Self.fileManager.contentsOfDirectory(
             at: directoryURL,
             includingPropertiesForKeys: [.isRegularFileKey],
-            options: .skipsHiddenFiles
+            options: [.skipsHiddenFiles, .skipsSubdirectoryDescendants]
         ).filter { url in
             var isDirectory: ObjCBool = false
             Self.fileManager.fileExists(atPath: url.path, isDirectory: &isDirectory)

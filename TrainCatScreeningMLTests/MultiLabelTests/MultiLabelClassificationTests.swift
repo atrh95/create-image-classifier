@@ -71,7 +71,7 @@ final class MultiLabelClassificationTests: XCTestCase {
         }
 
         temporaryOutputDirectoryURL = fileManager.temporaryDirectory
-            .appendingPathComponent("TestOutput_MultiLabel_\(UUID().uuidString)")
+            .appendingPathComponent("TestOutput_MultiLabel")
         try fileManager.createDirectory(
             at: temporaryOutputDirectoryURL,
             withIntermediateDirectories: true,

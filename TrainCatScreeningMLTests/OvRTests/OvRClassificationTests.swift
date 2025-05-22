@@ -48,7 +48,7 @@ final class OvRClassificationTests: XCTestCase {
         try await super.setUp()
 
         temporaryOutputDirectoryURL = fileManager.temporaryDirectory
-            .appendingPathComponent("TestOutput_OvR_\(UUID().uuidString)")
+            .appendingPathComponent("TestOutput_OvR")
         try fileManager.createDirectory(
             at: temporaryOutputDirectoryURL,
             withIntermediateDirectories: true,

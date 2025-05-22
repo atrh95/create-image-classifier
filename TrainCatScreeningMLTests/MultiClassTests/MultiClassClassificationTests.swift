@@ -40,7 +40,7 @@ final class MultiClassClassificationTests: XCTestCase {
         try await super.setUp()
 
         temporaryOutputDirectoryURL = fileManager.temporaryDirectory
-            .appendingPathComponent("TestOutput_\(UUID().uuidString)")
+            .appendingPathComponent("TestOutput_MultiClass")
         try fileManager.createDirectory(
             at: temporaryOutputDirectoryURL,
             withIntermediateDirectories: true,

@@ -48,7 +48,7 @@ final class OvOClassificationTests: XCTestCase {
         try await super.setUp()
 
         temporaryOutputDirectoryURL = fileManager.temporaryDirectory
-            .appendingPathComponent("TestOutput_OvO_\(UUID().uuidString)")
+            .appendingPathComponent("TestOutput_OvO")
         try fileManager.createDirectory(
             at: temporaryOutputDirectoryURL,
             withIntermediateDirectories: true,

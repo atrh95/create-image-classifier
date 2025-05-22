@@ -1,64 +1,88 @@
 import CSInterface
 import Foundation
+import CSConfusionMatrix
 
-public struct IndividualModelReport: Codable, Sendable {
+public struct IndividualModelReport {
     public let modelName: String
     public let positiveClassName: String
     public let trainingAccuracyRate: Double
     public let validationAccuracyPercentage: Double
-    public let recallRate: Double
-    public let precisionRate: Double
-    public let modelDescription: String
-    public let confusionMatrix: ConfusionMatrix
-}
-
-public struct ConfusionMatrix: Codable, Sendable {
-    public let truePositive: Int
-    public let falsePositive: Int
-    public let falseNegative: Int
-    public let trueNegative: Int
+    public let confusionMatrix: CSBinaryConfusionMatrix?
 }
 
 public struct OvRTrainingResult: TrainingResultProtocol {
-    public let modelOutputPath: String
-    public let trainingDataPaths: String
+    public let modelName: String
+    public let trainingDurationInSeconds: TimeInterval
+    public let trainedModelFilePath: String
+    public let sourceTrainingDataDirectoryPath: String
+    public let detectedClassLabelsList: [String]
     public let maxIterations: Int
-    public let individualReports: [IndividualModelReport]
     public let dataAugmentationDescription: String
-    public let featureExtractorDescription: String
+    public let baseFeatureExtractorDescription: String
+    public let scenePrintRevision: Int?
+    public let individualReports: [IndividualModelReport]
+
+    public var modelOutputPath: String {
+        URL(fileURLWithPath: trainedModelFilePath).deletingLastPathComponent().path
+    }
 
     public init(
-        modelOutputPath: String,
-        trainingDataPaths: String,
+        modelName: String,
+        trainingDurationInSeconds: TimeInterval,
+        trainedModelFilePath: String,
+        sourceTrainingDataDirectoryPath: String,
+        detectedClassLabelsList: [String],
         maxIterations: Int,
-        individualReports: [IndividualModelReport],
         dataAugmentationDescription: String,
         baseFeatureExtractorDescription: String,
-        scenePrintRevision: Int?
+        scenePrintRevision: Int?,
+        individualReports: [IndividualModelReport]
     ) {
-        self.modelOutputPath = modelOutputPath
-        self.trainingDataPaths = trainingDataPaths
+        self.modelName = modelName
+        self.trainingDurationInSeconds = trainingDurationInSeconds
+        self.trainedModelFilePath = trainedModelFilePath
+        self.sourceTrainingDataDirectoryPath = sourceTrainingDataDirectoryPath
+        self.detectedClassLabelsList = detectedClassLabelsList
         self.maxIterations = maxIterations
-        self.individualReports = individualReports
         self.dataAugmentationDescription = dataAugmentationDescription
-        if let revision = scenePrintRevision {
-            featureExtractorDescription = "\(baseFeatureExtractorDescription)(revision: \(revision))"
-        } else {
-            featureExtractorDescription = baseFeatureExtractorDescription
-        }
+        self.baseFeatureExtractorDescription = baseFeatureExtractorDescription
+        self.scenePrintRevision = scenePrintRevision
+        self.individualReports = individualReports
     }
 
     public func saveLog(modelAuthor: String, modelName: String, modelVersion: String) {
+        // ファイル生成日時フォーマッタ
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss Z"
         dateFormatter.timeZone = TimeZone(identifier: "Asia/Tokyo")
         let generatedDateString = dateFormatter.string(from: Date())
 
-        let reportFileName = "OvR_Run_Report_\(modelVersion).md"
-        let modelDir = URL(fileURLWithPath: modelOutputPath)
-        let reportURL = modelDir.appendingPathComponent(reportFileName)
+        // 各ペアの個別指標を表示
+        var individualPairSections = ""
+        for report in individualReports {
+            individualPairSections += """
+            ### \(report.positiveClassName)
+            - 訓練正解率: \(String(format: "%.1f%%", report.trainingAccuracyRate))
+            - 検証正解率: \(String(format: "%.1f%%", report.validationAccuracyPercentage))
+            """
+            if let confusionMatrix = report.confusionMatrix {
+                individualPairSections += """
+                
+                #### 混同行列分析
+                - 再現率 (Recall)    : \(String(format: "%.1f%%", confusionMatrix.recall * 100.0))
+                - 適合率 (Precision) : \(String(format: "%.1f%%", confusionMatrix.precision * 100.0))
+                - F1スコア          : \(String(format: "%.1f%%", confusionMatrix.f1Score * 100.0))
+                
+                #### 混同行列
+                \(confusionMatrix.getMatrixGraph())
+                """
+            } else {
+                individualPairSections += "\n⚠️ 検証データが不十分なため、混同行列の計算をスキップしました\n"
+            }
+            individualPairSections += "\n"
+        }
 
-        var markdownText = """
+        let markdown = """
         # OvR (One-vs-Rest) トレーニング実行レポート
 
         ## 実行概要
@@ -67,67 +91,27 @@ public struct OvRTrainingResult: TrainingResultProtocol {
         レポート生成日時   : \(generatedDateString)
         最大反復回数     : \(maxIterations) (各ペアモデル共通)
         データ拡張       : \(dataAugmentationDescription)
-        特徴抽出器       : \(featureExtractorDescription)
+        特徴抽出器       : \(baseFeatureExtractorDescription)\(scenePrintRevision.map { " (revision: \($0))" } ?? "")
+        検出されたクラス: \(detectedClassLabelsList.joined(separator: ", "))
 
-        ## 個別 "One" モデルのパフォーマンス指標
-        | "One" クラス名 | 訓練正解率 | 検証正解率 | 再現率 | 適合率 |
-        |----------------|--------------|--------------|----------|----------|
+        ## データソース
+        トレーニングデータディレクトリ: \(sourceTrainingDataDirectoryPath)
+        モデルファイル: \(trainedModelFilePath)
+
+        # 個別ペアのトレーニング結果
+        \(individualPairSections)
         """
-        for report in individualReports {
-            let trainAccStr = String(format: "%.2f%%", report.trainingAccuracyRate * 100)
-            let valAccStr = String(format: "%.2f%%", report.validationAccuracyPercentage)
-            let recallStr = String(format: "%.2f%%", report.recallRate * 100)
-            let precisionStr = String(format: "%.2f%%", report.precisionRate * 100)
-            markdownText +=
-                "\n| \(report.positiveClassName) | \(trainAccStr) | \(valAccStr) | \(recallStr) | \(precisionStr) |"
-        }
-        markdownText += "\n"
 
-        // 混同行列の追加
-        markdownText += """
-
-        ## 混同行列（検証データ）
-        """
-        for report in individualReports {
-            markdownText += """
-
-            ### \(report.positiveClassName)
-            ```
-            +----------------+----------------+----------------+
-            | True Label     | Predicted      | Count          |
-            +----------------+----------------+----------------+
-            | \(report.positiveClassName.padding(toLength: 14, withPad: " ", startingAt: 0)) | \(report
-                .positiveClassName
-                .padding(toLength: 14, withPad: " ", startingAt: 0)) | \(String(format: "%14d",
-                                                                                report.confusionMatrix.truePositive)) |
-            | \(report.positiveClassName.padding(
-                toLength: 14,
-                withPad: " ",
-                startingAt: 0
-            )) | Rest           | \(String(format: "%14d", report.confusionMatrix.falseNegative)) |
-            | Rest           | \(report.positiveClassName.padding(
-                toLength: 14,
-                withPad: " ",
-                startingAt: 0
-            )) | \(String(format: "%14d", report.confusionMatrix.falsePositive)) |
-            | Rest           | Rest           | \(String(format: "%14d", report.confusionMatrix.trueNegative)) |
-            +----------------+----------------+----------------+
-            ```
-            """
-        }
-
-        markdownText += """
-
-        ## 共通メタデータ
-        作成者            : \(modelAuthor)
-        バージョン        : \(modelVersion)
-        """
+        // モデルファイルと同じディレクトリに保存
+        let outputDir = URL(fileURLWithPath: trainedModelFilePath)
+        let textFileName = "OvR_Run_Report_\(modelVersion).md"
+        let textFilePath = outputDir.appendingPathComponent(textFileName).path
 
         do {
-            try markdownText.write(to: reportURL, atomically: true, encoding: .utf8)
-            print("✅ OvR実行レポートを保存しました: \(reportURL.path)")
+            try markdown.write(toFile: textFilePath, atomically: true, encoding: .utf8)
+            print("✅ ログファイル保存完了: \(textFilePath)")
         } catch {
-            print("❌ OvR実行レポートの保存エラー: \(error.localizedDescription) (Path: \(reportURL.path))")
+            print("❌ エラー: ログファイル保存失敗: \(error.localizedDescription)")
         }
     }
 }
