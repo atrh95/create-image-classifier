@@ -10,7 +10,6 @@ final class CSMultiClassConfusionMatrixTests: XCTestCase {
         var predictedValues: [String] = []
         var actualValues: [String] = []
         
-        // Add samples based on confusion matrix
         for (actualIndex, actualLabel) in labels.enumerated() {
             for (predictedIndex, predictedLabel) in labels.enumerated() {
                 let count = matrix[actualIndex][predictedIndex]
@@ -27,6 +26,88 @@ final class CSMultiClassConfusionMatrixTests: XCTestCase {
         ])
     }
     
+    func testValidateDataTable() {
+        // 正常なデータテーブル
+        let matrix = [
+            [80, 10, 10],
+            [10, 80, 10],
+            [10, 10, 80]
+        ]
+        let labels = ["猫", "犬", "鳥"]
+        
+        let validDataTable = createMultiClassDataTable(matrix: matrix, labels: labels)
+        XCTAssertTrue(
+            CSMultiClassConfusionMatrix.validateDataTable(
+                validDataTable,
+                predictedColumn: "predicted",
+                actualColumn: "actual"
+            ),
+            "正常なデータテーブルは検証に成功するはずです"
+        )
+        
+        // 空のデータテーブル
+        let emptyDataTable = try! MLDataTable(dictionary: [
+            "predicted": [String](),
+            "actual": [String]()
+        ])
+        
+        XCTAssertFalse(
+            CSMultiClassConfusionMatrix.validateDataTable(
+                emptyDataTable,
+                predictedColumn: "predicted",
+                actualColumn: "actual"
+            ),
+            "空のデータテーブルは検証に失敗するはずです"
+        )
+        
+        // 必要な列が存在しないデータテーブル
+        let missingColumnDataTable = try! MLDataTable(dictionary: [
+            "wrong_column": ["猫", "犬", "鳥"]
+        ])
+        
+        XCTAssertFalse(
+            CSMultiClassConfusionMatrix.validateDataTable(
+                missingColumnDataTable,
+                predictedColumn: "predicted",
+                actualColumn: "actual"
+            ),
+            "必要な列が存在しないデータテーブルは検証に失敗するはずです"
+        )
+        
+        // ラベルが存在しないデータテーブル
+        let noLabelDataTable = try! MLDataTable(dictionary: [
+            "predicted": [String](),
+            "actual": [String]()
+        ])
+        
+        XCTAssertFalse(
+            CSMultiClassConfusionMatrix.validateDataTable(
+                noLabelDataTable,
+                predictedColumn: "predicted",
+                actualColumn: "actual"
+            ),
+            "ラベルが存在しないデータテーブルは検証に失敗するはずです"
+        )
+        
+        // 予測値と実際の値が一致しないデータテーブル
+        let predictedValues = ["猫", "犬", "鳥"]
+        let actualValues = ["猫", "犬", "馬"]  // 馬は予測値に存在しない
+        
+        let mismatchedDataTable = try! MLDataTable(dictionary: [
+            "predicted": predictedValues,
+            "actual": actualValues
+        ])
+        
+        XCTAssertFalse(
+            CSMultiClassConfusionMatrix.validateDataTable(
+                mismatchedDataTable,
+                predictedColumn: "predicted",
+                actualColumn: "actual"
+            ),
+            "予測値と実際の値が一致しないデータテーブルは検証に失敗するはずです"
+        )
+    }
+    
     func testMetrics() {
         // 猫、犬、鳥の3クラス分類の例
         // 各クラス100サンプルずつ
@@ -38,11 +119,14 @@ final class CSMultiClassConfusionMatrixTests: XCTestCase {
         let labels = ["猫", "犬", "鳥"]
         
         let dataTable = createMultiClassDataTable(matrix: matrix, labels: labels)
-        let confusionMatrix = CSMultiClassConfusionMatrix(
+        guard let confusionMatrix = CSMultiClassConfusionMatrix(
             dataTable: dataTable,
             predictedColumn: "predicted",
             actualColumn: "actual"
-        )
+        ) else {
+            XCTFail("混同行列の作成に失敗しました")
+            return
+        }
         
         let metrics = confusionMatrix.calculateMetrics()
         
@@ -79,31 +163,6 @@ final class CSMultiClassConfusionMatrixTests: XCTestCase {
         XCTAssertEqual(metrics[2].f1Score, 0.8, accuracy: 0.001)
     }
     
-    func testZeroDivision() {
-        // 全て0の場合
-        let matrix = [
-            [0, 0, 0],
-            [0, 0, 0],
-            [0, 0, 0]
-        ]
-        let labels = ["猫", "犬", "鳥"]
-        
-        let dataTable = createMultiClassDataTable(matrix: matrix, labels: labels)
-        let confusionMatrix = CSMultiClassConfusionMatrix(
-            dataTable: dataTable,
-            predictedColumn: "predicted",
-            actualColumn: "actual"
-        )
-        
-        let metrics = confusionMatrix.calculateMetrics()
-        
-        for metric in metrics {
-            XCTAssertEqual(metric.recall, 0.0)
-            XCTAssertEqual(metric.precision, 0.0)
-            XCTAssertEqual(metric.f1Score, 0.0)
-        }
-    }
-    
     func testPerfectScore() {
         // 全て正解の場合（100%）
         let matrix = [
@@ -114,11 +173,14 @@ final class CSMultiClassConfusionMatrixTests: XCTestCase {
         let labels = ["猫", "犬", "鳥"]
         
         let dataTable = createMultiClassDataTable(matrix: matrix, labels: labels)
-        let confusionMatrix = CSMultiClassConfusionMatrix(
+        guard let confusionMatrix = CSMultiClassConfusionMatrix(
             dataTable: dataTable,
             predictedColumn: "predicted",
             actualColumn: "actual"
-        )
+        ) else {
+            XCTFail("混同行列の作成に失敗しました")
+            return
+        }
         
         let metrics = confusionMatrix.calculateMetrics()
         
@@ -139,11 +201,14 @@ final class CSMultiClassConfusionMatrixTests: XCTestCase {
         let labels = ["猫", "犬", "鳥"]
         
         let dataTable = createMultiClassDataTable(matrix: matrix, labels: labels)
-        let confusionMatrix = CSMultiClassConfusionMatrix(
+        guard let confusionMatrix = CSMultiClassConfusionMatrix(
             dataTable: dataTable,
             predictedColumn: "predicted",
             actualColumn: "actual"
-        )
+        ) else {
+            XCTFail("混同行列の作成に失敗しました")
+            return
+        }
         
         let metrics = confusionMatrix.calculateMetrics()
         

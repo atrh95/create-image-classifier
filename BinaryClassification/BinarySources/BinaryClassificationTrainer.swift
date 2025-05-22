@@ -2,6 +2,7 @@ import CoreML
 import CreateML
 import CSInterface
 import Foundation
+import CSConfusionMatrix
 
 public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
     public typealias TrainingResultType = BinaryTrainingResult
@@ -102,65 +103,16 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
                 trainingAccuracyPercentage,
                 validationAccuracyPercentage))
 
-            var recallRate = 0.0
-            var precisionRate = 0.0
-
-            let confusionMatrix = validationMetrics.confusion
-            var labelSet = Set<String>()
-            for row in confusionMatrix.rows {
-                if let actual = row["True Label"]?.stringValue { labelSet.insert(actual) }
-                if let predicted = row["Predicted"]?.stringValue { labelSet.insert(predicted) }
-            }
-
-            if labelSet.count == 2 {
-                let labels = Array(labelSet).sorted()
-                let positiveLabel = labels[1]
-                let negativeLabel = labels[0]
-
-                var truePositives = 0
-                var falsePositives = 0
-                var falseNegatives = 0
-                var trueNegatives = 0
-
-                for row in confusionMatrix.rows {
-                    guard
-                        let actual = row["True Label"]?.stringValue,
-                        let predicted = row["Predicted"]?.stringValue,
-                        let cnt = row["Count"]?.intValue
-                    else { continue }
-
-                    if actual == positiveLabel, predicted == positiveLabel {
-                        truePositives += cnt
-                    } else if actual == negativeLabel, predicted == positiveLabel {
-                        falsePositives += cnt
-                    } else if actual == positiveLabel, predicted == negativeLabel {
-                        falseNegatives += cnt
-                    } else if actual == negativeLabel, predicted == negativeLabel {
-                        trueNegatives += cnt
-                    }
-                }
-
-                if (truePositives + falseNegatives) > 0 {
-                    recallRate = Double(truePositives) / Double(truePositives + falseNegatives)
-                }
-                if (truePositives + falsePositives) > 0 {
-                    precisionRate = Double(truePositives) / Double(truePositives + falsePositives)
-                }
-
-                print(String(format: "  陽性クラス (%@): 再現率 %.1f%%, 適合率 %.1f%%",
-                    positiveLabel,
-                    recallRate * 100,
-                    precisionRate * 100))
-
+            // 混同行列の計算をCSBinaryConfusionMatrixに委任
+            if let confusionMatrix = CSBinaryConfusionMatrix(
+                dataTable: validationMetrics.confusion,
+                predictedColumn: "predictedLabel",
+                actualColumn: "trueLabel"
+            ) {
                 // 混同行列の表示
-                print("\n📊 混同行列")
-                print("  ┌─────────────┬─────────────┬─────────────┐")
-                print("  │             │ 予測: 陽性  │ 予測: 陰性  │")
-                print("  ├─────────────┼─────────────┼─────────────┤")
-                print(String(format: "  │ 実際: 陽性  │    %4d     │    %4d     │", truePositives, falseNegatives))
-                print("  ├─────────────┼─────────────┼─────────────┤")
-                print(String(format: "  │ 実際: 陰性  │    %4d     │    %4d     │", falsePositives, trueNegatives))
-                print("  └─────────────┴─────────────┴─────────────┘")
+                confusionMatrix.printMatrix()
+            } else {
+                print("⚠️ 警告: 検証データが不十分なため、混同行列の計算をスキップしました")
             }
 
             // データ拡張の説明

@@ -1,115 +1,126 @@
 import CSInterface
 import CreateML
+import Foundation
 
-public struct CSMultiClassConfusionMatrix: CSMultiClassConfusionMatrixProtocol {
-    public let matrix: [[Int]]
-    public let labels: [String]
-    private let detailedMetrics: [(label: String, recall: Double, precision: Double, f1Score: Double)]
+public final class CSMultiClassConfusionMatrix: CSMultiClassConfusionMatrixProtocol {
+    private let dataTable: MLDataTable
+    private let predictedColumn: String
+    private let actualColumn: String
     
-    public init(dataTable: MLDataTable, predictedColumn: String, actualColumn: String) {
-        // 必要なカラムが存在するか確認
-        guard dataTable.columnNames.contains(predictedColumn),
+    public let labels: [String]
+    public private(set) var matrix: [[Int]]
+    
+    static func validateDataTable(
+        _ dataTable: MLDataTable,
+        predictedColumn: String,
+        actualColumn: String
+    ) -> Bool {
+        // データの有効性チェック
+        guard !dataTable.rows.isEmpty,
+              dataTable.columnNames.contains(predictedColumn),
               dataTable.columnNames.contains(actualColumn) else {
-            self.matrix = []
-            self.labels = []
-            self.detailedMetrics = []
-            return
+            return false
         }
         
-        // Get unique labels from both predicted and actual columns
-        var labelSet = Set<String>()
-        for row in dataTable.rows {
-            if let actual = row[actualColumn]?.stringValue { labelSet.insert(actual) }
-            if let predicted = row[predictedColumn]?.stringValue { labelSet.insert(predicted) }
+        // 予測値と実際の値のラベルセットを取得
+        let predictedLabels = Set(dataTable.rows.compactMap { $0[predictedColumn]?.stringValue })
+        let actualLabels = Set(dataTable.rows.compactMap { $0[actualColumn]?.stringValue })
+        
+        // ラベルが存在することを確認
+        guard !predictedLabels.isEmpty, !actualLabels.isEmpty else {
+            return false
         }
         
-        // 少なくとも2つのクラスがあることを確認
-        guard labelSet.count >= 2 else {
-            self.matrix = []
-            self.labels = []
-            self.detailedMetrics = []
-            return
+        // 予測値と実際の値のラベルセットが一致することを確認
+        guard predictedLabels == actualLabels else {
+            return false
         }
         
-        self.labels = Array(labelSet).sorted()
-        
-        // Initialize confusion matrix with zeros
-        var confusionMatrix = Array(repeating: Array(repeating: 0, count: labels.count), count: labels.count)
-        
-        // Fill the confusion matrix
-        for row in dataTable.rows {
-            guard
-                let actual = row[actualColumn]?.stringValue,
-                let predicted = row[predictedColumn]?.stringValue,
-                let actualIndex = labels.firstIndex(of: actual),
-                let predictedIndex = labels.firstIndex(of: predicted)
-            else { continue }
-            
-            confusionMatrix[actualIndex][predictedIndex] += 1
-        }
-        
-        self.matrix = confusionMatrix
-        
-        // Calculate detailed metrics for each class
-        var metrics: [(label: String, recall: Double, precision: Double, f1Score: Double)] = []
-        
-        for label in labels {
-            var truePositives = 0
-            var falsePositives = 0
-            var falseNegatives = 0
-            
-            if let labelIndex = labels.firstIndex(of: label) {
-                truePositives = confusionMatrix[labelIndex][labelIndex]
-                
-                // Calculate false positives (sum of column except true positive)
-                for row in confusionMatrix {
-                    falsePositives += row[labelIndex]
-                }
-                falsePositives -= truePositives
-                
-                // Calculate false negatives (sum of row except true positive)
-                falseNegatives = confusionMatrix[labelIndex].reduce(0, +) - truePositives
-            }
-            
-            let recall = (truePositives + falseNegatives) > 0 ? Double(truePositives) / Double(truePositives + falseNegatives) : 0.0
-            let precision = (truePositives + falsePositives) > 0 ? Double(truePositives) / Double(truePositives + falsePositives) : 0.0
-            let f1Score = (precision + recall) > 0 ? 2 * (precision * recall) / (precision + recall) : 0.0
-            
-            metrics.append((label: label, recall: recall, precision: precision, f1Score: f1Score))
-        }
-        
-        self.detailedMetrics = metrics
+        return true
     }
     
-    public func printMatrix() {
-        let maxLabelLength = labels.map { $0.count }.max() ?? 0
-        let labelWidth = max(maxLabelLength, 8)
+    public init?(dataTable: MLDataTable, predictedColumn: String, actualColumn: String) {
+        self.dataTable = dataTable
+        self.predictedColumn = predictedColumn
+        self.actualColumn = actualColumn
         
-        print("\n📊 混同行列")
-        print("  ┌" + String(repeating: "─", count: labelWidth + 2) + "┬" + String(repeating: "─", count: 8) + "┬" + String(repeating: "─", count: 8) + "┐")
-        print("  │" + String(repeating: " ", count: labelWidth + 2) + "│" + " 予測値 ".padding(toLength: 8, withPad: " ", startingAt: 0) + "│" + " 実際値 ".padding(toLength: 8, withPad: " ", startingAt: 0) + "│")
-        print("  ├" + String(repeating: "─", count: labelWidth + 2) + "┼" + String(repeating: "─", count: 8) + "┼" + String(repeating: "─", count: 8) + "┤")
-        
-        for (i, label) in labels.enumerated() {
-            let rowSum = matrix[i].reduce(0, +)
-            print(String(format: "  │ %-\(labelWidth)s │ %6d │ %6d │",
-                label,
-                matrix[i][i],
-                rowSum))
+        // データの有効性チェック
+        guard Self.validateDataTable(dataTable, predictedColumn: predictedColumn, actualColumn: actualColumn) else {
+            return nil
         }
-        print("  └" + String(repeating: "─", count: labelWidth + 2) + "┴" + String(repeating: "─", count: 8) + "┴" + String(repeating: "─", count: 8) + "┘")
         
-        // Print detailed metrics for each class
-        for metric in detailedMetrics {
-            print(String(format: "  %@: 再現率 %.1f%%, 適合率 %.1f%%, F1スコア %.1f%%",
-                metric.label,
-                metric.recall * 100,
-                metric.precision * 100,
-                metric.f1Score * 100))
+        // ラベルの取得とソート
+        let labelSet = Set(dataTable.rows.compactMap { $0[actualColumn]?.stringValue })
+        self.labels = Array(labelSet).sorted()
+        
+        // 混同行列の初期化
+        let size = self.labels.count
+        self.matrix = Array(repeating: Array(repeating: 0, count: size), count: size)
+        
+        // ラベルからインデックスへのマッピング
+        let labelToIndex = Dictionary(uniqueKeysWithValues: self.labels.enumerated().map { ($1, $0) })
+        
+        // 混同行列の計算
+        for row in dataTable.rows {
+            guard let actualLabel = row[actualColumn]?.stringValue,
+                  let predictedLabel = row[predictedColumn]?.stringValue,
+                  let actualIndex = labelToIndex[actualLabel],
+                  let predictedIndex = labelToIndex[predictedLabel] else {
+                continue
+            }
+            self.matrix[actualIndex][predictedIndex] += 1
         }
     }
     
     public func calculateMetrics() -> [(label: String, recall: Double, precision: Double, f1Score: Double)] {
-        return detailedMetrics
+        return labels.enumerated().map { index, label in
+            let row = matrix[index]
+            let column = matrix.map { $0[index] }
+            
+            let truePositives = row[index]
+            let falsePositives = column.reduce(0, +) - truePositives
+            let falseNegatives = row.reduce(0, +) - truePositives
+            
+            let recall = calculateRecall(truePositives: truePositives, falseNegatives: falseNegatives)
+            let precision = calculatePrecision(truePositives: truePositives, falsePositives: falsePositives)
+            let f1Score = calculateF1Score(recall: recall, precision: precision)
+            
+            return (label: label, recall: recall, precision: precision, f1Score: f1Score)
+        }
+    }
+    
+    private func calculateRecall(truePositives: Int, falseNegatives: Int) -> Double {
+        let denominator = truePositives + falseNegatives
+        return denominator == 0 ? 0.0 : Double(truePositives) / Double(denominator)
+    }
+    
+    private func calculatePrecision(truePositives: Int, falsePositives: Int) -> Double {
+        let denominator = truePositives + falsePositives
+        return denominator == 0 ? 0.0 : Double(truePositives) / Double(denominator)
+    }
+    
+    private func calculateF1Score(recall: Double, precision: Double) -> Double {
+        let denominator = recall + precision
+        return denominator == 0 ? 0.0 : 2 * (recall * precision) / denominator
+    }
+    
+    public func printMatrix() {
+        // ヘッダー行の印刷
+        print("\nConfusion Matrix:")
+        print("Actual \\ Predicted", terminator: "\t")
+        for label in labels {
+            print(label, terminator: "\t")
+        }
+        print()
+        
+        // 各行の印刷
+        for (i, label) in labels.enumerated() {
+            print(label, terminator: "\t")
+            for value in matrix[i] {
+                print(value, terminator: "\t")
+            }
+            print()
+        }
+        print()
     }
 } 

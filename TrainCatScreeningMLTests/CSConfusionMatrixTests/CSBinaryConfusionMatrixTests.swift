@@ -14,32 +14,116 @@ final class CSBinaryConfusionMatrixTests: XCTestCase {
         
         // Add TP samples
         for _ in 0..<truePositive {
-            predictedValues.append("positive")
-            actualValues.append("positive")
+            predictedValues.append("猫")
+            actualValues.append("猫")
         }
         
         // Add FP samples
         for _ in 0..<falsePositive {
-            predictedValues.append("positive")
-            actualValues.append("negative")
+            predictedValues.append("猫")
+            actualValues.append("犬")
         }
         
         // Add FN samples
         for _ in 0..<falseNegative {
-            predictedValues.append("negative")
-            actualValues.append("positive")
+            predictedValues.append("犬")
+            actualValues.append("猫")
         }
         
         // Add TN samples
         for _ in 0..<trueNegative {
-            predictedValues.append("negative")
-            actualValues.append("negative")
+            predictedValues.append("犬")
+            actualValues.append("犬")
         }
         
         return try! MLDataTable(dictionary: [
             "predicted": predictedValues,
             "actual": actualValues
         ])
+    }
+    
+    func testValidateDataTable() {
+        // 正常なデータテーブル
+        let validDataTable = createBinaryDataTable(
+            truePositive: 1,
+            falsePositive: 1,
+            falseNegative: 1,
+            trueNegative: 1
+        )
+        
+        XCTAssertTrue(
+            CSBinaryConfusionMatrix.validateDataTable(
+                validDataTable,
+                predictedColumn: "predicted",
+                actualColumn: "actual"
+            ),
+            "正常なデータテーブルは検証に成功するはずです"
+        )
+        
+        // 空のデータテーブル
+        let emptyDataTable = try! MLDataTable(dictionary: [
+            "predicted": [String](),
+            "actual": [String]()
+        ])
+        
+        XCTAssertFalse(
+            CSBinaryConfusionMatrix.validateDataTable(
+                emptyDataTable,
+                predictedColumn: "predicted",
+                actualColumn: "actual"
+            ),
+            "空のデータテーブルは検証に失敗するはずです"
+        )
+        
+        // 必要な列が存在しないデータテーブル
+        let missingColumnDataTable = try! MLDataTable(dictionary: [
+            "wrong_column": ["猫", "犬"]
+        ])
+        
+        XCTAssertFalse(
+            CSBinaryConfusionMatrix.validateDataTable(
+                missingColumnDataTable,
+                predictedColumn: "predicted",
+                actualColumn: "actual"
+            ),
+            "必要な列が存在しないデータテーブルは検証に失敗するはずです"
+        )
+        
+        // 1クラスのみのデータテーブル
+        let singleClassPredictedValues = ["猫", "猫"]
+        let singleClassActualValues = ["猫", "猫"]
+        
+        let singleClassDataTable = try! MLDataTable(dictionary: [
+            "predicted": singleClassPredictedValues,
+            "actual": singleClassActualValues
+        ])
+        
+        XCTAssertFalse(
+            CSBinaryConfusionMatrix.validateDataTable(
+                singleClassDataTable,
+                predictedColumn: "predicted",
+                actualColumn: "actual"
+            ),
+            "1クラスのみのデータテーブルは検証に失敗するはずです"
+        )
+        
+        // 3クラスのデータテーブル
+        let threeClassPredictedValues = ["猫", "犬", "鳥"]
+        let threeClassActualValues = ["猫", "犬", "鳥"]
+        
+        let threeClassDataTable = try! MLDataTable(dictionary: [
+            "predicted": threeClassPredictedValues,
+            "actual": threeClassActualValues
+        ])
+        
+        XCTAssertFalse(
+            CSBinaryConfusionMatrix.validateDataTable(
+                threeClassDataTable,
+                predictedColumn: "predicted",
+                actualColumn: "actual"
+            ),
+            "3クラスのデータテーブルは検証に失敗するはずです"
+        )
     }
     
     func testMetrics() {
@@ -55,11 +139,14 @@ final class CSBinaryConfusionMatrixTests: XCTestCase {
             trueNegative: 80
         )
         
-        let matrix = CSBinaryConfusionMatrix(
+        guard let matrix = CSBinaryConfusionMatrix(
             dataTable: dataTable,
             predictedColumn: "predicted",
             actualColumn: "actual"
-        )
+        ) else {
+            XCTFail("混同行列の作成に失敗しました")
+            return
+        }
         
         // 再現率 = TP / (TP + FN) = 80 / 100 = 0.8 (80%)
         XCTAssertEqual(matrix.recall, 0.8, accuracy: 0.001)
@@ -75,27 +162,6 @@ final class CSBinaryConfusionMatrixTests: XCTestCase {
         XCTAssertEqual(matrix.f1Score, 0.8, accuracy: 0.001)
     }
     
-    func testZeroDivision() {
-        // 全て0の場合（0%）
-        let dataTable = createBinaryDataTable(
-            truePositive: 0,
-            falsePositive: 0,
-            falseNegative: 0,
-            trueNegative: 0
-        )
-        
-        let matrix = CSBinaryConfusionMatrix(
-            dataTable: dataTable,
-            predictedColumn: "predicted",
-            actualColumn: "actual"
-        )
-        
-        XCTAssertEqual(matrix.recall, 0.0)
-        XCTAssertEqual(matrix.precision, 0.0)
-        XCTAssertEqual(matrix.accuracy, 0.0)
-        XCTAssertEqual(matrix.f1Score, 0.0)
-    }
-    
     func testPerfectScore() {
         // 全て正解の場合（100%）
         let dataTable = createBinaryDataTable(
@@ -105,11 +171,14 @@ final class CSBinaryConfusionMatrixTests: XCTestCase {
             trueNegative: 100
         )
         
-        let matrix = CSBinaryConfusionMatrix(
+        guard let matrix = CSBinaryConfusionMatrix(
             dataTable: dataTable,
             predictedColumn: "predicted",
             actualColumn: "actual"
-        )
+        ) else {
+            XCTFail("混同行列の作成に失敗しました")
+            return
+        }
         
         XCTAssertEqual(matrix.recall, 1.0)
         XCTAssertEqual(matrix.precision, 1.0)
@@ -126,11 +195,14 @@ final class CSBinaryConfusionMatrixTests: XCTestCase {
             trueNegative: 50
         )
         
-        let matrix = CSBinaryConfusionMatrix(
+        guard let matrix = CSBinaryConfusionMatrix(
             dataTable: dataTable,
             predictedColumn: "predicted",
             actualColumn: "actual"
-        )
+        ) else {
+            XCTFail("混同行列の作成に失敗しました")
+            return
+        }
         
         // 全ての指標が0.5（50%）になる
         XCTAssertEqual(matrix.recall, 0.5, accuracy: 0.001)
