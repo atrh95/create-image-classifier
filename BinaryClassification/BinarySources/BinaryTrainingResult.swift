@@ -5,9 +5,9 @@ import Foundation
 public struct BinaryTrainingResult: TrainingResultProtocol {
     public let modelName: String
     public let trainingDataAccuracyPercentage: Double
-    public let validationDataAccuracyPercentage: Double
+    public let validationDataAccuracyPercentage: Double?
     public let trainingDataMisclassificationRate: Double
-    public let validationDataMisclassificationRate: Double
+    public let validationDataMisclassificationRate: Double?
     public let trainingDurationInSeconds: TimeInterval
     public let trainedModelFilePath: String
     public let sourceTrainingDataDirectoryPath: String
@@ -19,9 +19,9 @@ public struct BinaryTrainingResult: TrainingResultProtocol {
     public init(
         modelName: String,
         trainingDataAccuracyPercentage: Double,
-        validationDataAccuracyPercentage: Double,
+        validationDataAccuracyPercentage: Double?,
         trainingDataMisclassificationRate: Double,
-        validationDataMisclassificationRate: Double,
+        validationDataMisclassificationRate: Double?,
         trainingDurationInSeconds: TimeInterval,
         trainedModelFilePath: String,
         sourceTrainingDataDirectoryPath: String,
@@ -64,9 +64,9 @@ public struct BinaryTrainingResult: TrainingResultProtocol {
 
         // 文字列フォーマット
         let trainingAccStr = String(format: "%.2f", trainingDataAccuracyPercentage)
-        let validationAccStr = String(format: "%.2f", validationDataAccuracyPercentage)
+        let validationAccStr = validationDataAccuracyPercentage.map { String(format: "%.2f", $0) } ?? "N/A"
         let trainingErrStr = String(format: "%.2f", trainingDataMisclassificationRate * 100) // %表示に変更
-        let validationErrStr = String(format: "%.2f", validationDataMisclassificationRate * 100) // %表示に変更
+        let validationErrStr = validationDataMisclassificationRate.map { String(format: "%.2f", $0 * 100) } ?? "N/A" // %表示に変更
         let durationStr = String(format: "%.2f", trainingDurationInSeconds)
 
         // Markdownの内容

@@ -37,6 +37,43 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
         self.outputDirectoryPathOverride = outputDirectoryPathOverride
     }
 
+    private func createOutputDirectory(modelName: String, version: String) throws -> URL {
+        let baseDirURL = URL(fileURLWithPath: outputDirPath)
+            .appendingPathComponent(modelName)
+            .appendingPathComponent(version)
+        
+        let fileManager = FileManager.default
+        var resultNumber = 1
+        
+        // 既存のディレクトリを確認して次の番号を決定
+        do {
+            let contents = try fileManager.contentsOfDirectory(at: baseDirURL, includingPropertiesForKeys: nil)
+            let existingNumbers = contents.compactMap { url -> Int? in
+                let dirName = url.lastPathComponent
+                guard dirName.hasPrefix("\(classificationMethod)_Result_") else { return nil }
+                let numberStr = dirName.replacingOccurrences(of: "\(classificationMethod)_Result_", with: "")
+                return Int(numberStr)
+            }
+            
+            if let maxNumber = existingNumbers.max() {
+                resultNumber = maxNumber + 1
+            }
+        } catch {
+            // ディレクトリが存在しない場合は1から開始
+            resultNumber = 1
+        }
+        
+        let outputDirURL = baseDirURL.appendingPathComponent("\(classificationMethod)_Result_\(resultNumber)")
+        
+        try fileManager.createDirectory(
+            at: outputDirURL,
+            withIntermediateDirectories: true,
+            attributes: nil
+        )
+        
+        return outputDirURL
+    }
+
     public func train(
         author: String,
         modelName: String,
@@ -46,6 +83,8 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
     ) async -> BinaryTrainingResult? {
         let resourcesPath = resourcesDirectoryPath
         let resourcesDirURL = URL(fileURLWithPath: resourcesPath)
+        
+        print("📁 リソースディレクトリ: \(resourcesPath)")
 
         // 出力ディレクトリ設定
         let outputDirectoryURL: URL
@@ -54,6 +93,7 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
                 modelName: modelName,
                 version: version
             )
+            print("📁 出力ディレクトリ作成成功: \(outputDirectoryURL.path)")
         } catch {
             print("❌ エラー: 出力ディレクトリ設定に失敗 \(error.localizedDescription)")
             return nil
@@ -72,6 +112,7 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
                 FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory)
                 return isDirectory.boolValue && !url.lastPathComponent.hasPrefix(".")
             }
+            print("📁 検出されたクラスラベルディレクトリ: \(classLabelDirURLs.map(\.lastPathComponent).joined(separator: ", "))")
         } catch {
             print("🛑 エラー: リソースディレクトリ内ラベルディレクトリ取得失敗: \(error.localizedDescription)")
             return nil
@@ -83,32 +124,41 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
         }
 
         let trainingDataParentDirURL = classLabelDirURLs[0].deletingLastPathComponent()
+        print("📁 トレーニングデータ親ディレクトリ: \(trainingDataParentDirURL.path)")
+        
         let trainingDataSource = MLImageClassifier.DataSource.labeledDirectories(at: trainingDataParentDirURL)
+        print("📊 トレーニングデータソース作成完了")
 
         do {
+            print("🔄 モデルトレーニング開始...")
             let trainingStartTime = Date()
             let imageClassifier = try MLImageClassifier(trainingData: trainingDataSource, parameters: modelParameters)
             let trainingEndTime = Date()
             let trainingDurationSeconds = trainingEndTime.timeIntervalSince(trainingStartTime)
+            print("✅ モデルトレーニング完了 (所要時間: \(String(format: "%.1f", trainingDurationSeconds))秒)")
 
             let trainingMetrics = imageClassifier.trainingMetrics
             let validationMetrics = imageClassifier.validationMetrics
 
-            let trainingAccuracyPercentage = (1.0 - trainingMetrics.classificationError) * 100.0
-            let validationAccuracyPercentage = (1.0 - validationMetrics.classificationError) * 100.0
+            // 混同行列の計算をCSBinaryConfusionMatrixに委任
+            print("\n🔍 検証データの混同行列情報:")
+            print("  データテーブルの行数: \(validationMetrics.confusion.rows.count)")
+            print("  利用可能な列: \(validationMetrics.confusion.columnNames.joined(separator: ", "))")
+            
+            let confusionMatrix = CSBinaryConfusionMatrix(
+                dataTable: validationMetrics.confusion,
+                predictedColumn: "Predicted",
+                actualColumn: "True Label"
+            )
 
             // トレーニング完了後のパフォーマンス指標を表示
             print("\n📊 トレーニング結果サマリー")
-            print(String(format: "  訓練正解率: %.1f%%, 検証正解率: %.1f%%",
-                trainingAccuracyPercentage,
-                validationAccuracyPercentage))
-
-            // 混同行列の計算をCSBinaryConfusionMatrixに委任
-            if let confusionMatrix = CSBinaryConfusionMatrix(
-                dataTable: validationMetrics.confusion,
-                predictedColumn: "predictedLabel",
-                actualColumn: "trueLabel"
-            ) {
+            print(String(format: "  訓練正解率: %.1f%%",
+                (1.0 - trainingMetrics.classificationError) * 100.0))
+            
+            if let confusionMatrix = confusionMatrix {
+                print(String(format: "  検証正解率: %.1f%%",
+                    confusionMatrix.accuracy * 100.0))
                 // 混同行列の表示
                 confusionMatrix.printMatrix()
             } else {
@@ -137,8 +187,8 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
                 author: author,
                 shortDescription: """
                 クラス: \(classLabelDirURLs.map(\.lastPathComponent).joined(separator: ", "))
-                訓練正解率: \(String(format: "%.1f%%", trainingAccuracyPercentage))
-                検証正解率: \(String(format: "%.1f%%", validationAccuracyPercentage))
+                訓練正解率: \(String(format: "%.1f%%", (1.0 - trainingMetrics.classificationError) * 100.0))
+                \(confusionMatrix != nil ? "検証正解率: \(String(format: "%.1f%%", confusionMatrix!.accuracy * 100.0))" : "")
                 データ拡張: \(augmentationFinalDescription)
                 特徴抽出器: \(featureExtractorDesc)
                 """,
@@ -147,15 +197,17 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
 
             let outputModelFileURL = outputDirectoryURL
                 .appendingPathComponent("\(modelName)_\(classificationMethod)_\(version).mlmodel")
-
+            
+            print("💾 モデルファイル保存中: \(outputModelFileURL.path)")
             try imageClassifier.write(to: outputModelFileURL, metadata: modelMetadata)
+            print("✅ モデルファイル保存完了")
 
             return BinaryTrainingResult(
                 modelName: modelName,
-                trainingDataAccuracyPercentage: trainingAccuracyPercentage,
-                validationDataAccuracyPercentage: validationAccuracyPercentage,
+                trainingDataAccuracyPercentage: (1.0 - trainingMetrics.classificationError) * 100.0,
+                validationDataAccuracyPercentage: confusionMatrix.map { $0.accuracy * 100.0 },
                 trainingDataMisclassificationRate: trainingMetrics.classificationError,
-                validationDataMisclassificationRate: validationMetrics.classificationError,
+                validationDataMisclassificationRate: confusionMatrix.map { 1.0 - $0.accuracy },
                 trainingDurationInSeconds: trainingDurationSeconds,
                 trainedModelFilePath: outputModelFileURL.path,
                 sourceTrainingDataDirectoryPath: trainingDataParentDirURL.path,
@@ -168,9 +220,14 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
 
         } catch let createMLError as CreateML.MLCreateError {
             print("🛑 エラー: モデル [\(modelName)] のトレーニングまたは保存失敗 (CreateML): \(createMLError.localizedDescription)")
+            print("詳細なエラー情報:")
+            print("- エラーコード: \(createMLError.errorCode)")
+            print("- エラーの種類: \(type(of: createMLError))")
             return nil
         } catch {
             print("🛑 エラー: トレーニングプロセス中に予期しないエラー: \(error.localizedDescription)")
+            print("エラーの詳細:")
+            print(error)
             return nil
         }
     }

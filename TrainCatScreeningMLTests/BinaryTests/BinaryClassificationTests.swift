@@ -41,7 +41,6 @@ final class BinaryClassificationTests: XCTestCase {
 
         temporaryOutputDirectoryURL = fileManager.temporaryDirectory
             .appendingPathComponent("TestOutput_\(UUID().uuidString)")
-        print("一時ディレクトリを作成します: \(temporaryOutputDirectoryURL.path)")
         try fileManager.createDirectory(
             at: temporaryOutputDirectoryURL,
             withIntermediateDirectories: true,
@@ -69,7 +68,6 @@ final class BinaryClassificationTests: XCTestCase {
         do {
             compiledModelURL = try await MLModel.compileModel(at: trainedModelURL)
         } catch {
-            print("モデルのコンパイル失敗 in setUp: \(error.localizedDescription)")
             throw error
         }
     }

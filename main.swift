@@ -36,7 +36,7 @@ enum MLModelType: String {
         .scaryCatScreeningML: ModelConfig(
             name: "ScaryCatScreeningML",
             supportedTrainerVersions: [
-                .binary: "v5",
+                .binary: "v6",
                 .multiClass: "v3",
                 .multiLabel: "v1",
                 .ovr: "v20",
@@ -61,9 +61,9 @@ let semaphore = DispatchSemaphore(value: 0)
 
 Task {
     let selectedModel: MLModelType = .scaryCatScreeningML
-    let selectedTrainer: TrainerType = .ovr
+    let selectedTrainer: TrainerType = .binary
     let author = "akitora"
-    let trainingCount = 8
+    let trainingCount = 1
 
     guard trainingCount > 0 else {
         print("トレーニングの回数は1以上を指定してください")

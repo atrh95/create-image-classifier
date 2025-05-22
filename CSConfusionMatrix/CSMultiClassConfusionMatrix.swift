@@ -16,9 +16,20 @@ public final class CSMultiClassConfusionMatrix: CSMultiClassConfusionMatrixProto
         actualColumn: String
     ) -> Bool {
         // データの有効性チェック
-        guard !dataTable.rows.isEmpty,
-              dataTable.columnNames.contains(predictedColumn),
-              dataTable.columnNames.contains(actualColumn) else {
+        guard !dataTable.rows.isEmpty else {
+            print("❌ エラー: データテーブルが空です")
+            return false
+        }
+        
+        guard dataTable.columnNames.contains(predictedColumn) else {
+            print("❌ エラー: 予測列 '\(predictedColumn)' が存在しません")
+            print("   利用可能な列: \(dataTable.columnNames.joined(separator: ", "))")
+            return false
+        }
+        
+        guard dataTable.columnNames.contains(actualColumn) else {
+            print("❌ エラー: 実際の値の列 '\(actualColumn)' が存在しません")
+            print("   利用可能な列: \(dataTable.columnNames.joined(separator: ", "))")
             return false
         }
         
@@ -28,11 +39,17 @@ public final class CSMultiClassConfusionMatrix: CSMultiClassConfusionMatrixProto
         
         // ラベルが存在することを確認
         guard !predictedLabels.isEmpty, !actualLabels.isEmpty else {
+            print("❌ エラー: ラベルが存在しません")
+            print("   予測ラベル: \(predictedLabels.joined(separator: ", "))")
+            print("   実際のラベル: \(actualLabels.joined(separator: ", "))")
             return false
         }
         
         // 予測値と実際の値のラベルセットが一致することを確認
         guard predictedLabels == actualLabels else {
+            print("❌ エラー: 予測ラベルと実際のラベルが一致しません")
+            print("   予測ラベル: \(predictedLabels.joined(separator: ", "))")
+            print("   実際のラベル: \(actualLabels.joined(separator: ", "))")
             return false
         }
         
@@ -65,10 +82,11 @@ public final class CSMultiClassConfusionMatrix: CSMultiClassConfusionMatrixProto
             guard let actualLabel = row[actualColumn]?.stringValue,
                   let predictedLabel = row[predictedColumn]?.stringValue,
                   let actualIndex = labelToIndex[actualLabel],
-                  let predictedIndex = labelToIndex[predictedLabel] else {
+                  let predictedIndex = labelToIndex[predictedLabel],
+                  let count = row["Count"]?.intValue else {
                 continue
             }
-            self.matrix[actualIndex][predictedIndex] += 1
+            self.matrix[actualIndex][predictedIndex] += count
         }
     }
     
@@ -107,7 +125,7 @@ public final class CSMultiClassConfusionMatrix: CSMultiClassConfusionMatrixProto
     public func printMatrix() {
         // ヘッダー行の印刷
         print("\nConfusion Matrix:")
-        print("Actual \\ Predicted", terminator: "\t")
+        print("Actual\\Predicted", terminator: "\t")
         for label in labels {
             print(label, terminator: "\t")
         }
