@@ -1,22 +1,30 @@
 import CSInterface
+import CSConfusionMatrix
 import Foundation
 
 public struct MultiLabelTrainingResult: TrainingResultProtocol {
+    // 型定義
+    public typealias LabelMetric = LabelMetrics
+    
+    // 基本情報
     public let modelName: String
-    public let trainingDurationInSeconds: TimeInterval
     public let modelOutputPath: String
     public let trainingDataPath: String
+    
+    // トレーニング設定
     public let classLabels: [String]
     public let maxIterations: Int
-
-    public let meanAveragePrecision: Double?
-    public let perLabelMetricsSummary: String?
-
-    public let averageRecallAcrossLabels: Double?
-    public let averagePrecisionAcrossLabels: Double?
-
     public let dataAugmentationDescription: String
     public let featureExtractorDescription: String
+    
+    // パフォーマンス指標
+    public let trainingMetrics: (accuracy: Double, errorRate: Double)
+    public let validationMetrics: (accuracy: Double, errorRate: Double)
+    public let trainingDurationInSeconds: TimeInterval
+    
+    // 詳細な性能指標
+    public let confusionMatrix: CSMultiLabelConfusionMatrix?
+    public let labelMetrics: [LabelMetric]?
 
     public init(
         modelName: String,
@@ -25,30 +33,25 @@ public struct MultiLabelTrainingResult: TrainingResultProtocol {
         trainingDataPath: String,
         classLabels: [String],
         maxIterations: Int,
-        meanAveragePrecision: Double?,
-        perLabelMetricsSummary: String?,
-        averageRecallAcrossLabels: Double?,
-        averagePrecisionAcrossLabels: Double?,
+        trainingMetrics: (accuracy: Double, errorRate: Double),
+        validationMetrics: (accuracy: Double, errorRate: Double),
         dataAugmentationDescription: String,
-        baseFeatureExtractorDescription: String,
-        scenePrintRevision: Int?
+        featureExtractorDescription: String,
+        scenePrintRevision: Int?,
+        confusionMatrix: CSMultiLabelConfusionMatrix? = nil
     ) {
         self.modelName = modelName
-        self.trainingDurationInSeconds = trainingDurationInSeconds
         self.modelOutputPath = modelOutputPath
         self.trainingDataPath = trainingDataPath
         self.classLabels = classLabels
         self.maxIterations = maxIterations
-        self.meanAveragePrecision = meanAveragePrecision
-        self.perLabelMetricsSummary = perLabelMetricsSummary
-        self.averageRecallAcrossLabels = averageRecallAcrossLabels
-        self.averagePrecisionAcrossLabels = averagePrecisionAcrossLabels
+        self.trainingMetrics = trainingMetrics
+        self.validationMetrics = validationMetrics
+        self.trainingDurationInSeconds = trainingDurationInSeconds
         self.dataAugmentationDescription = dataAugmentationDescription
-        if let revision = scenePrintRevision {
-            featureExtractorDescription = "\(baseFeatureExtractorDescription) (revision: \(revision))"
-        } else {
-            featureExtractorDescription = "\(baseFeatureExtractorDescription) (revision: 1)"
-        }
+        self.featureExtractorDescription = featureExtractorDescription
+        self.confusionMatrix = confusionMatrix
+        self.labelMetrics = confusionMatrix?.calculateMetrics()
     }
 
     public func saveLog(
@@ -58,29 +61,18 @@ public struct MultiLabelTrainingResult: TrainingResultProtocol {
     ) {
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss Z"
+        dateFormatter.timeZone = TimeZone(identifier: "Asia/Tokyo")
         let generatedDateString = dateFormatter.string(from: Date())
 
         let classLabelsString = classLabels.isEmpty ? "不明" : classLabels.joined(separator: ", ")
         let durationStr = String(format: "%.2f", trainingDurationInSeconds)
+        let trainingAccStr = String(format: "%.2f", trainingMetrics.accuracy)
+        let validationAccStr = String(format: "%.2f", validationMetrics.accuracy)
+        let trainingErrStr = String(format: "%.2f", trainingMetrics.errorRate * 100)
+        let validationErrStr = String(format: "%.2f", validationMetrics.errorRate * 100)
 
-        var metricsLog = ""
-        if let map = meanAveragePrecision {
-            metricsLog += "平均適合率 (mAP)        : \(String(format: "%.2f", map * 100))%\n"
-        }
-        if let avgRecall = averageRecallAcrossLabels {
-            metricsLog += "平均再現率 (ラベル毎)   : \(String(format: "%.2f", avgRecall * 100))%\n"
-        }
-        if let avgPrecision = averagePrecisionAcrossLabels {
-            metricsLog += "平均適合率 (ラベル毎)   : \(String(format: "%.2f", avgPrecision * 100))%\n"
-        }
-        if let perLabelSummary = perLabelMetricsSummary, !perLabelSummary.isEmpty {
-            metricsLog += "\n## ラベル毎の指標詳細\n\(perLabelSummary.replacingOccurrences(of: "; ", with: "\n"))\n"
-        } else if meanAveragePrecision == nil, averageRecallAcrossLabels == nil, averagePrecisionAcrossLabels == nil {
-            metricsLog += "詳細なパフォーマンス指標は利用できません。\n"
-        }
-
-        let markdownText = """
-        # モデルトレーニング情報: \(modelName) (マルチラベル)
+        var markdownText = """
+        # モデルトレーニング情報: \(modelName)
 
         ## モデル詳細
         モデル名           : \(modelName)
@@ -90,12 +82,38 @@ public struct MultiLabelTrainingResult: TrainingResultProtocol {
         特徴抽出器       : \(featureExtractorDescription)
 
         ## トレーニング設定
-        元データ(マニフェスト): \(trainingDataPath)
+        アノテーションファイル: \(URL(fileURLWithPath: trainingDataPath).lastPathComponent)
         検出された全ラベル : \(classLabelsString)
 
-        ## パフォーマンス指標
+        ## 全体のパフォーマンス指標
         トレーニング所要時間: \(durationStr) 秒
-        \(metricsLog)
+        トレーニング誤分類率 (学習時) : \(trainingErrStr)%
+        訓練データ正解率 (学習時) : \(trainingAccStr)%
+        検証データ正解率 (学習時自動検証) : \(validationAccStr)%
+        検証誤分類率 (学習時自動検証) : \(validationErrStr)%
+
+        ## ラベル別性能指標
+        """
+
+        if let confusionMatrix {
+            if let labelMetrics {
+                for metric in labelMetrics {
+                    markdownText += """
+                    
+                    ### \(metric.label)
+                    再現率: \(String(format: "%.1f%%", metric.recall * 100.0)), \
+                    適合率: \(String(format: "%.1f%%", metric.precision * 100.0)), \
+                    F1スコア: \(String(format: "%.1f%%", metric.f1Score * 100.0))
+                    """
+                }
+            }
+
+            markdownText += "\n\n## 混同行列\n"
+            markdownText += confusionMatrix.getMatrixGraph()
+        }
+
+        markdownText += """
+
 
         ## モデルメタデータ
         作成者            : \(modelAuthor)
@@ -108,10 +126,10 @@ public struct MultiLabelTrainingResult: TrainingResultProtocol {
 
         do {
             try markdownText.write(toFile: textFilePath, atomically: true, encoding: String.Encoding.utf8)
-            print("✅ [\(modelName) - Multi-Label] モデル情報をMarkdownファイルに保存しました: \(textFilePath)")
+            print("✅ [\(modelName)] モデル情報をMarkdownファイルに保存しました: \(textFilePath)")
         } catch {
-            print("❌ [\(modelName) - Multi-Label] Markdownファイルの書き込みに失敗しました: \(error.localizedDescription)")
-            print("--- [\(modelName) - Multi-Label] モデル情報 (Markdown) ---:")
+            print("❌ [\(modelName)] Markdownファイルの書き込みに失敗しました: \(error.localizedDescription)")
+            print("--- [\(modelName)] モデル情報 (Markdown) ---:")
             print(markdownText)
             print("--- ここまで --- ")
         }

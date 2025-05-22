@@ -141,9 +141,9 @@ final class MultiClassClassificationTests: XCTestCase {
         }
 
         XCTAssertEqual(
-            Set(result.detectedClassLabelsList.sorted()),
+            Set(result.classLabels.sorted()),
             Set(expectedClassLabels),
-            "検出されたクラスラベル「\(result.detectedClassLabelsList.sorted())」が期待されるラベル「\(expectedClassLabels)」と一致しません"
+            "検出されたクラスラベル「\(result.classLabels.sorted())」が期待されるラベル「\(expectedClassLabels)」と一致しません"
         )
 
         result.saveLog(modelAuthor: authorName, modelName: testModelName, modelVersion: testModelVersion)
@@ -200,7 +200,7 @@ final class MultiClassClassificationTests: XCTestCase {
 
         let baseResourceURL = URL(fileURLWithPath: predictionTestResourcePath)
 
-        let classLabelsForPredictionTest = result.detectedClassLabelsList.sorted()
+        let classLabelsForPredictionTest = result.classLabels.sorted()
 
         guard !classLabelsForPredictionTest.isEmpty else {
             XCTFail("予測テストの実行には、訓練結果に最低1つのクラスラベルが必要です。検出されたラベルはありません。")

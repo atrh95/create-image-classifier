@@ -153,10 +153,6 @@ final class MultiLabelClassificationTests: XCTestCase {
         XCTAssertEqual(result.modelName, testModelName)
         XCTAssertFalse(result.trainingDataPath.isEmpty, "訓練データパス(アノテーションファイル)が空です")
         XCTAssertTrue(result.trainingDataPath.contains(resolvedAnnotationFileName), "訓練データパスにアノテーションファイル名が含まれていません")
-
-        XCTAssertNotNil(result.averageRecallAcrossLabels, "ラベル毎の平均再現率がnilです")
-        XCTAssertNotNil(result.averagePrecisionAcrossLabels, "ラベル毎の平均適合率がnilです")
-        XCTAssertNotNil(result.perLabelMetricsSummary, "ラベル毎の指標サマリーがnilです")
     }
 
     func testModelCanPerformPrediction() throws {

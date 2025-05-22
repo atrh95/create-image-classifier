@@ -1,8 +1,8 @@
 import Combine
 import CoreML
 import CreateML
-import CSInterface
 import CSConfusionMatrix
+import CSInterface
 import Foundation
 import TabularData
 
@@ -197,7 +197,7 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
 
         // IndividualModelReportの作成
         let individualReports: [IndividualModelReport] = allPairTrainingResults.map { result in
-            return IndividualModelReport(
+            IndividualModelReport(
                 modelName: result.modelName,
                 positiveClassName: "\(result.class1Name)_vs_\(result.class2Name)",
                 trainingAccuracyRate: result.trainingAccuracyRate,
@@ -213,7 +213,10 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
         print("結果出力先: \(finalRunOutputPath)")
         print("📁 デバッグ: 出力ディレクトリの内容:")
         do {
-            let contents = try FileManager.default.contentsOfDirectory(at: mainOutputRunURL, includingPropertiesForKeys: nil)
+            let contents = try FileManager.default.contentsOfDirectory(
+                at: mainOutputRunURL,
+                includingPropertiesForKeys: nil
+            )
             for url in contents {
                 print("  - \(url.lastPathComponent)")
             }

@@ -119,14 +119,14 @@ public final class CSBinaryConfusionMatrix: CSBinaryConfusionMatrixProtocol {
 
     public func getMatrixGraph() -> String {
         var result = ""
-        
+
         // ヘッダー行
         result += "Actual\\Predicted\tPositive\tNegative\n"
-        
+
         // 各行（Positive->Negativeの順）
         result += "Positive\t\(matrix[1][1])\t\(matrix[1][0])\n"
         result += "Negative\t\(matrix[0][1])\t\(matrix[0][0])\n"
-        
+
         return result
     }
 }

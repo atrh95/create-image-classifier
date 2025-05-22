@@ -1,24 +1,24 @@
+import CSConfusionMatrix
 import CSInterface
 import Foundation
-import CSConfusionMatrix
 
 public struct MultiClassTrainingResult: TrainingResultProtocol {
     // 基本情報
     public let modelName: String
     public let modelOutputPath: String
     public let trainingDataPath: String
-    
+
     // トレーニング設定
     public let classLabels: [String]
     public let maxIterations: Int
     public let dataAugmentationDescription: String
     public let featureExtractorDescription: String
-    
+
     // パフォーマンス指標
     public let trainingMetrics: (accuracy: Double, errorRate: Double)
     public let validationMetrics: (accuracy: Double, errorRate: Double)
     public let trainingTimeInSeconds: TimeInterval
-    
+
     // 詳細な性能指標
     public let confusionMatrix: CSMultiClassConfusionMatrix?
     public let classMetrics: [(label: String, recall: Double, precision: Double, f1Score: Double)]
@@ -47,7 +47,7 @@ public struct MultiClassTrainingResult: TrainingResultProtocol {
         self.validationMetrics = validationMetrics
         self.trainingTimeInSeconds = trainingTimeInSeconds
         self.confusionMatrix = confusionMatrix
-        self.classMetrics = confusionMatrix?.calculateMetrics() ?? []
+        classMetrics = confusionMatrix?.calculateMetrics() ?? []
     }
 
     public func saveLog(
@@ -94,7 +94,7 @@ public struct MultiClassTrainingResult: TrainingResultProtocol {
             ## クラス別性能指標
             \(classMetrics.map { metric in
                 """
-                
+
                 ### \(metric.label)
                 再現率: \(String(format: "%.1f%%", metric.recall * 100.0)), \
                 適合率: \(String(format: "%.1f%%", metric.precision * 100.0)), \

@@ -1,6 +1,6 @@
+import CSConfusionMatrix
 import CSInterface
 import Foundation
-import CSConfusionMatrix
 
 public struct IndividualModelReport {
     public let modelName: String
@@ -47,7 +47,7 @@ public struct OvOTrainingResult: TrainingResultProtocol {
         self.individualReports = individualReports
     }
 
-    public func saveLog(modelAuthor: String, modelName: String, modelVersion: String) {
+    public func saveLog(modelAuthor _: String, modelName: String, modelVersion: String) {
         // ファイル生成日時フォーマッタ
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss Z"
@@ -64,11 +64,11 @@ public struct OvOTrainingResult: TrainingResultProtocol {
             """
             if let confusionMatrix = report.confusionMatrix {
                 individualPairSections += """
-                
+
                 - 再現率 (Recall)    : \(String(format: "%.1f%%", confusionMatrix.recall * 100.0))
                 - 適合率 (Precision) : \(String(format: "%.1f%%", confusionMatrix.precision * 100.0))
                 - F1スコア          : \(String(format: "%.1f%%", confusionMatrix.f1Score * 100.0))
-                
+
                 \(confusionMatrix.getMatrixGraph())
                 """
             } else {

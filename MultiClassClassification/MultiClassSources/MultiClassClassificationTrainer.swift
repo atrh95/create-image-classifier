@@ -1,7 +1,7 @@
 import CoreML
 import CreateML
-import CSInterface
 import CSConfusionMatrix
+import CSInterface
 import Foundation
 
 public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
@@ -224,8 +224,14 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
                     maxIterations: modelParameters.maxIterations,
                     dataAugmentationDescription: commonDataAugmentationDesc,
                     featureExtractorDescription: commonFeatureExtractorDesc,
-                    trainingMetrics: (accuracy: 1.0 - trainingMetrics.classificationError, errorRate: trainingMetrics.classificationError),
-                    validationMetrics: (accuracy: 1.0 - validationMetrics.classificationError, errorRate: validationMetrics.classificationError),
+                    trainingMetrics: (
+                        accuracy: 1.0 - trainingMetrics.classificationError,
+                        errorRate: trainingMetrics.classificationError
+                    ),
+                    validationMetrics: (
+                        accuracy: 1.0 - validationMetrics.classificationError,
+                        errorRate: validationMetrics.classificationError
+                    ),
                     trainingTimeInSeconds: trainingDurationSeconds,
                     confusionMatrix: confusionMatrix
                 )

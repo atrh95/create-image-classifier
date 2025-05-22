@@ -1,8 +1,8 @@
 import Combine
 import CoreML
 import CreateML
-import CSInterface
 import CSConfusionMatrix
+import CSInterface
 import Foundation
 import TabularData
 
@@ -231,7 +231,7 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
         version: String,
         pairIndex _: Int,
         modelParameters: CreateML.MLImageClassifier.ModelParameters,
-        scenePrintRevision: Int?,
+        scenePrintRevision _: Int?,
         commonDataAugmentationDesc: String,
         commonFeatureExtractorDesc: String
     ) async -> OvRPairTrainingResult? {
