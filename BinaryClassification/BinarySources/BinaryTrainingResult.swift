@@ -75,29 +75,21 @@ public struct BinaryTrainingResult: TrainingResultProtocol {
         let durationStr = String(format: "%.2f", trainingDurationInSeconds)
 
         // 混同行列から計算した指標
-        var confusionMatrixSection = ""
-        if let confusionMatrix {
-            let recallStr = String(format: "%.2f", confusionMatrix.recall * 100)
-            let precisionStr = String(format: "%.2f", confusionMatrix.precision * 100)
-            let f1ScoreStr = String(format: "%.2f", confusionMatrix.f1Score * 100)
-
-            confusionMatrixSection = """
-
-            ## 混同行列の指標
-
-            ### 性能指標
-            再現率 (Recall)    : \(recallStr)%
-            実際に正しいと判断すべきサンプルのうち、正しく予測できた割合
-
-            適合率 (Precision) : \(precisionStr)%
-            モデルが正しいと予測したサンプルのうち、実際に正しかった割合
-
-            F1スコア          : \(f1ScoreStr)%
-            再現率と適合率の調和平均。両方の指標のバランスを表し、1に近いほどモデルの性能が高いことを示す
+        let confusionMatrixSection = if let confusionMatrix {
+            """
+            ## 混同行列分析
+            - 再現率 (Recall)    : \(String(format: "%.1f%%", confusionMatrix.recall * 100.0))
+              - 正例を正しく識別する能力を示す指標
+            - 適合率 (Precision) : \(String(format: "%.1f%%", confusionMatrix.precision * 100.0))
+              - 予測が正例と判断した中で、実際に正例だった割合
+            - F1スコア          : \(String(format: "%.1f%%", confusionMatrix.f1Score * 100.0))
+              - 再現率と適合率の調和平均。両方の指標のバランスを表し、1に近いほどモデルの性能が高いことを示す
 
             ### 混同行列
             \(confusionMatrix.getMatrixGraph())
             """
+        } else {
+            "⚠️ 検証データが不十分なため、混同行列の計算をスキップしました"
         }
 
         // Markdownの内容

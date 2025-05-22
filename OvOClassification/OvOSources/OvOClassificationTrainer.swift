@@ -2,6 +2,7 @@ import Combine
 import CoreML
 import CreateML
 import CSInterface
+import CSConfusionMatrix
 import Foundation
 import TabularData
 
@@ -17,15 +18,7 @@ private struct OvOPairTrainingResult {
     let validationErrorRate: Double
     let trainingTime: TimeInterval
     let trainingDataPath: String // このペアのトレーニングに使用されたデータのパス
-    let individualModelDescription: String
-    let recallRateClass1: Double
-    let precisionRateClass1: Double
-    let recallRateClass2: Double
-    let precisionRateClass2: Double
-    let truePositives1: Int
-    let falsePositives1: Int
-    let falseNegatives1: Int
-    let truePositives2: Int
+    let confusionMatrix: CSBinaryConfusionMatrix?
 }
 
 public class OvOClassificationTrainer: ScreeningTrainerProtocol {
@@ -204,23 +197,12 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
 
         // IndividualModelReportの作成
         let individualReports: [IndividualModelReport] = allPairTrainingResults.map { result in
-            IndividualModelReport(
+            return IndividualModelReport(
                 modelName: result.modelName,
-                // OvOでは「陽性クラス」という概念がOvRと異なるため、ペアの情報を格納する
                 positiveClassName: "\(result.class1Name)_vs_\(result.class2Name)",
                 trainingAccuracyRate: result.trainingAccuracyRate,
                 validationAccuracyPercentage: result.validationAccuracyRate,
-                // OvOの再現率・適合率は各クラス視点で計算可能。ここではclass1の値を代表として格納。
-                // 詳細は individualModelDescription に含まれる。
-                recallRate: result.recallRateClass1,
-                precisionRate: result.precisionRateClass1,
-                modelDescription: result.individualModelDescription,
-                confusionMatrix: ConfusionMatrix(
-                    truePositive: result.truePositives1,
-                    falsePositive: result.falsePositives1,
-                    falseNegative: result.falseNegatives1,
-                    trueNegative: result.truePositives2
-                )
+                confusionMatrix: result.confusionMatrix
             )
         }
 
@@ -229,17 +211,27 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
 
         print("🎉 OvOトレーニング全体完了")
         print("結果出力先: \(finalRunOutputPath)")
+        print("📁 デバッグ: 出力ディレクトリの内容:")
+        do {
+            let contents = try FileManager.default.contentsOfDirectory(at: mainOutputRunURL, includingPropertiesForKeys: nil)
+            for url in contents {
+                print("  - \(url.lastPathComponent)")
+            }
+        } catch {
+            print("❌ デバッグ: ディレクトリ内容の取得に失敗: \(error.localizedDescription)")
+        }
 
         let trainingResult = OvOTrainingResult(
-            modelOutputPath: finalRunOutputPath,
-            trainingDataPaths: trainingDataPaths,
+            modelName: modelName,
+            trainingDurationInSeconds: allPairTrainingResults.map(\.trainingTime).reduce(0.0, +),
+            trainedModelFilePath: finalRunOutputPath,
+            sourceTrainingDataDirectoryPath: trainingDataPaths,
+            detectedClassLabelsList: allLabelSourceDirectories.map(\.lastPathComponent),
             maxIterations: modelParameters.maxIterations,
-            individualReports: individualReports,
-            numberOfClasses: allLabelSourceDirectories.count,
-            numberOfPairs: classPairs.count,
             dataAugmentationDescription: commonDataAugmentationDesc,
             baseFeatureExtractorDescription: featureExtractorString,
-            scenePrintRevision: scenePrintRevision
+            scenePrintRevision: scenePrintRevision,
+            individualReports: individualReports
         )
 
         return trainingResult
@@ -353,8 +345,8 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
             let trainingMetrics = imageClassifier.trainingMetrics
             let validationMetrics = imageClassifier.validationMetrics
 
-            let trainingAccuracy = (1.0 - trainingMetrics.classificationError) * 100.0
-            let validationAccuracy = (1.0 - validationMetrics.classificationError) * 100.0
+            let trainingAccuracyPercent = (1.0 - trainingMetrics.classificationError) * 100.0
+            let validationAccuracyPercent = (1.0 - validationMetrics.classificationError) * 100.0
             let trainingErrorRate = trainingMetrics.classificationError
             let validationErrorRate = validationMetrics.classificationError
 
@@ -362,129 +354,25 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
             print("\n📊 トレーニング結果サマリー")
             print(String(
                 format: "  訓練正解率: %.1f%%, 検証正解率: %.1f%%",
-                trainingAccuracy,
-                validationAccuracy
+                trainingAccuracyPercent,
+                validationAccuracyPercent
             ))
 
-            let confusionMatrix = validationMetrics.confusion
-            var labelSet = Set<String>()
-            for row in confusionMatrix.rows {
-                if let actual = row["True Label"]?.stringValue { labelSet.insert(actual) }
-                if let predicted = row["Predicted"]?.stringValue { labelSet.insert(predicted) }
-            }
-
-            let labels = Array(labelSet).sorted()
-            var confusionMatrixData: [[Int]] = Array(
-                repeating: Array(repeating: 0, count: labels.count),
-                count: labels.count
+            // 混同行列の計算をCSBinaryConfusionMatrixに委任
+            let confusionMatrix = CSBinaryConfusionMatrix(
+                dataTable: validationMetrics.confusion,
+                predictedColumn: "Predicted",
+                actualColumn: "True Label"
             )
 
-            for row in confusionMatrix.rows {
-                guard
-                    let actual = row["True Label"]?.stringValue,
-                    let predicted = row["Predicted"]?.stringValue,
-                    let cnt = row["Count"]?.intValue,
-                    let actualIndex = labels.firstIndex(of: actual),
-                    let predictedIndex = labels.firstIndex(of: predicted)
-                else { continue }
-                confusionMatrixData[actualIndex][predictedIndex] = cnt
-            }
-
-            // 混同行列の表示
-            print("\n📊 混同行列")
-            let maxLabelLength = labels.map(\.count).max() ?? 0
-            let labelWidth = max(maxLabelLength, 8)
-
-            // ヘッダー行
-            print(
-                "  ┌" + String(repeating: "─", count: labelWidth + 2) + "┬" + String(repeating: "─", count: 8) + "┬" +
-                    String(repeating: "─", count: 8) + "┐"
-            )
-            print(
-                "  │" + String(repeating: " ", count: labelWidth + 2) + "│" + " 予測値 "
-                    .padding(toLength: 8, withPad: " ", startingAt: 0) + "│" + " 実際値 "
-                    .padding(toLength: 8, withPad: " ", startingAt: 0) + "│"
-            )
-            print(
-                "  ├" + String(repeating: "─", count: labelWidth + 2) + "┼" + String(repeating: "─", count: 8) + "┼" +
-                    String(repeating: "─", count: 8) + "┤"
-            )
-
-            // データ行
-            for (i, label) in labels.enumerated() {
-                let rowSum = confusionMatrixData[i].reduce(0, +)
-                print(String(
-                    format: "  │ %-\(labelWidth)s │ %6d │ %6d │",
-                    label,
-                    confusionMatrixData[i][i],
-                    rowSum
-                ))
-            }
-            print(
-                "  └" + String(repeating: "─", count: labelWidth + 2) + "┴" + String(repeating: "─", count: 8) + "┴" +
-                    String(repeating: "─", count: 8) + "┘"
-            )
-
-            // --- Recall and Precision Calculation ---
-            var recall1 = 0.0
-            var precision1 = 0.0
-            var truePositives1 = 0
-            var falsePositives1 = 0
-            var falseNegatives1 = 0
-
-            var recall2 = 0.0
-            var precision2 = 0.0
-            var truePositives2 = 0
-            var falsePositives2 = 0
-            var falseNegatives2 = 0
-
-            if labelSet.contains(modelClass1Name), labelSet.contains(modelClass2Name) {
-                for row in confusionMatrix.rows {
-                    guard
-                        let actual = row["True Label"]?.stringValue,
-                        let predicted = row["Predicted"]?.stringValue,
-                        let cnt = row["Count"]?.intValue
-                    else { continue }
-
-                    // modelClass1Name metrics
-                    if actual == modelClass1Name, predicted == modelClass1Name {
-                        truePositives1 += cnt
-                    } else if actual == modelClass2Name, predicted == modelClass1Name {
-                        falsePositives1 += cnt
-                    } else if actual == modelClass1Name, predicted == modelClass2Name {
-                        falseNegatives1 += cnt
-                    }
-
-                    // modelClass2Name metrics
-                    if actual == modelClass2Name, predicted == modelClass2Name {
-                        truePositives2 += cnt
-                    } else if actual == modelClass1Name, predicted == modelClass2Name {
-                        falsePositives2 += cnt
-                    } else if actual == modelClass2Name, predicted == modelClass1Name {
-                        falseNegatives2 += cnt
-                    }
-                }
-
-                if (truePositives1 + falseNegatives1) > 0 {
-                    recall1 = Double(truePositives1) / Double(truePositives1 + falseNegatives1)
-                }
-                if (truePositives1 + falsePositives1) > 0 {
-                    precision1 = Double(truePositives1) / Double(truePositives1 + falsePositives1)
-                }
-
-                if (truePositives2 + falseNegatives2) > 0 {
-                    recall2 = Double(truePositives2) / Double(truePositives2 + falseNegatives2)
-                }
-                if (truePositives2 + falsePositives2) > 0 {
-                    precision2 = Double(truePositives2) / Double(truePositives2 + falsePositives2)
-                }
+            if let confusionMatrix {
+                // 混同行列の表示
+                print(confusionMatrix.getMatrixGraph())
             } else {
-                print(
-                    "  ⚠️ OvOペア [\(modelClass1Name) vs \(modelClass2Name)]: 混同行列から期待されるラベル (\'\(modelClass1Name)\', \'\(modelClass2Name)\') が見つからず、再現率/適合率計算スキップ。"
-                )
+                print("⚠️ 警告: 検証データが不十分なため、混同行列の計算をスキップしました")
             }
-            // --- End of Recall and Precision Calculation ---
 
+            // モデルの説明文を構築
             var descriptionParts: [String] = []
             descriptionParts.append(String(
                 format: "クラス構成 (%@/%@): %@ (%d枚) / %@ (%d枚)",
@@ -494,21 +382,24 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
             descriptionParts.append("最大反復回数: \(modelParameters.maxIterations)回")
             descriptionParts.append(String(
                 format: "訓練正解率: %.1f%%, 検証正解率: %.1f%%",
-                trainingAccuracy, // Already a percentage
-                validationAccuracy // Already a percentage
+                trainingAccuracyPercent,
+                validationAccuracyPercent
             ))
-            descriptionParts.append(String(
-                format: "クラス '%@': 再現率 %.1f%%, 適合率 %.1f%%",
-                modelClass1Name,
-                max(0.0, recall1 * 100),
-                max(0.0, precision1 * 100)
-            ))
-            descriptionParts.append(String(
-                format: "クラス '%@': 再現率 %.1f%%, 適合率 %.1f%%",
-                modelClass2Name,
-                max(0.0, recall2 * 100),
-                max(0.0, precision2 * 100)
-            ))
+
+            if let confusionMatrix {
+                descriptionParts.append(String(
+                    format: "クラス '%@': 再現率 %.1f%%, 適合率 %.1f%%",
+                    modelClass1Name,
+                    confusionMatrix.recall * 100.0,
+                    confusionMatrix.precision * 100.0
+                ))
+                descriptionParts.append(String(
+                    format: "クラス '%@': 再現率 %.1f%%, 適合率 %.1f%%",
+                    modelClass2Name,
+                    confusionMatrix.recall * 100.0,
+                    confusionMatrix.precision * 100.0
+                ))
+            }
 
             let augmentationFinalDescription: String
             if !modelParameters.augmentationOptions.isEmpty {
@@ -529,11 +420,23 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
                 descriptionParts.append("特徴抽出器: \(featureExtractorDescForPairMetadata)")
             }
 
-            let individualDesc = descriptionParts.joined(separator: "\n")
-
+            // モデルのメタデータを作成
             let modelMetadata = MLModelMetadata(
                 author: author,
-                shortDescription: individualDesc,
+                shortDescription: """
+                クラス: \(modelClass1Name), \(modelClass2Name)
+                訓練正解率: \(String(format: "%.1f%%", trainingAccuracyPercent))
+                検証正解率: \(String(format: "%.1f%%", validationAccuracyPercent))
+                \(
+                    confusionMatrix != nil ?
+                        "性能指標: [再現率: \(String(format: "%.1f%%", confusionMatrix!.recall * 100.0)), " +
+                        "適合率: \(String(format: "%.1f%%", confusionMatrix!.precision * 100.0)), " +
+                        "F1スコア: \(String(format: "%.1f%%", confusionMatrix!.f1Score * 100.0))]" :
+                        ""
+                )
+                データ拡張: \(augmentationFinalDescription)
+                特徴抽出器: \(featureExtractorDescForPairMetadata)
+                """,
                 version: version
             )
 
@@ -547,33 +450,25 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
             ))
             print(String(
                 format: "  📊 OvOペア [\(modelClass1Name) vs \(modelClass2Name)] 訓練正解率: %.2f%%",
-                trainingAccuracy
-            )) // trainingAccuracy is already %
+                trainingAccuracyPercent
+            ))
             print(String(
                 format: "  📈 OvOペア [\(modelClass1Name) vs \(modelClass2Name)] 検証正解率: %.2f%%",
-                validationAccuracy
-            )) // validationAccuracy is already %
+                validationAccuracyPercent
+            ))
 
             return OvOPairTrainingResult(
                 modelPath: modelFilePath,
                 modelName: modelFileNameBase,
                 class1Name: modelClass1Name,
                 class2Name: modelClass2Name,
-                trainingAccuracyRate: trainingAccuracy, // Store as percentage
-                validationAccuracyRate: validationAccuracy, // Store as percentage
+                trainingAccuracyRate: trainingAccuracyPercent,
+                validationAccuracyRate: validationAccuracyPercent,
                 trainingErrorRate: trainingErrorRate,
                 validationErrorRate: validationErrorRate,
                 trainingTime: trainingDurationSeconds,
                 trainingDataPath: tempOvOPairRootURL.path,
-                individualModelDescription: individualDesc,
-                recallRateClass1: recall1,
-                precisionRateClass1: precision1,
-                recallRateClass2: recall2,
-                precisionRateClass2: precision2,
-                truePositives1: truePositives1,
-                falsePositives1: falsePositives1,
-                falseNegatives1: falseNegatives1,
-                truePositives2: truePositives2
+                confusionMatrix: confusionMatrix
             )
 
         } catch let createMLError as CreateML.MLCreateError {
