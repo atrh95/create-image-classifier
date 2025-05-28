@@ -134,6 +134,17 @@ final class BinaryClassifierTests: XCTestCase {
             throw TestError.setupFailed
         }
 
+        guard !expectedClassLabels.isEmpty else {
+            XCTFail("テストリソースディレクトリから期待されるクラスラベルが見つかりませんでした。パス: \(resourceURL.path)")
+            throw TestError.setupFailed
+        }
+
+        XCTAssertEqual(
+            Set(result.metadata.detectedClassLabelsList.sorted()),
+            Set(expectedClassLabels),
+            "検出されたクラスラベル「\(result.metadata.detectedClassLabelsList.sorted())」が期待されるラベル「\(expectedClassLabels)」と一致しません"
+        )
+
         result.saveLog(modelAuthor: authorName, modelName: testModelName, modelVersion: testModelVersion)
         let modelFileDir = URL(fileURLWithPath: result.metadata.trainedModelFilePath).deletingLastPathComponent()
 

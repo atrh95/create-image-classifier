@@ -8,11 +8,6 @@ import CreateML
 import Foundation
 import TabularData
 
-private struct ImageAnnotation: Codable {
-    let filename: String
-    let annotations: [String]
-}
-
 public final class MultiLabelClassifier: ClassifierProtocol {
     public typealias TrainingResultType = MultiLabelTrainingResult
 
@@ -178,22 +173,6 @@ public final class MultiLabelClassifier: ClassifierProtocol {
     public func prepareTrainingData(from classLabelDirURLs: [URL]) throws -> MLImageClassifier.DataSource {
         let trainingDataParentDirURL = classLabelDirURLs[0].deletingLastPathComponent()
         print("📁 トレーニングデータ親ディレクトリ: \(trainingDataParentDirURL.path)")
-
-        // JSONファイルを検索
-        let files = try FileManager.default.contentsOfDirectory(
-            at: trainingDataParentDirURL,
-            includingPropertiesForKeys: nil
-        )
-        guard let jsonFile = files.first(where: { $0.pathExtension.lowercased() == "json" }) else {
-            throw NSError(domain: "MultiLabelClassificationTrainer", code: -1, userInfo: [
-                NSLocalizedDescriptionKey: "アノテーションファイル（JSON）が見つかりません。",
-            ])
-        }
-
-        // JSONファイルを読み込む
-        let jsonData = try Data(contentsOf: jsonFile)
-        let annotations = try JSONDecoder().decode([ImageAnnotation].self, from: jsonData)
-        print("📄 アノテーションファイル読み込み完了: \(jsonFile.lastPathComponent)")
 
         return MLImageClassifier.DataSource.labeledDirectories(at: trainingDataParentDirURL)
     }
