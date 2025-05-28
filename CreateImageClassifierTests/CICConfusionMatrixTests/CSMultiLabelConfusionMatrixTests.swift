@@ -1,4 +1,4 @@
-@testable import CSConfusionMatrix
+@testable import CICConfusionMatrix
 import XCTest
 
 final class CSMultiLabelConfusionMatrixTests: XCTestCase {

@@ -1,7 +1,7 @@
 import BinaryClassification
 import CreateML
 import CreateMLComponents
-import CSInterface
+import CICInterface
 import Foundation
 import MultiClassClassification
 import MultiLabelClassification

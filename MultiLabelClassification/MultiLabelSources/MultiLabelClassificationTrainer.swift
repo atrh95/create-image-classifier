@@ -1,8 +1,8 @@
 import CoreML
 import CreateML
 import CreateMLComponents
-import CSConfusionMatrix
-import CSInterface
+import CICConfusionMatrix
+import CICInterface
 import Foundation
 
 public final class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {

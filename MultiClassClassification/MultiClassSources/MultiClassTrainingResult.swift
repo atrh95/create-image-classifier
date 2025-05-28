@@ -1,5 +1,5 @@
-import CSConfusionMatrix
-import CSInterface
+import CICConfusionMatrix
+import CICInterface
 import Foundation
 
 public struct MultiClassTrainingResult: TrainingResultProtocol {

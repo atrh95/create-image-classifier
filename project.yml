@@ -1,12 +1,12 @@
 # $ mint run xcodegen
 
-name: TrainCatScreeningML
+name: CreateImageClassifier
 options:
   bundleIdPrefix: com.akitorahayashi
   deploymentTarget:
     macOS: "15.2"
 targets:
-  TrainCatScreeningML:
+  Create Image Classifier:
     type: tool
     platform: macOS
     sources:
@@ -19,26 +19,26 @@ targets:
       - target: OvOClassification
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.TrainCatScreeningML
+        PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.CreateImageClassifier
         MACOSX_DEPLOYMENT_TARGET: "15.2"
         CODE_SIGNING_ALLOWED: NO
         CODE_SIGNING_REQUIRED: NO
 
-  TrainCatScreeningMLTests:
+  CreateImageClassifierTests:
     type: bundle.unit-test
     platform: macOS
     sources:
-      - path: TrainCatScreeningMLTests
+      - path: CreateImageClassifierTests
     resources:
-      - path: TrainCatScreeningMLTests/BinaryTests/TestResources
+      - path: CreateImageClassifierTests/BinaryTests/TestResources
         onDemand: false
-      - path: TrainCatScreeningMLTests/MultiClassTests/TestResources
+      - path: CreateImageClassifierTests/MultiClassTests/TestResources
         onDemand: false
-      - path: TrainCatScreeningMLTests/MultiLabelTests/TestResources
+      - path: CreateImageClassifierTests/MultiLabelTests/TestResources
         onDemand: false
-      - path: TrainCatScreeningMLTests/OvRTests/TestResources
+      - path: CreateImageClassifierTests/OvRTests/TestResources
         onDemand: false
-      - path: TrainCatScreeningMLTests/OvOTests/TestResources
+      - path: CreateImageClassifierTests/OvOTests/TestResources
         onDemand: false
     dependencies:
       - target: BinaryClassification
@@ -48,33 +48,33 @@ targets:
       - target: OvOClassification
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.TrainCatScreeningMLTests
+        PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.CreateImageClassifierTests
         MACOSX_DEPLOYMENT_TARGET: "15.2"
         GENERATE_INFOPLIST_FILE: true
         CODE_SIGNING_ALLOWED: NO
         CODE_SIGNING_REQUIRED: NO
 
-  CSInterface:
+  CICInterface:
     type: framework
     platform: macOS
     sources:
-      - path: CSInterface
+      - path: CICInterface
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.CSInterface
+        PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.CICInterface
         MACOSX_DEPLOYMENT_TARGET: "15.2"
         DEFINES_MODULE: "YES"
         CODE_SIGNING_ALLOWED: NO
         CODE_SIGNING_REQUIRED: NO
 
-  CSConfusionMatrix:
+  CICConfusionMatrix:
     type: framework
     platform: macOS
     sources:
-      - path: CSConfusionMatrix
+      - path: CICConfusionMatrix
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.CSConfusionMatrix
+        PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.CICConfusionMatrix
         MACOSX_DEPLOYMENT_TARGET: "15.2"
         DEFINES_MODULE: "YES"
         CODE_SIGNING_ALLOWED: NO
@@ -88,8 +88,8 @@ targets:
     resources:
       - path: BinaryClassification/Resources
     dependencies:
-      - target: CSInterface
-      - target: CSConfusionMatrix
+      - target: CICInterface
+      - target: CICConfusionMatrix
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.BinaryClassification
@@ -105,8 +105,8 @@ targets:
     resources:
       - path: MultiClassClassification/Resources
     dependencies:
-      - target: CSInterface
-      - target: CSConfusionMatrix
+      - target: CICInterface
+      - target: CICConfusionMatrix
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.MultiClassClassification
@@ -122,8 +122,8 @@ targets:
     resources:
       - path: MultiLabelClassification/Resources
     dependencies:
-      - target: CSInterface
-      - target: CSConfusionMatrix
+      - target: CICInterface
+      - target: CICConfusionMatrix
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.MultiLabelClassification
@@ -140,8 +140,8 @@ targets:
     resources:
       - path: OvRClassification/Resources
     dependencies:
-      - target: CSInterface
-      - target: CSConfusionMatrix
+      - target: CICInterface
+      - target: CICConfusionMatrix
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.OvRClassification
@@ -157,8 +157,8 @@ targets:
     resources:
       - path: OvOClassification/Resources
     dependencies:
-      - target: CSInterface
-      - target: CSConfusionMatrix
+      - target: CICInterface
+      - target: CICConfusionMatrix
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.OvOClassification

@@ -1,5 +1,5 @@
 import CreateML
-@testable import CSConfusionMatrix
+@testable import CICConfusionMatrix
 import XCTest
 
 final class CSMultiClassConfusionMatrixTests: XCTestCase {

@@ -1,5 +1,5 @@
-import CSConfusionMatrix
-import CSInterface
+import CICConfusionMatrix
+import CICInterface
 import Foundation
 
 /// 画像分類モデルのトレーニング結果を格納する構造体
