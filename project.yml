@@ -29,17 +29,6 @@ targets:
     platform: macOS
     sources:
       - path: CreateImageClassifierTests
-    resources:
-      - path: CreateImageClassifierTests/BinaryTests/TestResources
-        onDemand: false
-      - path: CreateImageClassifierTests/MultiClassTests/TestResources
-        onDemand: false
-      - path: CreateImageClassifierTests/MultiLabelTests/TestResources
-        onDemand: false
-      - path: CreateImageClassifierTests/OvRTests/TestResources
-        onDemand: false
-      - path: CreateImageClassifierTests/OvOTests/TestResources
-        onDemand: false
     dependencies:
       - target: BinaryClassification
       - target: MultiClassClassification
@@ -110,13 +99,96 @@ targets:
         CODE_SIGNING_ALLOWED: NO
         CODE_SIGNING_REQUIRED: NO
 
+  BinaryResources:
+    type: framework
+    platform: macOS
+    sources:
+      - path: CICResources/BinaryResources
+    resources:
+      - path: CICResources/BinaryResources
+        type: directory
+        buildPhase: resources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.BinaryResources
+        MACOSX_DEPLOYMENT_TARGET: "15.2"
+        DEFINES_MODULE: "YES"
+        CODE_SIGNING_ALLOWED: NO
+        CODE_SIGNING_REQUIRED: NO
+
+  MultiClassResources:
+    type: framework
+    platform: macOS
+    sources:
+      - path: CICResources/MultiClassResources
+    resources:
+      - path: CICResources/MultiClassResources
+        type: directory
+        buildPhase: resources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.MultiClassResources
+        MACOSX_DEPLOYMENT_TARGET: "15.2"
+        DEFINES_MODULE: "YES"
+        CODE_SIGNING_ALLOWED: NO
+        CODE_SIGNING_REQUIRED: NO
+
+  MultiLabelResources:
+    type: framework
+    platform: macOS
+    sources:
+      - path: CICResources/MultiLabelResources
+    resources:
+      - path: CICResources/MultiLabelResources
+        type: directory
+        buildPhase: resources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.MultiLabelResources
+        MACOSX_DEPLOYMENT_TARGET: "15.2"
+        DEFINES_MODULE: "YES"
+        CODE_SIGNING_ALLOWED: NO
+        CODE_SIGNING_REQUIRED: NO
+
+  OvRResources:
+    type: framework
+    platform: macOS
+    sources:
+      - path: CICResources/OvRResources
+    resources:
+      - path: CICResources/OvRResources
+        type: directory
+        buildPhase: resources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.OvRResources
+        MACOSX_DEPLOYMENT_TARGET: "15.2"
+        DEFINES_MODULE: "YES"
+        CODE_SIGNING_ALLOWED: NO
+        CODE_SIGNING_REQUIRED: NO
+
+  OvOResources:
+    type: framework
+    platform: macOS
+    sources:
+      - path: CICResources/OvOResources
+    resources:
+      - path: CICResources/OvOResources
+        type: directory
+        buildPhase: resources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.OvOResources
+        MACOSX_DEPLOYMENT_TARGET: "15.2"
+        DEFINES_MODULE: "YES"
+        CODE_SIGNING_ALLOWED: NO
+        CODE_SIGNING_REQUIRED: NO
+
   BinaryClassification:
     type: framework
     platform: macOS
     sources:
-      - path: BinaryClassification/BinarySources
-    resources:
-      - path: BinaryClassification/Resources
+      - path: Classifiers/BinaryClassifier
     dependencies:
       - target: CICInterface
       - target: CICConfusionMatrix
@@ -133,9 +205,7 @@ targets:
     type: framework
     platform: macOS
     sources:
-      - path: MultiClassClassification/MultiClassSources
-    resources:
-      - path: MultiClassClassification/Resources
+      - path: Classifiers/MultiClassifier
     dependencies:
       - target: CICInterface
       - target: CICConfusionMatrix
@@ -152,9 +222,7 @@ targets:
     type: framework
     platform: macOS
     sources:
-      - path: MultiLabelClassification/MultiLabelSources
-    resources:
-      - path: MultiLabelClassification/Resources
+      - path: Classifiers/MultiLabelClassifier
     dependencies:
       - target: CICInterface
       - target: CICConfusionMatrix
@@ -172,9 +240,7 @@ targets:
     type: framework
     platform: macOS
     sources:
-      - path: OvRClassification/OvRSources
-    resources:
-      - path: OvRClassification/Resources
+      - path: Classifiers/OvRClassifier
     dependencies:
       - target: CICInterface
       - target: CICConfusionMatrix
@@ -191,9 +257,7 @@ targets:
     type: framework
     platform: macOS
     sources:
-      - path: OvOClassification/OvOSources
-    resources:
-      - path: OvOClassification/Resources
+      - path: Classifiers/OvOClassifier
     dependencies:
       - target: CICInterface
       - target: CICConfusionMatrix

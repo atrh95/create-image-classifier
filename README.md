@@ -20,36 +20,80 @@ Swiftアプリケーションに典型的なモジュラーでプロトコル指
 
 ```
 .
+├── main.swift
 ├── CICInterface/
 ├── CICConfusionMatrix/
 ├── CICFileManager/
-├── BinaryClassification/
-│   ├── BinarySources/
-│   ├── OutputModels/
-│   └── Resources/
-├── MultiClassClassification/
-│   └── ...
-├── MultiLabelClassification/
-│   └── ...
-├── OvRClassification/
-│   └── ...
-├── OvOClassification/
-│   └── ...
-├── UnitTests/
-│   ├── CICConfusionMatrixTests/
-│   ├── BinaryTests/
-│   ├── MultiClassTests/
-│   ├── MultiLabelTests/
-│   ├── OvRTests/
-│   └── OvOTests/
-├── main.swift
-├── Mintfile
-├── .swiftformat
-├── .swiftlint.yml
-├── .gitignore
-├── project.yml
-└── README.md
+├── CICTrainingResult/
+├── CICResources/
+│   ├── BinaryResources/
+│   ├── MultiClassResources/
+│   ├── MultiLabelResources/
+│   ├── OvOResources/
+│   └── OvRResources/
+├── CICOutputModels/
+├── Classifiers/
+│   ├── BinaryClassifier/
+│   ├── MultiClassifier/
+│   ├── MultiLabelClassifier/
+│   ├── OvRClassifier/
+│   └── OvOClassifier/
+└── CreateImageClassifierTests/
 ```
+
+## 各モジュールの説明
+
+### コアモジュール
+- `CICInterface`: 分類器のインターフェース定義
+- `CICConfusionMatrix`: 混同行列の実装
+- `CICFileManager`: ファイル操作の管理
+- `CICTrainingResult`: 学習結果の管理
+- `CICResourceProvider`: リソースファイルの管理
+- `CICOutputModels`: 出力モデルの定義
+
+### 分類器モジュール
+各分類器は`CICInterface`を実装し、独自の分類ロジックを提供します。
+
+#### バイナリ分類
+- 2クラス分類（例：猫/犬）
+- 出力：確率値（0-1）
+
+#### マルチクラス分類
+- 複数クラスからの1クラス選択
+- 出力：各クラスの確率分布
+
+#### マルチラベル分類
+- 複数クラスの同時分類
+- 出力：各クラスの有無（0/1）
+
+#### One-vs-Rest分類
+- 各クラスを「そのクラス」と「その他」の2クラスに分けて学習
+- 出力：各クラスの確率分布
+
+#### One-vs-One分類
+- クラス間のペアごとに2クラス分類器を学習
+- 出力：各クラスの確率分布
+
+## リソース管理
+
+各分類器は独自のリソースディレクトリを持ち、`CICResourceProvider`を通じてアクセスします：
+
+- `BinaryResources`: バイナリ分類用の画像リソース
+- `MultiClassResources`: マルチクラス分類用の画像リソース
+- `MultiLabelResources`: マルチラベル分類用の画像リソース
+- `OvRResources`: One-vs-Rest分類用の画像リソース
+- `OvOResources`: One-vs-One分類用の画像リソース
+
+## 使用方法
+
+1. 画像リソースを適切なディレクトリに配置
+2. 分類器を初期化
+3. 学習を実行
+4. 結果を取得
+
+## テスト
+
+`CreateImageClassifierTests`ディレクトリに各モジュールのテストが含まれています。
 
 ## 技術スタック
 
