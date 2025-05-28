@@ -14,7 +14,7 @@ final class MultiClassClassifierTests: XCTestCase {
     var classifier: MultiClassClassifier!
     let fileManager = FileManager.default
     let authorName: String = "Test Author"
-    let testModelName: String = "TestCats_Multi_Run"
+    let testModelName: String = "TestModel_Multi_Run"
     let testModelVersion: String = "v1"
 
     let algorithm = MLImageClassifier.ModelParameters.ModelAlgorithmType.transferLearning(

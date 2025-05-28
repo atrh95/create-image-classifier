@@ -10,7 +10,7 @@ final class BinaryClassifierTests: XCTestCase {
     var classifier: BinaryClassifier!
     let fileManager = FileManager.default
     var authorName: String = "Test Author"
-    var testModelName: String = "TestCats_Binary_Run"
+    var testModelName: String = "TestModel_Binary_Run"
     var testModelVersion: String = "v1"
 
     let algorithm = MLImageClassifier.ModelParameters.ModelAlgorithmType.transferLearning(
@@ -56,7 +56,7 @@ final class BinaryClassifierTests: XCTestCase {
 
         trainingResult = await classifier.train(
             author: "test",
-            modelName: "TestModel",
+            modelName: testModelName,
             version: "v1",
             modelParameters: modelParameters,
             scenePrintRevision: nil

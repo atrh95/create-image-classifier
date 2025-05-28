@@ -10,7 +10,7 @@ final class OvOClassifierTests: XCTestCase {
     var classifier: OvOClassifier!
     let fileManager = FileManager.default
     let authorName: String = "Test Author"
-    let testModelName: String = "TestCats_OvO_Run"
+    let testModelName: String = "TestModel_OvO_Run"
     let testModelVersion: String = "v1"
 
     let algorithm = MLImageClassifier.ModelParameters.ModelAlgorithmType.transferLearning(
@@ -65,7 +65,7 @@ final class OvOClassifierTests: XCTestCase {
 
         trainingResult = await classifier.train(
             author: "test",
-            modelName: "TestModel",
+            modelName: testModelName,
             version: "v1",
             modelParameters: modelParameters,
             scenePrintRevision: nil
