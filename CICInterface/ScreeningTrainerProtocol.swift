@@ -9,6 +9,8 @@ public protocol ScreeningTrainerProtocol {
     var outputDirPath: String { get }
     var classificationMethod: String { get }
     var resourcesDirectoryPath: String { get }
+    var testResourcesDirectoryPath: String? { get set }
+    var outputDirectoryPathOverride: String? { get set }
 
     /// トレーニングの実行
     func train(

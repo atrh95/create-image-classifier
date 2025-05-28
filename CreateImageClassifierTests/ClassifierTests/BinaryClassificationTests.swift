@@ -45,6 +45,14 @@ final class BinaryClassificationTests: XCTestCase {
         trainer = BinaryClassificationTrainer(
             outputDirectoryPathOverride: temporaryOutputDirectoryURL.path
         )
+        
+        // テストリソースディレクトリのパスを設定
+        let currentFileURL = URL(fileURLWithPath: #filePath)
+        trainer.testResourcesDirectoryPath = currentFileURL
+            .deletingLastPathComponent() // BinaryClassificationTests.swift
+            .appendingPathComponent("TestResources")
+            .appendingPathComponent("Binary")
+            .path
 
         trainingResult = await trainer.train(
             author: authorName,
@@ -77,6 +85,7 @@ final class BinaryClassificationTests: XCTestCase {
         }
         compiledModelURL = nil
         trainingResult = nil
+        trainer.testResourcesDirectoryPath = nil
         trainer = nil
         try super.tearDownWithError()
     }

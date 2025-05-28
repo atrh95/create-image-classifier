@@ -12,7 +12,8 @@ public final class OvOClassificationTrainer: ScreeningTrainerProtocol {
     public typealias TrainingResultType = OvOTrainingResult
 
     private let fileManager = CICFileManager()
-    private let outputDirectoryPathOverride: String?
+    public var outputDirectoryPathOverride: String?
+    public var testResourcesDirectoryPath: String?
 
     public var outputDirPath: String {
         if let override = outputDirectoryPathOverride {
@@ -30,6 +31,9 @@ public final class OvOClassificationTrainer: ScreeningTrainerProtocol {
     public var classificationMethod: String { "OvO" }
 
     public var resourcesDirectoryPath: String {
+        if let testPath = testResourcesDirectoryPath {
+            return testPath
+        }
         let currentFileURL = URL(fileURLWithPath: #filePath)
         return currentFileURL
             .deletingLastPathComponent() // OvOClassifier

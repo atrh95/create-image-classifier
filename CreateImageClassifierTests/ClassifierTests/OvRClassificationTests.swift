@@ -54,6 +54,14 @@ final class OvRClassificationTests: XCTestCase {
         trainer = OvRClassificationTrainer(
             outputDirectoryPathOverride: temporaryOutputDirectoryURL.path
         )
+        
+        // テストリソースディレクトリのパスを設定
+        let currentFileURL = URL(fileURLWithPath: #filePath)
+        trainer.testResourcesDirectoryPath = currentFileURL
+            .deletingLastPathComponent() // OvRClassificationTests.swift
+            .appendingPathComponent("TestResources")
+            .appendingPathComponent("OvR")
+            .path
 
         trainingResult = await trainer.train(
             author: authorName,
@@ -79,6 +87,7 @@ final class OvRClassificationTests: XCTestCase {
         }
         compiledModelURL = nil
         trainingResult = nil
+        trainer.testResourcesDirectoryPath = nil
         trainer = nil
         try super.tearDownWithError()
     }
