@@ -52,158 +52,84 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
         modelParameters: CreateML.MLImageClassifier.ModelParameters,
         scenePrintRevision: Int?
     ) async -> BinaryTrainingResult? {
-        let resourcesPath = resourcesDirectoryPath
-        let resourcesDirURL = URL(fileURLWithPath: resourcesPath)
-
-        print("📁 リソースディレクトリ: \(resourcesPath)")
-
-        // 出力ディレクトリ設定
-        let outputDirectoryURL: URL
-        do {
-            outputDirectoryURL = try fileManager.createOutputDirectory(
-                modelName: modelName,
-                version: version,
-                classificationMethod: classificationMethod,
-                moduleOutputPath: outputDirPath
-            )
-            print("📁 出力ディレクトリ作成成功: \(outputDirectoryURL.path)")
-        } catch {
-            print("❌ エラー: 出力ディレクトリ設定に失敗 \(error.localizedDescription)")
-            return nil
-        }
-
+        print("📁 リソースディレクトリ: \(resourcesDirectoryPath)")
         print("🚀 Binaryトレーニング開始 (バージョン: \(version))...")
 
-        let classLabelDirURLs: [URL]
         do {
-            classLabelDirURLs = try fileManager.getClassLabelDirectories(resourcesPath: resourcesPath)
-            print("📁 検出されたクラスラベルディレクトリ: \(classLabelDirURLs.map(\.lastPathComponent).joined(separator: ", "))")
-        } catch {
-            print("🛑 エラー: リソースディレクトリ内ラベルディレクトリ取得失敗: \(error.localizedDescription)")
-            return nil
-        }
-
-        guard classLabelDirURLs.count == 2 else {
-            print("🛑 エラー: Binary分類には2つのクラスラベルディレクトリが必要です。現在 \(classLabelDirURLs.count)個。処理中止。")
-            return nil
-        }
-
-        let trainingDataParentDirURL = classLabelDirURLs[0].deletingLastPathComponent()
-        print("📁 トレーニングデータ親ディレクトリ: \(trainingDataParentDirURL.path)")
-
-        let trainingDataSource = MLImageClassifier.DataSource.labeledDirectories(at: trainingDataParentDirURL)
-        print("📊 トレーニングデータソース作成完了")
-
-        do {
-            print("🔄 モデルトレーニング開始...")
-            let trainingStartTime = Date()
-            let imageClassifier = try MLImageClassifier(trainingData: trainingDataSource, parameters: modelParameters)
-            let trainingEndTime = Date()
-            let trainingDurationSeconds = trainingEndTime.timeIntervalSince(trainingStartTime)
-            print("✅ モデルトレーニング完了 (所要時間: \(String(format: "%.1f", trainingDurationSeconds))秒)")
-
+            // クラスラベルディレクトリの取得
+            let classLabelDirURLs = try getClassLabelDirectories()
+            
+            // トレーニングデータの準備
+            let trainingDataSource = try prepareTrainingData(from: classLabelDirURLs)
+            print("📊 トレーニングデータソース作成完了")
+            
+            // モデルのトレーニング
+            let (imageClassifier, trainingDurationSeconds) = try trainModel(
+                trainingDataSource: trainingDataSource,
+                modelParameters: modelParameters
+            )
+            
             let trainingMetrics = imageClassifier.trainingMetrics
             let validationMetrics = imageClassifier.validationMetrics
-
-            // 混同行列の計算をCICBinaryConfusionMatrixに委任
+            
+            // 混同行列の計算
             let confusionMatrix = CICBinaryConfusionMatrix(
                 dataTable: validationMetrics.confusion,
                 predictedColumn: "Predicted",
                 actualColumn: "True Label",
                 positiveClass: classLabelDirURLs[1].lastPathComponent
             )
-
-            // トレーニング完了後のパフォーマンス指標を表示
+            
+            // トレーニング結果の表示
             print("\n📊 トレーニング結果サマリー")
             print(String(
                 format: "  訓練正解率: %.1f%%",
                 (1.0 - trainingMetrics.classificationError) * 100.0
             ))
-
+            
             if let confusionMatrix {
                 print(String(
                     format: "  検証正解率: %.1f%%",
                     confusionMatrix.accuracy * 100.0
                 ))
-                // 混同行列の表示
                 print(confusionMatrix.getMatrixGraph())
             } else {
                 print("⚠️ 警告: 検証データが不十分なため、混同行列の計算をスキップしました")
             }
-
-            // データ拡張の説明
-            let augmentationFinalDescription = if !modelParameters.augmentationOptions.isEmpty {
-                String(describing: modelParameters.augmentationOptions)
-            } else {
-                "なし"
-            }
-
-            // 特徴抽出器の説明
-            let featureExtractorDescription = String(describing: modelParameters.featureExtractor)
-            let featureExtractorDesc: String = if let revision = scenePrintRevision {
-                "\(featureExtractorDescription)(revision: \(revision))"
-            } else {
-                featureExtractorDescription
-            }
-
-            // モデルのメタデータを作成
-            let modelMetadata = MLModelMetadata(
+            
+            // モデルのメタデータ作成
+            let modelMetadata = createModelMetadata(
                 author: author,
-                shortDescription: """
-                クラス: \(classLabelDirURLs.map(\.lastPathComponent).joined(separator: ", "))
-                訓練正解率: \(String(format: "%.1f%%", (1.0 - trainingMetrics.classificationError) * 100.0))
-                検証正解率: \(String(format: "%.1f%%", (1.0 - validationMetrics.classificationError) * 100.0))
-                \(confusionMatrix.map { matrix in
-                    "性能指標: [再現率: \(String(format: "%.1f%%", matrix.recall * 100.0)), " +
-                        "適合率: \(String(format: "%.1f%%", matrix.precision * 100.0)), " +
-                        "F1スコア: \(String(format: "%.1f%%", matrix.f1Score * 100.0))]"
-                } ?? "")
-                データ拡張: \(augmentationFinalDescription)
-                特徴抽出器: \(featureExtractorDesc)
-                """,
-                version: version
+                version: version,
+                classLabelDirURLs: classLabelDirURLs,
+                trainingMetrics: trainingMetrics,
+                validationMetrics: validationMetrics,
+                modelParameters: modelParameters,
+                scenePrintRevision: scenePrintRevision
             )
-
-            let modelFileName = "\(modelName)_\(classificationMethod)_\(version).mlmodel"
-            let modelFilePath = outputDirectoryURL.appendingPathComponent(modelFileName).path
-
-            print("💾 モデルファイル保存中: \(modelFilePath)")
-            try imageClassifier.write(to: URL(fileURLWithPath: modelFilePath), metadata: modelMetadata)
-            print("✅ モデルファイル保存完了")
-
-            let metadata = CICTrainingMetadata(
+            
+            // 出力ディレクトリの設定
+            let outputDirectoryURL = try setupOutputDirectory(modelName: modelName, version: version)
+            
+            let modelFilePath = try saveModel(
+                imageClassifier: imageClassifier,
                 modelName: modelName,
-                trainingDurationInSeconds: trainingDurationSeconds,
-                trainedModelFilePath: modelFilePath,
-                sourceTrainingDataDirectoryPath: trainingDataParentDirURL.path,
-                detectedClassLabelsList: classLabelDirURLs.map(\.lastPathComponent),
-                maxIterations: modelParameters.maxIterations,
-                dataAugmentationDescription: augmentationFinalDescription,
-                featureExtractorDescription: featureExtractorDesc
+                version: version,
+                outputDirectoryURL: outputDirectoryURL,
+                metadata: modelMetadata
             )
-
-            let individualModelReport = CICIndividualModelReport(
+            
+            return createTrainingResult(
                 modelName: modelName,
-                positiveClassName: classLabelDirURLs[1].lastPathComponent,
-                trainingAccuracyRate: 1.0 - trainingMetrics.classificationError,
-                validationAccuracyPercentage: 1.0 - validationMetrics.classificationError,
-                confusionMatrix: confusionMatrix
+                classLabelDirURLs: classLabelDirURLs,
+                trainingMetrics: trainingMetrics,
+                validationMetrics: validationMetrics,
+                modelParameters: modelParameters,
+                scenePrintRevision: scenePrintRevision,
+                trainingDurationSeconds: trainingDurationSeconds,
+                modelFilePath: modelFilePath
             )
-
-            return BinaryTrainingResult(
-                metadata: metadata,
-                trainingMetrics: (
-                    accuracy: 1.0 - trainingMetrics.classificationError,
-                    errorRate: trainingMetrics.classificationError
-                ),
-                validationMetrics: (
-                    accuracy: 1.0 - validationMetrics.classificationError,
-                    errorRate: validationMetrics.classificationError
-                ),
-                confusionMatrix: confusionMatrix,
-                individualModelReport: individualModelReport
-            )
-
+            
         } catch let createMLError as CreateML.MLCreateError {
             print("🛑 エラー: モデル [\(modelName)] のトレーニングまたは保存失敗 (CreateML): \(createMLError.localizedDescription)")
             print("詳細なエラー情報:")
@@ -216,5 +142,164 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
             print(error)
             return nil
         }
+    }
+
+    public func setupOutputDirectory(modelName: String, version: String) throws -> URL {
+        let outputDirectoryURL = try fileManager.createOutputDirectory(
+            modelName: modelName,
+            version: version,
+            classificationMethod: classificationMethod,
+            moduleOutputPath: outputDirPath
+        )
+        print("📁 出力ディレクトリ作成成功: \(outputDirectoryURL.path)")
+        return outputDirectoryURL
+    }
+
+    public func getClassLabelDirectories() throws -> [URL] {
+        let classLabelDirURLs = try fileManager.getClassLabelDirectories(resourcesPath: resourcesDirectoryPath)
+        print("📁 検出されたクラスラベルディレクトリ: \(classLabelDirURLs.map(\.lastPathComponent).joined(separator: ", "))")
+        
+        guard classLabelDirURLs.count == 2 else {
+            throw NSError(domain: "BinaryClassificationTrainer", code: -1, userInfo: [
+                NSLocalizedDescriptionKey: "Binary分類には2つのクラスラベルディレクトリが必要です。現在 \(classLabelDirURLs.count)個。"
+            ])
+        }
+        
+        return classLabelDirURLs
+    }
+
+    public func prepareTrainingData(from classLabelDirURLs: [URL]) throws -> MLImageClassifier.DataSource {
+        let trainingDataParentDirURL = classLabelDirURLs[0].deletingLastPathComponent()
+        print("📁 トレーニングデータ親ディレクトリ: \(trainingDataParentDirURL.path)")
+        return MLImageClassifier.DataSource.labeledDirectories(at: trainingDataParentDirURL)
+    }
+
+    public func trainModel(
+        trainingDataSource: MLImageClassifier.DataSource,
+        modelParameters: CreateML.MLImageClassifier.ModelParameters
+    ) throws -> (MLImageClassifier, TimeInterval) {
+        print("🔄 モデルトレーニング開始...")
+        let trainingStartTime = Date()
+        let imageClassifier = try MLImageClassifier(trainingData: trainingDataSource, parameters: modelParameters)
+        let trainingEndTime = Date()
+        let trainingDurationSeconds = trainingEndTime.timeIntervalSince(trainingStartTime)
+        print("✅ モデルトレーニング完了 (所要時間: \(String(format: "%.1f", trainingDurationSeconds))秒)")
+        return (imageClassifier, trainingDurationSeconds)
+    }
+
+    public func createModelMetadata(
+        author: String,
+        version: String,
+        classLabelDirURLs: [URL],
+        trainingMetrics: MLClassifierMetrics,
+        validationMetrics: MLClassifierMetrics,
+        modelParameters: CreateML.MLImageClassifier.ModelParameters,
+        scenePrintRevision: Int?
+    ) -> MLModelMetadata {
+        let augmentationFinalDescription = if !modelParameters.augmentationOptions.isEmpty {
+            String(describing: modelParameters.augmentationOptions)
+        } else {
+            "なし"
+        }
+
+        let featureExtractorDescription = String(describing: modelParameters.featureExtractor)
+        let featureExtractorDesc: String = if let revision = scenePrintRevision {
+            "\(featureExtractorDescription)(revision: \(revision))"
+        } else {
+            featureExtractorDescription
+        }
+
+        return MLModelMetadata(
+            author: author,
+            shortDescription: """
+            クラス: \(classLabelDirURLs.map(\.lastPathComponent).joined(separator: ", "))
+            訓練正解率: \(String(format: "%.1f%%", (1.0 - trainingMetrics.classificationError) * 100.0))
+            検証正解率: \(String(format: "%.1f%%", (1.0 - validationMetrics.classificationError) * 100.0))
+            データ拡張: \(augmentationFinalDescription)
+            特徴抽出器: \(featureExtractorDesc)
+            """,
+            version: version
+        )
+    }
+
+    public func saveModel(
+        imageClassifier: MLImageClassifier,
+        modelName: String,
+        version: String,
+        outputDirectoryURL: URL,
+        metadata: MLModelMetadata
+    ) throws -> String {
+        let modelFileName = "\(modelName)_\(classificationMethod)_\(version).mlmodel"
+        let modelFilePath = outputDirectoryURL.appendingPathComponent(modelFileName).path
+        
+        print("💾 モデルファイル保存中: \(modelFilePath)")
+        try imageClassifier.write(to: URL(fileURLWithPath: modelFilePath), metadata: metadata)
+        print("✅ モデルファイル保存完了")
+        
+        return modelFilePath
+    }
+
+    public func createTrainingResult(
+        modelName: String,
+        classLabelDirURLs: [URL],
+        trainingMetrics: MLClassifierMetrics,
+        validationMetrics: MLClassifierMetrics,
+        modelParameters: CreateML.MLImageClassifier.ModelParameters,
+        scenePrintRevision: Int?,
+        trainingDurationSeconds: TimeInterval,
+        modelFilePath: String
+    ) -> BinaryTrainingResult {
+        let augmentationFinalDescription = if !modelParameters.augmentationOptions.isEmpty {
+            String(describing: modelParameters.augmentationOptions)
+        } else {
+            "なし"
+        }
+
+        let featureExtractorDescription = String(describing: modelParameters.featureExtractor)
+        let featureExtractorDesc: String = if let revision = scenePrintRevision {
+            "\(featureExtractorDescription)(revision: \(revision))"
+        } else {
+            featureExtractorDescription
+        }
+
+        let metadata = CICTrainingMetadata(
+            modelName: modelName,
+            trainingDurationInSeconds: trainingDurationSeconds,
+            trainedModelFilePath: modelFilePath,
+            sourceTrainingDataDirectoryPath: classLabelDirURLs[0].deletingLastPathComponent().path,
+            detectedClassLabelsList: classLabelDirURLs.map(\.lastPathComponent),
+            maxIterations: modelParameters.maxIterations,
+            dataAugmentationDescription: augmentationFinalDescription,
+            featureExtractorDescription: featureExtractorDesc
+        )
+
+        let confusionMatrix = CICBinaryConfusionMatrix(
+            dataTable: validationMetrics.confusion,
+            predictedColumn: "Predicted",
+            actualColumn: "True Label",
+            positiveClass: classLabelDirURLs[1].lastPathComponent
+        )
+
+        let individualModelReport = CICIndividualModelReport(
+            modelName: modelName,
+            positiveClassName: classLabelDirURLs[1].lastPathComponent,
+            trainingAccuracyRate: 1.0 - trainingMetrics.classificationError,
+            validationAccuracyPercentage: 1.0 - validationMetrics.classificationError,
+            confusionMatrix: confusionMatrix
+        )
+
+        return BinaryTrainingResult(
+            metadata: metadata,
+            trainingMetrics: (
+                accuracy: 1.0 - trainingMetrics.classificationError,
+                errorRate: trainingMetrics.classificationError
+            ),
+            validationMetrics: (
+                accuracy: 1.0 - validationMetrics.classificationError,
+                errorRate: validationMetrics.classificationError
+            ),
+            confusionMatrix: confusionMatrix,
+            individualModelReport: individualModelReport
+        )
     }
 }
