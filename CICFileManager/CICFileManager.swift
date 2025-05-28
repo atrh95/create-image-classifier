@@ -13,19 +13,26 @@ public class CICFileManager {
         classificationMethod: String,
         moduleOutputPath: String
     ) throws -> URL {
-        let outputDir = URL(fileURLWithPath: moduleOutputPath)
+        let baseDir = URL(fileURLWithPath: moduleOutputPath)
             .appendingPathComponent(modelName)
             .appendingPathComponent(version)
-            .appendingPathComponent(classificationMethod)
 
-        // 既存の実行を確認
-        var runIndex = 0
-        var finalOutputDir = outputDir
-        while fileManager.fileExists(atPath: finalOutputDir.path) {
-            runIndex += 1
-            finalOutputDir = outputDir.appendingPathComponent("run\(runIndex)")
+        // 親ディレクトリが存在しない場合は作成
+        if !fileManager.fileExists(atPath: baseDir.path) {
+            try fileManager.createDirectory(at: baseDir, withIntermediateDirectories: true)
         }
 
+        // 既存の実行を確認
+        var runIndex = 1
+        var finalOutputDir = baseDir.appendingPathComponent("\(classificationMethod)_Result_\(runIndex)")
+        
+        // 既存のディレクトリを確認
+        while fileManager.fileExists(atPath: finalOutputDir.path) {
+            runIndex += 1
+            finalOutputDir = baseDir.appendingPathComponent("\(classificationMethod)_Result_\(runIndex)")
+        }
+
+        // 最終的なディレクトリを作成
         try fileManager.createDirectory(at: finalOutputDir, withIntermediateDirectories: true)
         return finalOutputDir
     }

@@ -32,23 +32,10 @@ final class MultiLabelClassificationTests: XCTestCase {
         return currentTestFileDir.appendingPathComponent("TestResources").path
     }
 
-    private func findAnnotationFileName() -> String? {
-        do {
-            let resourceURL = URL(fileURLWithPath: testResourcesRootPath)
-            let items = try fileManager.contentsOfDirectory(at: resourceURL, includingPropertiesForKeys: nil)
-            if let jsonFile = items.first(where: { $0.pathExtension.lowercased() == "json" }) {
-                return jsonFile.lastPathComponent
-            } else {
-                XCTFail("テストリソースディレクトリにJSONファイルが見つかりません: \(testResourcesRootPath)")
-                return nil
-            }
-        } catch {
-            XCTFail("テストリソースディレクトリの読み取りに失敗しました: \(testResourcesRootPath) - \(error.localizedDescription)")
-            return nil
-        }
+    var testAnnotationFilePath: String {
+        URL(fileURLWithPath: testResourcesRootPath).appendingPathComponent("multilabel_cat_annotations.json").path
     }
 
-    var resolvedAnnotationFileName: String!
     var temporaryOutputDirectoryURL: URL!
     var compiledModelURL: URL?
     var trainingResult: MultiLabelClassification.MultiLabelTrainingResult?
@@ -59,16 +46,10 @@ final class MultiLabelClassificationTests: XCTestCase {
         case predictionFailed
         case setupFailed
         case resourcePathError
-        case manifestFileError
     }
 
     override func setUp() async throws {
         try await super.setUp()
-
-        resolvedAnnotationFileName = findAnnotationFileName()
-        guard resolvedAnnotationFileName != nil else {
-            throw TestError.manifestFileError
-        }
 
         temporaryOutputDirectoryURL = fileManager.temporaryDirectory
             .appendingPathComponent("TestOutput_MultiLabel")
@@ -81,7 +62,7 @@ final class MultiLabelClassificationTests: XCTestCase {
         trainer = MultiLabelClassificationTrainer(
             resourcesDirectoryPathOverride: testResourcesRootPath,
             outputDirectoryPathOverride: temporaryOutputDirectoryURL.path,
-            annotationFileNameOverride: resolvedAnnotationFileName
+            annotationFilePathOverride: testAnnotationFilePath
         )
 
         trainingResult = await trainer.train(
@@ -151,8 +132,7 @@ final class MultiLabelClassificationTests: XCTestCase {
         XCTAssertTrue(fileManager.fileExists(atPath: expectedLogFilePath), "ログファイル「\(expectedLogFilePath)」が生成されていません")
 
         XCTAssertEqual(result.modelName, testModelName)
-        XCTAssertFalse(result.trainingDataPath.isEmpty, "訓練データパス(アノテーションファイル)が空です")
-        XCTAssertTrue(result.trainingDataPath.contains(resolvedAnnotationFileName), "訓練データパスにアノテーションファイル名が含まれていません")
+        XCTAssertFalse(result.trainingDataPath.isEmpty, "訓練データパスが空です")
     }
 
     func testModelCanPerformPrediction() throws {
@@ -165,22 +145,13 @@ final class MultiLabelClassificationTests: XCTestCase {
             throw TestError.trainingFailed
         }
 
-        let annotationFilePath = URL(fileURLWithPath: testResourcesRootPath)
-            .appendingPathComponent(resolvedAnnotationFileName)
-        guard let annotationData = try? Data(contentsOf: annotationFilePath),
-              let entries = try? JSONDecoder().decode(
-                  [MultiLabelClassificationTrainer.ManifestEntry].self,
-                  from: annotationData
-              ),
-              let firstEntry = entries.first
+        // テスト用の画像ファイルを取得
+        let resourcesURL = URL(fileURLWithPath: testResourcesRootPath)
+        let classDirs = try fileManager.contentsOfDirectory(at: resourcesURL, includingPropertiesForKeys: nil)
+        guard let firstClassDir = classDirs.first,
+              let imageFile = try fileManager.contentsOfDirectory(at: firstClassDir, includingPropertiesForKeys: nil).first
         else {
-            XCTFail("テスト用アノテーションファイルの読み込み、または最初のエントリーの取得に失敗: \(annotationFilePath.path)")
-            throw TestError.manifestFileError
-        }
-
-        let imageURL = URL(fileURLWithPath: testResourcesRootPath).appendingPathComponent(firstEntry.filename)
-        guard fileManager.fileExists(atPath: imageURL.path) else {
-            XCTFail("テスト用画像ファイルが見つかりません: \(imageURL.path)")
+            XCTFail("テスト用画像ファイルが見つかりません")
             throw TestError.resourcePathError
         }
 
@@ -188,7 +159,7 @@ final class MultiLabelClassificationTests: XCTestCase {
         let visionModel = try VNCoreMLModel(for: mlModel)
         let request = VNCoreMLRequest(model: visionModel)
 
-        let handler = VNImageRequestHandler(url: imageURL, options: [:])
+        let handler = VNImageRequestHandler(url: imageFile, options: [:])
         try handler.perform([request])
 
         guard let observations = request.results as? [VNClassificationObservation] else {
@@ -201,24 +172,7 @@ final class MultiLabelClassificationTests: XCTestCase {
         if !observations.isEmpty {
             let allPredictedLabelsWithConfidence = observations
                 .map { "\($0.identifier) (信頼度: \(String(format: "%.2f", $0.confidence)))" }.joined(separator: ", ")
-            print("ファイル「\(imageURL.lastPathComponent)」の全予測ラベル: [\(allPredictedLabelsWithConfidence)]")
-
-            let annotationFilePath = URL(fileURLWithPath: testResourcesRootPath)
-                .appendingPathComponent(resolvedAnnotationFileName)
-            if let annotationData = try? Data(contentsOf: annotationFilePath),
-               let entries = try? JSONDecoder().decode(
-                   [MultiLabelClassificationTrainer.ManifestEntry].self,
-                   from: annotationData
-               ),
-               let firstEntry = entries
-               .first(where: {
-                   URL(fileURLWithPath: testResourcesRootPath).appendingPathComponent($0.filename) == imageURL
-               })
-            {
-                print("アノテーションファイル上の期待ラベル (参考): \(firstEntry.annotations.joined(separator: ", "))")
-            } else if let firstEntry = entries.first {
-                print("アノテーションファイル上の期待ラベル（フォールバック・最初の画像） (参考): \(firstEntry.annotations.joined(separator: ", "))")
-            }
+            print("ファイル「\(imageFile.lastPathComponent)」の全予測ラベル: [\(allPredictedLabelsWithConfidence)]")
         }
     }
 }

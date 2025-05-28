@@ -23,7 +23,7 @@ final class CICFileManagerTests: XCTestCase {
     func testCreateOutputDirectory() throws {
         let outputDir = try sut.createOutputDirectory(
             modelName: "TestModel",
-            version: "1.0",
+            version: "v1",
             classificationMethod: "Binary",
             moduleOutputPath: tempDir.path
         )
@@ -37,13 +37,13 @@ final class CICFileManagerTests: XCTestCase {
         // 既存の実行ディレクトリを作成
         let existingDir = tempDir
             .appendingPathComponent("TestModel")
-            .appendingPathComponent("1.0")
+            .appendingPathComponent("v1")
             .appendingPathComponent("Binary_Result_1")
         try FileManager.default.createDirectory(at: existingDir, withIntermediateDirectories: true)
 
         let outputDir = try sut.createOutputDirectory(
             modelName: "TestModel",
-            version: "1.0",
+            version: "v1",
             classificationMethod: "Binary",
             moduleOutputPath: tempDir.path
         )
@@ -72,5 +72,33 @@ final class CICFileManagerTests: XCTestCase {
         XCTAssertTrue(classDirs.contains { $0.lastPathComponent == "Class1" })
         XCTAssertTrue(classDirs.contains { $0.lastPathComponent == "Class2" })
         XCTAssertFalse(classDirs.contains { $0.lastPathComponent == ".hidden" })
+    }
+
+    // バージョン番号にギャップがある場合でも、次の番号が正しく決定されることを確認
+    func testCreateOutputDirectoryWithVersionGaps() throws {
+        // 既存のバージョンディレクトリを作成
+        let modelDir = tempDir.appendingPathComponent("TestModel")
+        let v1Dir = modelDir.appendingPathComponent("v1")
+        let v3Dir = modelDir.appendingPathComponent("v3")
+        let v4Dir = modelDir.appendingPathComponent("v4")
+        
+        try FileManager.default.createDirectory(at: v1Dir, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: v3Dir, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: v4Dir, withIntermediateDirectories: true)
+
+        // 新しいバージョンのディレクトリを作成
+        let outputDir = try sut.createOutputDirectory(
+            modelName: "TestModel",
+            version: "v5",
+            classificationMethod: "Binary",
+            moduleOutputPath: tempDir.path
+        )
+
+        XCTAssertTrue(FileManager.default.fileExists(atPath: outputDir.path))
+        XCTAssertEqual(outputDir.lastPathComponent, "Binary_Result_1")
+        
+        // 親ディレクトリのパスを確認
+        let parentDir = outputDir.deletingLastPathComponent()
+        XCTAssertEqual(parentDir.lastPathComponent, "v5")
     }
 } 

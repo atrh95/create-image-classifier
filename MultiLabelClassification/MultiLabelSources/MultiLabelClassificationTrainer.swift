@@ -10,6 +10,7 @@ public class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
     // DI 用のプロパティ
     private let resourcesDirectoryPathOverride: String?
     private let outputDirectoryPathOverride: String?
+    private let annotationFilePathOverride: String?
     private let fileManager: CICFileManager
 
     public var outputDirPath: String {
@@ -34,13 +35,33 @@ public class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
         return dir.appendingPathComponent("Resources").path
     }
 
+    public var annotationFilePath: String? {
+        if let overridePath = annotationFilePathOverride {
+            return overridePath
+        }
+        var dir = URL(fileURLWithPath: #filePath)
+        dir.deleteLastPathComponent()
+        dir.deleteLastPathComponent()
+        let resourcesDir = dir.appendingPathComponent("Resources")
+        
+        // Resourcesディレクトリ内のJSONファイルを探す
+        guard let files = try? FileManager.default.contentsOfDirectory(at: resourcesDir, includingPropertiesForKeys: nil) else {
+            return nil
+        }
+        
+        // 最初に見つかったJSONファイルのパスを返す
+        return files.first { $0.pathExtension.lowercased() == "json" }?.path
+    }
+
     public init(
         resourcesDirectoryPathOverride: String? = nil,
         outputDirectoryPathOverride: String? = nil,
+        annotationFilePathOverride: String? = nil,
         fileManager: CICFileManager = CICFileManager()
     ) {
         self.resourcesDirectoryPathOverride = resourcesDirectoryPathOverride
         self.outputDirectoryPathOverride = outputDirectoryPathOverride
+        self.annotationFilePathOverride = annotationFilePathOverride
         self.fileManager = fileManager
     }
 
