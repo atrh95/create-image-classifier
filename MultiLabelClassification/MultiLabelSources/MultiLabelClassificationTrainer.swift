@@ -89,34 +89,34 @@ public class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
         do {
             // クラスラベルディレクトリの取得
             let classLabelDirURLs = try getClassLabelDirectories()
-            
+
             // トレーニングデータの準備
             let trainingDataSource = try prepareTrainingData(from: classLabelDirURLs)
             print("📊 トレーニングデータソース作成完了")
-            
+
             // モデルのトレーニング
             let (imageClassifier, trainingDurationSeconds) = try trainModel(
                 trainingDataSource: trainingDataSource,
                 modelParameters: modelParameters
             )
-            
+
             let trainingMetrics = imageClassifier.trainingMetrics
             let validationMetrics = imageClassifier.validationMetrics
-            
+
             // 混同行列の計算
             let confusionMatrix = CICMultiClassConfusionMatrix(
                 dataTable: validationMetrics.confusion,
                 predictedColumn: "Predicted",
                 actualColumn: "True Label"
             )
-            
+
             // トレーニング結果の表示
             print("\n📊 トレーニング結果サマリー")
             print(String(
                 format: "  訓練正解率: %.1f%%",
                 (1.0 - trainingMetrics.classificationError) * 100.0
             ))
-            
+
             if let confusionMatrix {
                 print(String(
                     format: "  検証正解率: %.1f%%",
@@ -126,7 +126,7 @@ public class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
             } else {
                 print("⚠️ 警告: 検証データが不十分なため、混同行列の計算をスキップしました")
             }
-            
+
             // モデルのメタデータ作成
             let modelMetadata = createModelMetadata(
                 author: author,
@@ -137,10 +137,10 @@ public class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
                 modelParameters: modelParameters,
                 scenePrintRevision: scenePrintRevision
             )
-            
+
             // 出力ディレクトリの設定
             let outputDirectoryURL = try setupOutputDirectory(modelName: modelName, version: version)
-            
+
             let modelFilePath = try saveModel(
                 imageClassifier: imageClassifier,
                 modelName: modelName,
@@ -148,7 +148,7 @@ public class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
                 outputDirectoryURL: outputDirectoryURL,
                 metadata: modelMetadata
             )
-            
+
             return createTrainingResult(
                 modelName: modelName,
                 classLabelDirURLs: classLabelDirURLs,
@@ -159,7 +159,7 @@ public class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
                 trainingDurationSeconds: trainingDurationSeconds,
                 modelFilePath: modelFilePath
             )
-            
+
         } catch let createMLError as CreateML.MLCreateError {
             print("🛑 エラー: モデル [\(modelName)] のトレーニングまたは保存失敗 (CreateML): \(createMLError.localizedDescription)")
             print("詳細なエラー情報:")
@@ -188,13 +188,13 @@ public class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
     public func getClassLabelDirectories() throws -> [URL] {
         let classLabelDirURLs = try fileManager.getClassLabelDirectories(resourcesPath: resourcesDirectoryPath)
         print("📁 検出されたクラスラベルディレクトリ: \(classLabelDirURLs.map(\.lastPathComponent).joined(separator: ", "))")
-        
+
         guard classLabelDirURLs.count >= 2 else {
             throw NSError(domain: "MultiLabelClassificationTrainer", code: -1, userInfo: [
-                NSLocalizedDescriptionKey: "マルチラベル分類には2つ以上のクラスラベルディレクトリが必要です。現在 \(classLabelDirURLs.count)個。"
+                NSLocalizedDescriptionKey: "マルチラベル分類には2つ以上のクラスラベルディレクトリが必要です。現在 \(classLabelDirURLs.count)個。",
             ])
         }
-        
+
         return classLabelDirURLs
     }
 
@@ -261,11 +261,11 @@ public class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
     ) throws -> String {
         let modelFileName = "\(modelName)_\(classificationMethod)_\(version).mlmodel"
         let modelFilePath = outputDirectoryURL.appendingPathComponent(modelFileName).path
-        
+
         print("💾 モデルファイル保存中: \(modelFilePath)")
         try imageClassifier.write(to: URL(fileURLWithPath: modelFilePath), metadata: metadata)
         print("✅ モデルファイル保存完了")
-        
+
         return modelFilePath
     }
 

@@ -13,11 +13,10 @@ final class CICMultiClassConfusionMatrixTests: XCTestCase {
 
         for (actualIndex, actualLabel) in labels.enumerated() {
             for (predictedIndex, predictedLabel) in labels.enumerated() {
-                let count = matrix[actualIndex][predictedIndex]
-                if count > 0 {
+                if matrix[actualIndex][predictedIndex] > 0 {
                     predictedValues.append(predictedLabel)
                     actualValues.append(actualLabel)
-                    countValues.append(count)
+                    countValues.append(matrix[actualIndex][predictedIndex])
                 }
             }
         }

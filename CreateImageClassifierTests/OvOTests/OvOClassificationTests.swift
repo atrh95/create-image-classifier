@@ -146,7 +146,8 @@ final class OvOClassificationTests: XCTestCase {
 
         let imageURL: URL
         do {
-            imageURL = try getRandomImageURLFromTestResources(inBaseDirectory: URL(fileURLWithPath: testResourcesRootPath))
+            imageURL =
+                try getRandomImageURLFromTestResources(inBaseDirectory: URL(fileURLWithPath: testResourcesRootPath))
         } catch {
             XCTFail("テストリソースからのランダム画像取得失敗。エラー: \(error.localizedDescription)")
             throw error
