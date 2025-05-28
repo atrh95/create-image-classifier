@@ -1,7 +1,7 @@
 import BinaryClassification
+import CICInterface
 import CreateML
 import CreateMLComponents
-import CSInterface
 import Foundation
 import MultiClassClassification
 import MultiLabelClassification
@@ -61,7 +61,7 @@ let semaphore = DispatchSemaphore(value: 0)
 
 Task {
     let selectedModel: MLModelType = .scaryCatScreeningML
-    let selectedTrainer: TrainerType = .multiLabel
+    let selectedTrainer: TrainerType = .binary
     let author = "akitora"
     let trainingCount = 1
 

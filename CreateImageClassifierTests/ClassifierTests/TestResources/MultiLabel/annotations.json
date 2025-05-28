@@ -1,0 +1,26 @@
+[
+    {
+        "filename": "black_and_white/cat_ol_ml.jpg",
+        "annotations": [
+            "black_and_white"
+        ]
+    },
+    {
+        "filename": "mouth_open/cat_gs_ml.jpg",
+        "annotations": [
+            "mouth_open"
+        ]
+    },
+    {
+        "filename": "sphynx/istockphoto-635681672-612x612_ml.jpg",
+        "annotations": [
+            "sphynx"
+        ]
+    },
+    {
+        "filename": "human_hands_detected/cat_e82_ml.jpg",
+        "annotations": [
+            "human_hands_detected"
+        ]
+    }
+]

@@ -1,8 +1,8 @@
-# TrainCatScreeningML
+# Create Image Classifier
 
 ## 概要
 
-TrainCatScreeningML は、AppleのCoreMLおよびCreateMLフレームワークを利用して猫の画像を分類するための機械学習ツールです。
+Create Image Classifier は、AppleのCoreMLおよびCreateMLフレームワークを利用して猫の画像を分類するための機械学習ツールです。
 
 主な目的は、猫の画像が特定の特徴（例 口を開けているか、人間の手が写っているかなど）を持つかどうかを識別する機械学習モデルのトレーニングのための構造化された仕組みを提供することです。
 
@@ -10,8 +10,7 @@ TrainCatScreeningML は、AppleのCoreMLおよびCreateMLフレームワーク�
 
 ## 設計
 
-TrainCatScreeningMLは、Swiftアプリケーションに典型的なモジュラーでプロトコル指向の設計パターンを採用しています。
-システムは、`main.swift`から5つの分類フレームワークのいずれかを選択して実行します。各フレームワークは特化した分類アプローチを実装しつつ、共通のインターフェースとして`SCSInterface`に依存しています。
+Swiftアプリケーションに典型的なモジュラーでプロトコル指向の設計パターンを採用しており、`main.swift`から5つの分類フレームワークのいずれかを選択して実行します。各フレームワークは特化した分類アプローチを実装しつつ、共通のインターフェースとして`CICInterface`に依存しています。
 
 主要なプロトコルとして以下が定義されています。
 *   `ScreeningTrainerProtocol` 全てのトレーナー実装のためのインターフェースを定義します。
@@ -21,46 +20,90 @@ TrainCatScreeningMLは、Swiftアプリケーションに典型的なモジュ�
 
 ```
 .
-├── CSInterface/
-├── CSConfusionMatrix/
-├── BinaryClassification/
-│   ├── BinarySources/
-│   ├── OutputModels/
-│   └── Resources/
-├── MultiClassClassification/
-│   └── ...
-├── MultiLabelClassification/
-│   └── ...
-├── OvRClassification/
-│   └── ...
-├── OvOClassification/
-│   └── ...
-├── UnitTests/
-│   ├── CSConfusionMatrixTests/
-│   ├── BinaryTests/
-│   ├── MultiClassTests/
-│   ├── MultiLabelTests/
-│   ├── OvRTests/
-│   └── OvOTests/
 ├── main.swift
-├── Mintfile
-├── .swiftformat
-├── .swiftlint.yml
-├── .gitignore
-├── project.yml
-└── README.md
+├── CICInterface/
+├── CICConfusionMatrix/
+├── CICFileManager/
+├── CICTrainingResult/
+├── CICResources/
+│   ├── BinaryResources/
+│   ├── MultiClassResources/
+│   ├── MultiLabelResources/
+│   ├── OvOResources/
+│   └── OvRResources/
+├── CICOutputModels/
+├── Classifiers/
+│   ├── BinaryClassifier/
+│   ├── MultiClassifier/
+│   ├── MultiLabelClassifier/
+│   ├── OvRClassifier/
+│   └── OvOClassifier/
+└── CreateImageClassifierTests/
 ```
+
+## 各モジュールの説明
+
+### コアモジュール
+- `CICInterface`: 分類器のインターフェース定義
+- `CICConfusionMatrix`: 混同行列の実装
+- `CICFileManager`: ファイル操作の管理
+- `CICTrainingResult`: 学習結果の管理
+- `CICResourceProvider`: リソースファイルの管理
+- `CICOutputModels`: 出力モデルの定義
+
+### 分類器モジュール
+各分類器は`CICInterface`を実装し、独自の分類ロジックを提供します。
+
+#### バイナリ分類
+- 2クラス分類（例：猫/犬）
+- 出力：確率値（0-1）
+
+#### マルチクラス分類
+- 複数クラスからの1クラス選択
+- 出力：各クラスの確率分布
+
+#### マルチラベル分類
+- 複数クラスの同時分類
+- 出力：各クラスの有無（0/1）
+
+#### One-vs-Rest分類
+- 各クラスを「そのクラス」と「その他」の2クラスに分けて学習
+- 出力：各クラスの確率分布
+
+#### One-vs-One分類
+- クラス間のペアごとに2クラス分類器を学習
+- 出力：各クラスの確率分布
+
+## リソース管理
+
+各分類器は独自のリソースディレクトリを持ち、`CICResourceProvider`を通じてアクセスします：
+
+- `BinaryResources`: バイナリ分類用の画像リソース
+- `MultiClassResources`: マルチクラス分類用の画像リソース
+- `MultiLabelResources`: マルチラベル分類用の画像リソース
+- `OvRResources`: One-vs-Rest分類用の画像リソース
+- `OvOResources`: One-vs-One分類用の画像リソース
+
+## 使用方法
+
+1. 画像リソースを適切なディレクトリに配置
+2. 分類器を初期化
+3. 学習を実行
+4. 結果を取得
+
+## テスト
+
+`CreateImageClassifierTests`ディレクトリに各モジュールのテストが含まれています。
 
 ## 技術スタック
 
 *   **言語** Swift
 *   **フレームワーク** CoreML, CreateML
-*   **共通のインターフェース** `CSInterface`
 *   **プロジェクト管理** `project.yml`
 
 ## 主要機能
 
-TrainCatScreeningMLは、以下の5つの異なる分類アプローチをサポートします。
+Create Image Classifierは、以下の5つの異なる分類アプローチをサポートします。
 
 | 分類タイプ                  | 説明                                                                 | ユースケース                                                                   |
 | --------------------------- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------ |

@@ -1,0 +1,482 @@
+[
+    {
+        "filename": "black_and_white/cat_egn.jpg",
+        "annotations": [
+            "black_and_white"
+        ]
+    },
+    {
+        "filename": "black_and_white/cat_egi.jpg",
+        "annotations": [
+            "black_and_white"
+        ]
+    },
+    {
+        "filename": "black_and_white/cat_cua.jpg",
+        "annotations": [
+            "black_and_white"
+        ]
+    },
+    {
+        "filename": "black_and_white/cat_cjd.jpg",
+        "annotations": [
+            "black_and_white"
+        ]
+    },
+    {
+        "filename": "black_and_white/cat_cmv.jpg",
+        "annotations": [
+            "black_and_white"
+        ]
+    },
+    {
+        "filename": "black_and_white/cat_c04.jpg",
+        "annotations": [
+            "black_and_white"
+        ]
+    },
+    {
+        "filename": "black_and_white/cat_ave.jpg",
+        "annotations": [
+            "black_and_white"
+        ]
+    },
+    {
+        "filename": "black_and_white/cat_aue.jpg",
+        "annotations": [
+            "black_and_white"
+        ]
+    },
+    {
+        "filename": "black_and_white/cat_a01.jpg",
+        "annotations": [
+            "black_and_white"
+        ]
+    },
+    {
+        "filename": "black_and_white/cat_aol.jpg",
+        "annotations": [
+            "black_and_white"
+        ]
+    },
+    {
+        "filename": "black_and_white/cat_MjA2NDk2MQ.jpg",
+        "annotations": [
+            "black_and_white"
+        ]
+    },
+    {
+        "filename": "black_and_white/cat_MjA3MzYxNQ.jpg",
+        "annotations": [
+            "black_and_white"
+        ]
+    },
+    {
+        "filename": "black_and_white/cat_MTgyMTY5Nw.jpg",
+        "annotations": [
+            "black_and_white"
+        ]
+    },
+    {
+        "filename": "black_and_white/cat_9uk.jpg",
+        "annotations": [
+            "black_and_white"
+        ]
+    },
+    {
+        "filename": "black_and_white/cat_9bp.jpg",
+        "annotations": [
+            "black_and_white"
+        ]
+    },
+    {
+        "filename": "black_and_white/cat_6mt.jpg",
+        "annotations": [
+            "black_and_white"
+        ]
+    },
+    {
+        "filename": "black_and_white/cat_76j.jpg",
+        "annotations": [
+            "black_and_white"
+        ]
+    },
+    {
+        "filename": "black_and_white/cat_7r6.jpg",
+        "annotations": [
+            "black_and_white"
+        ]
+    },
+    {
+        "filename": "black_and_white/cat_2bc.jpg",
+        "annotations": [
+            "black_and_white"
+        ]
+    },
+    {
+        "filename": "black_and_white/cat_40g.jpg",
+        "annotations": [
+            "black_and_white"
+        ]
+    },
+    {
+        "filename": "human_hands_detected/cat_dl4.jpg",
+        "annotations": [
+            "human_hands_detected"
+        ]
+    },
+    {
+        "filename": "human_hands_detected/cat_cge.jpg",
+        "annotations": [
+            "human_hands_detected"
+        ]
+    },
+    {
+        "filename": "human_hands_detected/cat_d1u.jpg",
+        "annotations": [
+            "human_hands_detected"
+        ]
+    },
+    {
+        "filename": "human_hands_detected/cat_bfc.jpg",
+        "annotations": [
+            "human_hands_detected"
+        ]
+    },
+    {
+        "filename": "human_hands_detected/cat_bhk.jpg",
+        "annotations": [
+            "human_hands_detected"
+        ]
+    },
+    {
+        "filename": "human_hands_detected/cat_atr.jpg",
+        "annotations": [
+            "human_hands_detected"
+        ]
+    },
+    {
+        "filename": "human_hands_detected/cat_baj.jpg",
+        "annotations": [
+            "human_hands_detected"
+        ]
+    },
+    {
+        "filename": "human_hands_detected/cat_a17.jpg",
+        "annotations": [
+            "human_hands_detected"
+        ]
+    },
+    {
+        "filename": "human_hands_detected/cat_MTk1NjM4MA.jpg",
+        "annotations": [
+            "human_hands_detected"
+        ]
+    },
+    {
+        "filename": "human_hands_detected/cat_MTU2MDA2Mg.jpg",
+        "annotations": [
+            "human_hands_detected"
+        ]
+    },
+    {
+        "filename": "human_hands_detected/cat_9q.jpg",
+        "annotations": [
+            "human_hands_detected"
+        ]
+    },
+    {
+        "filename": "human_hands_detected/cat_9sj.jpg",
+        "annotations": [
+            "human_hands_detected"
+        ]
+    },
+    {
+        "filename": "human_hands_detected/cat_7rh.jpg",
+        "annotations": [
+            "human_hands_detected"
+        ]
+    },
+    {
+        "filename": "human_hands_detected/cat_2f9.jpg",
+        "annotations": [
+            "human_hands_detected"
+        ]
+    },
+    {
+        "filename": "human_hands_detected/cat_3qf.jpg",
+        "annotations": [
+            "human_hands_detected"
+        ]
+    },
+    {
+        "filename": "human_hands_detected/cat_5af.jpg",
+        "annotations": [
+            "human_hands_detected"
+        ]
+    },
+    {
+        "filename": "human_hands_detected/cat_6nn.jpg",
+        "annotations": [
+            "human_hands_detected"
+        ]
+    },
+    {
+        "filename": "human_hands_detected/cat_1e6.jpg",
+        "annotations": [
+            "human_hands_detected"
+        ]
+    },
+    {
+        "filename": "human_hands_detected/cat_1tv.jpg",
+        "annotations": [
+            "human_hands_detected"
+        ]
+    },
+    {
+        "filename": "human_hands_detected/cat_2ap.jpg",
+        "annotations": [
+            "human_hands_detected"
+        ]
+    },
+    {
+        "filename": "mouth_open/cat_gs.jpg",
+        "annotations": [
+            "mouth_open"
+        ]
+    },
+    {
+        "filename": "mouth_open/cat_e48.jpg",
+        "annotations": [
+            "mouth_open"
+        ]
+    },
+    {
+        "filename": "mouth_open/cat_e4p.jpg",
+        "annotations": [
+            "mouth_open"
+        ]
+    },
+    {
+        "filename": "mouth_open/cat_e1e.jpg",
+        "annotations": [
+            "mouth_open"
+        ]
+    },
+    {
+        "filename": "mouth_open/cat_bo8.jpg",
+        "annotations": [
+            "mouth_open"
+        ]
+    },
+    {
+        "filename": "mouth_open/cat_bpk.jpg",
+        "annotations": [
+            "mouth_open"
+        ]
+    },
+    {
+        "filename": "mouth_open/cat_b73.jpg",
+        "annotations": [
+            "mouth_open"
+        ]
+    },
+    {
+        "filename": "mouth_open/cat_bhl.jpg",
+        "annotations": [
+            "mouth_open"
+        ]
+    },
+    {
+        "filename": "mouth_open/cat_a94.jpg",
+        "annotations": [
+            "mouth_open"
+        ]
+    },
+    {
+        "filename": "mouth_open/cat_MTc5OTc4Ng.jpg",
+        "annotations": [
+            "mouth_open"
+        ]
+    },
+    {
+        "filename": "mouth_open/cat_MTY4OTE5Mw.jpg",
+        "annotations": [
+            "mouth_open"
+        ]
+    },
+    {
+        "filename": "mouth_open/cat_MTYzNDQ0OA.jpg",
+        "annotations": [
+            "mouth_open"
+        ]
+    },
+    {
+        "filename": "mouth_open/cat_MTc5NTYxNg.jpg",
+        "annotations": [
+            "mouth_open"
+        ]
+    },
+    {
+        "filename": "mouth_open/cat_86a.jpg",
+        "annotations": [
+            "mouth_open"
+        ]
+    },
+    {
+        "filename": "mouth_open/cat_MTU2Mjk2NA.jpg",
+        "annotations": [
+            "mouth_open"
+        ]
+    },
+    {
+        "filename": "mouth_open/cat_5ao.jpg",
+        "annotations": [
+            "mouth_open"
+        ]
+    },
+    {
+        "filename": "mouth_open/cat_59u.jpg",
+        "annotations": [
+            "mouth_open"
+        ]
+    },
+    {
+        "filename": "mouth_open/cat_256.jpg",
+        "annotations": [
+            "mouth_open"
+        ]
+    },
+    {
+        "filename": "mouth_open/cat_23q.jpg",
+        "annotations": [
+            "mouth_open"
+        ]
+    },
+    {
+        "filename": "mouth_open/cat_181.jpg",
+        "annotations": [
+            "mouth_open"
+        ]
+    },
+    {
+        "filename": "sphynx/istockphoto-635681672-612x612.jpg",
+        "annotations": [
+            "sphynx"
+        ]
+    },
+    {
+        "filename": "sphynx/istockphoto-488000887-612x612.jpg",
+        "annotations": [
+            "sphynx"
+        ]
+    },
+    {
+        "filename": "sphynx/istockphoto-511646603-612x612.jpg",
+        "annotations": [
+            "sphynx"
+        ]
+    },
+    {
+        "filename": "sphynx/istockphoto-543829142-612x612.jpg",
+        "annotations": [
+            "sphynx"
+        ]
+    },
+    {
+        "filename": "sphynx/istockphoto-1619280375-612x612.jpg",
+        "annotations": [
+            "sphynx"
+        ]
+    },
+    {
+        "filename": "sphynx/istockphoto-166425942-612x612.jpg",
+        "annotations": [
+            "sphynx"
+        ]
+    },
+    {
+        "filename": "sphynx/istockphoto-480784132-612x612.jpg",
+        "annotations": [
+            "sphynx"
+        ]
+    },
+    {
+        "filename": "sphynx/istockphoto-1353440020-612x612.jpg",
+        "annotations": [
+            "sphynx"
+        ]
+    },
+    {
+        "filename": "sphynx/istockphoto-1353611949-612x612.jpg",
+        "annotations": [
+            "sphynx"
+        ]
+    },
+    {
+        "filename": "sphynx/istockphoto-1161383617-612x612.jpg",
+        "annotations": [
+            "sphynx"
+        ]
+    },
+    {
+        "filename": "sphynx/istockphoto-1266456282-612x612.jpg",
+        "annotations": [
+            "sphynx"
+        ]
+    },
+    {
+        "filename": "sphynx/istockphoto-1333808122-612x612.jpg",
+        "annotations": [
+            "sphynx"
+        ]
+    },
+    {
+        "filename": "sphynx/istockphoto-1352056654-612x612.jpg",
+        "annotations": [
+            "sphynx"
+        ]
+    },
+    {
+        "filename": "sphynx/cat_e83.jpg",
+        "annotations": [
+            "sphynx"
+        ]
+    },
+    {
+        "filename": "sphynx/istockphoto-1158568374-612x612.jpg",
+        "annotations": [
+            "sphynx"
+        ]
+    },
+    {
+        "filename": "sphynx/cat_MTc5NzMzNg.jpg",
+        "annotations": [
+            "sphynx"
+        ]
+    },
+    {
+        "filename": "sphynx/cat_5ev.jpg",
+        "annotations": [
+            "sphynx"
+        ]
+    },
+    {
+        "filename": "sphynx/OIP.1BDiv8j46sWfDbXX5f2-1QHaF4.jpeg",
+        "annotations": [
+            "sphynx"
+        ]
+    },
+    {
+        "filename": "sphynx/OIP.V8Pvyc0L1G_C9kedcjvF0AHaE0.jpeg",
+        "annotations": [
+            "sphynx"
+        ]
+    },
+    {
+        "filename": "sphynx/OIP.XJIO-3EEo5kT3lj65yu_-wHaHa.jpeg",
+        "annotations": [
+            "sphynx"
+        ]
+    }
+]
