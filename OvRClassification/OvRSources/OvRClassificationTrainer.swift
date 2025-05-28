@@ -94,7 +94,7 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
             if let confusionMatrix {
                 print(String(
                     format: "  検証正解率: %.1f%%",
-                    confusionMatrix.accuracy * 100.0
+                    (1.0 - validationMetrics.classificationError) * 100.0
                 ))
                 print(confusionMatrix.getMatrixGraph())
             } else {
@@ -293,7 +293,8 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
                 accuracy: 1.0 - validationMetrics.classificationError,
                 errorRate: validationMetrics.classificationError
             ),
-            confusionMatrix: confusionMatrix
+            confusionMatrix: confusionMatrix,
+            individualModelReports: []
         )
     }
 }

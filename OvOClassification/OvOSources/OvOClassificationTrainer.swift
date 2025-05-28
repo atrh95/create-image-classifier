@@ -94,7 +94,7 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
             if let confusionMatrix {
                 print(String(
                     format: "  検証正解率: %.1f%%",
-                    confusionMatrix.accuracy * 100.0
+                    (1.0 - validationMetrics.classificationError) * 100.0
                 ))
                 print(confusionMatrix.getMatrixGraph())
             } else {
@@ -234,13 +234,13 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
         metadata: MLModelMetadata
     ) throws -> String {
         let modelFileName = "\(modelName)_\(classificationMethod)_\(version).mlmodel"
-        let modelFilePath = outputDirectoryURL.appendingPathComponent(modelFileName).path
+        let modelFileURL = outputDirectoryURL.appendingPathComponent(modelFileName)
         
-        print("💾 モデルファイル保存中: \(modelFilePath)")
-        try imageClassifier.write(to: URL(fileURLWithPath: modelFilePath), metadata: metadata)
+        print("💾 モデルファイル保存中: \(modelFileURL.path)")
+        try imageClassifier.write(to: modelFileURL, metadata: metadata)
         print("✅ モデルファイル保存完了")
         
-        return modelFilePath
+        return modelFileURL.path
     }
 
     public func createTrainingResult(
@@ -293,7 +293,8 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
                 accuracy: 1.0 - validationMetrics.classificationError,
                 errorRate: validationMetrics.classificationError
             ),
-            confusionMatrix: confusionMatrix
+            confusionMatrix: confusionMatrix,
+            individualModelReports: []
         )
     }
 }

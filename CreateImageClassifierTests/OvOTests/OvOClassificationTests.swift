@@ -128,31 +128,25 @@ final class OvOClassificationTests: XCTestCase {
             throw TestError.trainingFailed
         }
 
-        let modelOutputDir = URL(fileURLWithPath: result.metadata.trainedModelFilePath)
-        let contents = try fileManager.contentsOfDirectory(
-            at: modelOutputDir,
-            includingPropertiesForKeys: nil,
-            options: []
-        )
-        guard let firstMlModelURL = contents.first(where: { $0.pathExtension == "mlmodel" }) else {
-            XCTFail("出力ディレクトリ「\(modelOutputDir.path)」にコンパイル可能な .mlmodel ファイルが見つかりません")
+        let modelFilePath = result.metadata.trainedModelFilePath
+        guard fileManager.fileExists(atPath: modelFilePath) else {
+            XCTFail("モデルファイルが見つかりません: \(modelFilePath)")
             throw TestError.modelFileMissing
         }
 
-        print("Attempting to compile model: \(firstMlModelURL.path)")
+        print("Attempting to compile model: \(modelFilePath)")
         let specificCompiledModelURL: URL
         do {
-            specificCompiledModelURL = try await MLModel.compileModel(at: firstMlModelURL)
+            specificCompiledModelURL = try await MLModel.compileModel(at: URL(fileURLWithPath: modelFilePath))
             compiledModelURL = specificCompiledModelURL
         } catch {
-            XCTFail("選択されたモデルのコンパイル失敗 (\(firstMlModelURL.path)): \(error.localizedDescription)")
+            XCTFail("モデルのコンパイル失敗 (\(modelFilePath)): \(error.localizedDescription)")
             throw TestError.modelFileMissing
         }
 
         let imageURL: URL
         do {
-            imageURL =
-                try getRandomImageURLFromTestResources(inBaseDirectory: URL(fileURLWithPath: testResourcesRootPath))
+            imageURL = try getRandomImageURLFromTestResources(inBaseDirectory: URL(fileURLWithPath: testResourcesRootPath))
         } catch {
             XCTFail("テストリソースからのランダム画像取得失敗。エラー: \(error.localizedDescription)")
             throw error
@@ -181,11 +175,11 @@ final class OvOClassificationTests: XCTestCase {
 
             if let topResult = observations.first {
                 print(
-                    "OvO Top prediction for \(imageURL.lastPathComponent) using \(firstMlModelURL.lastPathComponent): \(topResult.identifier) with confidence \(topResult.confidence)"
+                    "OvO Top prediction for \(imageURL.lastPathComponent) using \(URL(fileURLWithPath: modelFilePath).lastPathComponent): \(topResult.identifier) with confidence \(topResult.confidence)"
                 )
             } else {
                 print(
-                    "OvO prediction for \(imageURL.lastPathComponent) using \(firstMlModelURL.lastPathComponent): No observations found, though this should have been caught by XCTAssertFalse."
+                    "OvO prediction for \(imageURL.lastPathComponent) using \(URL(fileURLWithPath: modelFilePath).lastPathComponent): No observations found, though this should have been caught by XCTAssertFalse."
                 )
             }
         }
