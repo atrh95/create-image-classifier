@@ -2,6 +2,7 @@ import CoreML
 import CreateML
 import CICConfusionMatrix
 import CICInterface
+import CICFileManager
 import Foundation
 
 public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
@@ -9,6 +10,7 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
 
     private let resourcesDirectoryPathOverride: String?
     private let outputDirectoryPathOverride: String?
+    private let fileManager: CICFileManager
 
     public var outputDirPath: String {
         if let overridePath = outputDirectoryPathOverride {
@@ -32,46 +34,10 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
         return dir.appendingPathComponent("Resources").path
     }
 
-    public init(resourcesDirectoryPathOverride: String? = nil, outputDirectoryPathOverride: String? = nil) {
+    public init(resourcesDirectoryPathOverride: String? = nil, outputDirectoryPathOverride: String? = nil, fileManager: CICFileManager = CICFileManager()) {
         self.resourcesDirectoryPathOverride = resourcesDirectoryPathOverride
         self.outputDirectoryPathOverride = outputDirectoryPathOverride
-    }
-
-    private func createOutputDirectory(modelName: String, version: String) throws -> URL {
-        let baseDirURL = URL(fileURLWithPath: outputDirPath)
-            .appendingPathComponent(modelName)
-            .appendingPathComponent(version)
-
-        let fileManager = FileManager.default
-        var resultNumber = 1
-
-        // 既存のディレクトリを確認して次の番号を決定
-        do {
-            let contents = try fileManager.contentsOfDirectory(at: baseDirURL, includingPropertiesForKeys: nil)
-            let existingNumbers = contents.compactMap { url -> Int? in
-                let dirName = url.lastPathComponent
-                guard dirName.hasPrefix("\(classificationMethod)_Result_") else { return nil }
-                let numberStr = dirName.replacingOccurrences(of: "\(classificationMethod)_Result_", with: "")
-                return Int(numberStr)
-            }
-
-            if let maxNumber = existingNumbers.max() {
-                resultNumber = maxNumber + 1
-            }
-        } catch {
-            // ディレクトリが存在しない場合は1から開始
-            resultNumber = 1
-        }
-
-        let outputDirURL = baseDirURL.appendingPathComponent("\(classificationMethod)_Result_\(resultNumber)")
-
-        try fileManager.createDirectory(
-            at: outputDirURL,
-            withIntermediateDirectories: true,
-            attributes: nil
-        )
-
-        return outputDirURL
+        self.fileManager = fileManager
     }
 
     public func train(
@@ -89,9 +55,11 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
         // 出力ディレクトリ設定
         let outputDirectoryURL: URL
         do {
-            outputDirectoryURL = try createOutputDirectory(
+            outputDirectoryURL = try fileManager.createOutputDirectory(
                 modelName: modelName,
-                version: version
+                version: version,
+                classificationMethod: classificationMethod,
+                moduleOutputPath: outputDirPath
             )
             print("📁 出力ディレクトリ作成成功: \(outputDirectoryURL.path)")
         } catch {
@@ -103,15 +71,7 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
 
         let classLabelDirURLs: [URL]
         do {
-            classLabelDirURLs = try FileManager.default.contentsOfDirectory(
-                at: resourcesDirURL,
-                includingPropertiesForKeys: [.isDirectoryKey],
-                options: .skipsHiddenFiles
-            ).filter { url in
-                var isDirectory: ObjCBool = false
-                FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory)
-                return isDirectory.boolValue && !url.lastPathComponent.hasPrefix(".")
-            }
+            classLabelDirURLs = try fileManager.getClassLabelDirectories(resourcesPath: resourcesPath)
             print("📁 検出されたクラスラベルディレクトリ: \(classLabelDirURLs.map(\.lastPathComponent).joined(separator: ", "))")
         } catch {
             print("🛑 エラー: リソースディレクトリ内ラベルディレクトリ取得失敗: \(error.localizedDescription)")

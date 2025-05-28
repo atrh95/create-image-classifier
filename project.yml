@@ -46,6 +46,7 @@ targets:
       - target: MultiLabelClassification
       - target: OvRClassification
       - target: OvOClassification
+      - target: CICFileManager
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.CreateImageClassifierTests
@@ -80,6 +81,19 @@ targets:
         CODE_SIGNING_ALLOWED: NO
         CODE_SIGNING_REQUIRED: NO
 
+  CICFileManager:
+    type: framework
+    platform: macOS
+    sources:
+      - path: CICFileManager
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.CICFileManager
+        MACOSX_DEPLOYMENT_TARGET: "15.2"
+        DEFINES_MODULE: "YES"
+        CODE_SIGNING_ALLOWED: NO
+        CODE_SIGNING_REQUIRED: NO
+
   BinaryClassification:
     type: framework
     platform: macOS
@@ -90,6 +104,7 @@ targets:
     dependencies:
       - target: CICInterface
       - target: CICConfusionMatrix
+      - target: CICFileManager
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.BinaryClassification
@@ -107,6 +122,7 @@ targets:
     dependencies:
       - target: CICInterface
       - target: CICConfusionMatrix
+      - target: CICFileManager
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.MultiClassClassification
@@ -124,6 +140,7 @@ targets:
     dependencies:
       - target: CICInterface
       - target: CICConfusionMatrix
+      - target: CICFileManager
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.MultiLabelClassification
@@ -142,6 +159,7 @@ targets:
     dependencies:
       - target: CICInterface
       - target: CICConfusionMatrix
+      - target: CICFileManager
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.OvRClassification
@@ -159,6 +177,7 @@ targets:
     dependencies:
       - target: CICInterface
       - target: CICConfusionMatrix
+      - target: CICFileManager
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.OvOClassification
