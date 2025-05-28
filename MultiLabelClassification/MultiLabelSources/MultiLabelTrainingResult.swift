@@ -4,48 +4,28 @@ import CICTrainingResult
 import Foundation
 
 public struct MultiLabelTrainingResult: TrainingResultProtocol {
-    // メタデータ
     public let metadata: CICTrainingMetadata
-
-    // パフォーマンス指標
     public let trainingMetrics: (accuracy: Double, errorRate: Double)
     public let validationMetrics: (accuracy: Double, errorRate: Double)
-
-    // 詳細な性能指標
-    public let confusionMatrix: CSMultiLabelConfusionMatrix?
-    public let labelMetrics: [LabelMetrics]
+    public let confusionMatrix: CICMultiClassConfusionMatrix?
+    public let individualModelReports: [CICIndividualModelReport]
 
     public var modelOutputPath: String {
         URL(fileURLWithPath: metadata.trainedModelFilePath).deletingLastPathComponent().path
     }
 
     public init(
-        modelName: String,
-        modelOutputPath: String,
-        trainingDataPath: String,
-        classLabels: [String],
-        maxIterations: Int,
-        dataAugmentationDescription: String,
-        featureExtractorDescription: String,
+        metadata: CICTrainingMetadata,
         trainingMetrics: (accuracy: Double, errorRate: Double),
         validationMetrics: (accuracy: Double, errorRate: Double),
-        trainingDurationInSeconds: TimeInterval,
-        confusionMatrix: CSMultiLabelConfusionMatrix?
+        confusionMatrix: CICMultiClassConfusionMatrix?,
+        individualModelReports: [CICIndividualModelReport]
     ) {
-        self.metadata = CICTrainingMetadata(
-            modelName: modelName,
-            trainingDurationInSeconds: trainingDurationInSeconds,
-            trainedModelFilePath: modelOutputPath,
-            sourceTrainingDataDirectoryPath: trainingDataPath,
-            detectedClassLabelsList: classLabels,
-            maxIterations: maxIterations,
-            dataAugmentationDescription: dataAugmentationDescription,
-            featureExtractorDescription: featureExtractorDescription
-        )
+        self.metadata = metadata
         self.trainingMetrics = trainingMetrics
         self.validationMetrics = validationMetrics
         self.confusionMatrix = confusionMatrix
-        self.labelMetrics = confusionMatrix?.calculateMetrics() ?? []
+        self.individualModelReports = individualModelReports
     }
 
     public func saveLog(
@@ -87,31 +67,17 @@ public struct MultiLabelTrainingResult: TrainingResultProtocol {
 
         if let confusionMatrix {
             markdownText += """
-            ## ラベル別性能指標
-            \(labelMetrics.map { metric in
-                var metrics = [String]()
-                if let recall = metric.recall {
-                    metrics.append("再現率: \(String(format: "%.1f%%", recall * 100.0))")
-                }
-                if let precision = metric.precision {
-                    metrics.append("適合率: \(String(format: "%.1f%%", precision * 100.0))")
-                }
-                if let f1Score = metric.f1Score {
-                    metrics.append("F1スコア: \(String(format: "%.1f%%", f1Score * 100.0))")
-                }
-                return """
-
-                ### \(metric.label)
-                \(metrics.joined(separator: ", "))
-                """
-            }.joined(separator: "\n"))
-
             ## 混同行列
             \(confusionMatrix.getMatrixGraph())
             """
         }
 
         markdownText += """
+
+        ## 個別モデルの性能指標
+        \(individualModelReports.map { report in
+            report.generateMarkdownReport()
+        }.joined(separator: "\n"))
 
         ## モデルメタデータ
         作成者            : \(modelAuthor)

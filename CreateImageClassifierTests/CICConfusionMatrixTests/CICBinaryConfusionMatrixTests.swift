@@ -1,8 +1,8 @@
+import CICConfusionMatrix
 import CreateML
-@testable import CICConfusionMatrix
 import XCTest
 
-final class CSBinaryConfusionMatrixTests: XCTestCase {
+final class CICBinaryConfusionMatrixTests: XCTestCase {
     private func createBinaryDataTable(
         truePositive: Int,
         falsePositive: Int,
@@ -50,7 +50,7 @@ final class CSBinaryConfusionMatrixTests: XCTestCase {
         )
 
         XCTAssertTrue(
-            CSBinaryConfusionMatrix.validateDataTable(
+            CICBinaryConfusionMatrix.validateDataTable(
                 validDataTable,
                 predictedColumn: "Predicted",
                 actualColumn: "True Label"
@@ -66,7 +66,7 @@ final class CSBinaryConfusionMatrixTests: XCTestCase {
         ])
 
         XCTAssertFalse(
-            CSBinaryConfusionMatrix.validateDataTable(
+            CICBinaryConfusionMatrix.validateDataTable(
                 emptyDataTable,
                 predictedColumn: "Predicted",
                 actualColumn: "True Label"
@@ -80,7 +80,7 @@ final class CSBinaryConfusionMatrixTests: XCTestCase {
         ])
 
         XCTAssertFalse(
-            CSBinaryConfusionMatrix.validateDataTable(
+            CICBinaryConfusionMatrix.validateDataTable(
                 missingColumnDataTable,
                 predictedColumn: "Predicted",
                 actualColumn: "True Label"
@@ -100,7 +100,7 @@ final class CSBinaryConfusionMatrixTests: XCTestCase {
         ])
 
         XCTAssertFalse(
-            CSBinaryConfusionMatrix.validateDataTable(
+            CICBinaryConfusionMatrix.validateDataTable(
                 singleClassDataTable,
                 predictedColumn: "Predicted",
                 actualColumn: "True Label"
@@ -120,7 +120,7 @@ final class CSBinaryConfusionMatrixTests: XCTestCase {
         ])
 
         XCTAssertFalse(
-            CSBinaryConfusionMatrix.validateDataTable(
+            CICBinaryConfusionMatrix.validateDataTable(
                 threeClassDataTable,
                 predictedColumn: "Predicted",
                 actualColumn: "True Label"
@@ -142,10 +142,11 @@ final class CSBinaryConfusionMatrixTests: XCTestCase {
             trueNegative: 80
         )
 
-        guard let matrix = CSBinaryConfusionMatrix(
+        guard let matrix = CICBinaryConfusionMatrix(
             dataTable: dataTable,
             predictedColumn: "Predicted",
-            actualColumn: "True Label"
+            actualColumn: "True Label",
+            positiveClass: "猫"
         ) else {
             XCTFail("混同行列の作成に失敗しました")
             return
@@ -174,10 +175,11 @@ final class CSBinaryConfusionMatrixTests: XCTestCase {
             trueNegative: 100
         )
 
-        guard let matrix = CSBinaryConfusionMatrix(
+        guard let matrix = CICBinaryConfusionMatrix(
             dataTable: dataTable,
             predictedColumn: "Predicted",
-            actualColumn: "True Label"
+            actualColumn: "True Label",
+            positiveClass: "猫"
         ) else {
             XCTFail("混同行列の作成に失敗しました")
             return
@@ -198,10 +200,11 @@ final class CSBinaryConfusionMatrixTests: XCTestCase {
             trueNegative: 50
         )
 
-        guard let matrix = CSBinaryConfusionMatrix(
+        guard let matrix = CICBinaryConfusionMatrix(
             dataTable: dataTable,
             predictedColumn: "Predicted",
-            actualColumn: "True Label"
+            actualColumn: "True Label",
+            positiveClass: "猫"
         ) else {
             XCTFail("混同行列の作成に失敗しました")
             return

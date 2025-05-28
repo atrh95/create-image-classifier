@@ -3,107 +3,112 @@ import CICInterface
 import CICTrainingResult
 import Foundation
 
-public struct IndividualModelReport {
-    public let modelName: String
-    public let positiveClassName: String
-    public let trainingAccuracyRate: Double
-    public let validationAccuracyPercentage: Double
-    public let confusionMatrix: CSBinaryConfusionMatrix?
-
-    func generateMarkdownReport() -> String {
-        var report = """
-        ## \(positiveClassName)
-        - 訓練正解率: \(String(format: "%.1f%%", trainingAccuracyRate))
-        - 検証正解率: \(String(format: "%.1f%%", validationAccuracyPercentage))
-        """
-        if let confusionMatrix = confusionMatrix {
-            report += """
-
-            - 再現率 (Recall)    : \(String(format: "%.1f%%", confusionMatrix.recall * 100.0))
-            - 適合率 (Precision) : \(String(format: "%.1f%%", confusionMatrix.precision * 100.0))
-            - F1スコア          : \(String(format: "%.1f%%", confusionMatrix.f1Score * 100.0))
-
-            \(confusionMatrix.getMatrixGraph())
-            """
-        } else {
-            report += "\n⚠️ 検証データが不十分なため、混同行列の計算をスキップしました\n"
-        }
-        report += "\n"
-        return report
-    }
-}
-
 public struct OvOTrainingResult: TrainingResultProtocol {
     public let metadata: CICTrainingMetadata
-    public let individualReports: [IndividualModelReport]
+    public let trainingMetrics: (accuracy: Double, errorRate: Double)
+    public let validationMetrics: (accuracy: Double, errorRate: Double)
+    public let confusionMatrix: CICMultiClassConfusionMatrix?
+    public let classMetrics: [ClassMetrics]
+    public let individualModelReports: [CICIndividualModelReport]
 
     public var modelOutputPath: String {
         URL(fileURLWithPath: metadata.trainedModelFilePath).deletingLastPathComponent().path
     }
 
     public init(
-        modelName: String,
-        trainingDurationInSeconds: TimeInterval,
-        trainedModelFilePath: String,
-        sourceTrainingDataDirectoryPath: String,
-        detectedClassLabelsList: [String],
-        maxIterations: Int,
-        dataAugmentationDescription: String,
-        featureExtractorDescription: String,
-        individualReports: [IndividualModelReport]
+        metadata: CICTrainingMetadata,
+        trainingMetrics: (accuracy: Double, errorRate: Double),
+        validationMetrics: (accuracy: Double, errorRate: Double),
+        confusionMatrix: CICMultiClassConfusionMatrix?,
+        individualModelReports: [CICIndividualModelReport]
     ) {
-        self.metadata = CICTrainingMetadata(
-            modelName: modelName,
-            trainingDurationInSeconds: trainingDurationInSeconds,
-            trainedModelFilePath: trainedModelFilePath,
-            sourceTrainingDataDirectoryPath: sourceTrainingDataDirectoryPath,
-            detectedClassLabelsList: detectedClassLabelsList,
-            maxIterations: maxIterations,
-            dataAugmentationDescription: dataAugmentationDescription,
-            featureExtractorDescription: featureExtractorDescription
-        )
-        self.individualReports = individualReports
+        self.metadata = metadata
+        self.trainingMetrics = trainingMetrics
+        self.validationMetrics = validationMetrics
+        self.confusionMatrix = confusionMatrix
+        classMetrics = confusionMatrix?.calculateMetrics() ?? []
+        self.individualModelReports = individualModelReports
     }
 
-    public func saveLog(modelAuthor _: String, modelName: String, modelVersion: String) {
-        // ファイル生成日時フォーマッタ
+    public func saveLog(
+        modelAuthor: String,
+        modelName: String,
+        modelVersion: String
+    ) {
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss Z"
         dateFormatter.timeZone = TimeZone(identifier: "Asia/Tokyo")
         let generatedDateString = dateFormatter.string(from: Date())
 
-        // 各ペアの個別指標を表示
-        var individualPairSections = ""
-        for report in individualReports {
-            individualPairSections += report.generateMarkdownReport() + "\n"
-        }
+        let trainingAccStr = String(format: "%.2f", trainingMetrics.accuracy)
+        let validationAccStr = String(format: "%.2f", validationMetrics.accuracy)
+        let trainingErrStr = String(format: "%.2f", trainingMetrics.errorRate * 100)
+        let validationErrStr = String(format: "%.2f", validationMetrics.errorRate * 100)
+        let durationStr = String(format: "%.2f", metadata.trainingDurationInSeconds)
 
-        let markdown = """
-        # OvO (One-vs-One) トレーニング実行レポート
+        var markdownText = """
+        # モデルトレーニング情報: \(modelName)
 
-        ## 実行概要
-        モデル群         : OvOモデル群 (One-vs-One)
-        モデルベース名   : \(modelName)
-        レポート生成日時   : \(generatedDateString)
-        最大反復回数     : \(metadata.maxIterations) (各ペアモデル共通)
+        ## モデル詳細
+        モデル名           : \(modelName)
+        ファイル生成日時   : \(generatedDateString)
+        最大反復回数     : \(metadata.maxIterations)
         データ拡張       : \(metadata.dataAugmentationDescription)
         特徴抽出器       : \(metadata.featureExtractorDescription)
-        検出されたクラス: \(metadata.detectedClassLabelsList.joined(separator: ", "))
 
-        ## 個別ペアのトレーニング結果
-        \(individualPairSections)
+        ## トレーニング設定
+        使用されたクラスラベル : \(metadata.detectedClassLabelsList.joined(separator: ", "))
+
+        ## パフォーマンス指標 (全体)
+        トレーニング所要時間: \(durationStr) 秒
+        トレーニング誤分類率 (学習時) : \(trainingErrStr)%
+        訓練データ正解率 (学習時) : \(trainingAccStr)%
+        検証データ正解率 (学習時自動検証) : \(validationAccStr)%
+        検証誤分類率 (学習時自動検証) : \(validationErrStr)%
         """
 
-        // モデルファイルと同じディレクトリに保存
+        if let confusionMatrix {
+            markdownText += """
+            ## クラス別性能指標
+            \(classMetrics.map { metric in
+                """
+
+                ### \(metric.label)
+                再現率: \(String(format: "%.1f%%", metric.recall * 100.0)), \
+                適合率: \(String(format: "%.1f%%", metric.precision * 100.0)), \
+                F1スコア: \(String(format: "%.1f%%", metric.f1Score * 100.0))
+                """
+            }.joined(separator: "\n"))
+
+            ## 混同行列
+            \(confusionMatrix.getMatrixGraph())
+            """
+        }
+
+        markdownText += """
+
+        ## 個別モデルの性能指標
+        \(individualModelReports.map { report in
+            report.generateMarkdownReport()
+        }.joined(separator: "\n"))
+
+        ## モデルメタデータ
+        作成者            : \(modelAuthor)
+        バージョン          : \(modelVersion)
+        """
+
         let outputDir = URL(fileURLWithPath: metadata.trainedModelFilePath).deletingLastPathComponent()
         let textFileName = "OvO_Run_Report_\(modelVersion).md"
         let textFilePath = outputDir.appendingPathComponent(textFileName).path
 
         do {
-            try markdown.write(toFile: textFilePath, atomically: true, encoding: .utf8)
-            print("✅ ログファイル保存完了: \(textFilePath)")
+            try markdownText.write(toFile: textFilePath, atomically: true, encoding: String.Encoding.utf8)
+            print("✅ [\(modelName)] モデル情報をMarkdownファイルに保存しました: \(textFilePath)")
         } catch {
-            print("❌ エラー: ログファイル保存失敗: \(error.localizedDescription)")
+            print("❌ [\(modelName)] Markdownファイルの書き込みに失敗しました: \(error.localizedDescription)")
+            print("--- [\(modelName)] モデル情報 (Markdown) ---:")
+            print(markdownText)
+            print("--- ここまで --- ")
         }
     }
 }

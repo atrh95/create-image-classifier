@@ -12,7 +12,7 @@ public struct MultiClassTrainingResult: TrainingResultProtocol {
     public let validationMetrics: (accuracy: Double, errorRate: Double)
 
     // 詳細な性能指標
-    public let confusionMatrix: CSMultiClassConfusionMatrix?
+    public let confusionMatrix: CICMultiClassConfusionMatrix?
     public let classMetrics: [ClassMetrics]
 
     public var modelOutputPath: String {
@@ -20,32 +20,16 @@ public struct MultiClassTrainingResult: TrainingResultProtocol {
     }
 
     public init(
-        modelName: String,
-        modelOutputPath: String,
-        trainingDataPath: String,
-        classLabels: [String],
-        maxIterations: Int,
-        dataAugmentationDescription: String,
-        featureExtractorDescription: String,
+        metadata: CICTrainingMetadata,
         trainingMetrics: (accuracy: Double, errorRate: Double),
         validationMetrics: (accuracy: Double, errorRate: Double),
-        trainingTimeInSeconds: TimeInterval,
-        confusionMatrix: CSMultiClassConfusionMatrix?
+        confusionMatrix: CICMultiClassConfusionMatrix?
     ) {
-        self.metadata = CICTrainingMetadata(
-            modelName: modelName,
-            trainingDurationInSeconds: trainingTimeInSeconds,
-            trainedModelFilePath: modelOutputPath,
-            sourceTrainingDataDirectoryPath: trainingDataPath,
-            detectedClassLabelsList: classLabels,
-            maxIterations: maxIterations,
-            dataAugmentationDescription: dataAugmentationDescription,
-            featureExtractorDescription: featureExtractorDescription
-        )
+        self.metadata = metadata
         self.trainingMetrics = trainingMetrics
         self.validationMetrics = validationMetrics
         self.confusionMatrix = confusionMatrix
-        self.classMetrics = confusionMatrix?.calculateMetrics() ?? []
+        classMetrics = confusionMatrix?.calculateMetrics() ?? []
     }
 
     public func saveLog(

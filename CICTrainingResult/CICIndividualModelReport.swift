@@ -7,14 +7,14 @@ public struct CICIndividualModelReport {
     public let positiveClassName: String
     public let trainingAccuracyRate: Double
     public let validationAccuracyPercentage: Double
-    public let confusionMatrix: CSBinaryConfusionMatrix?
+    public let confusionMatrix: CICBinaryConfusionMatrix?
 
     public init(
         modelName: String,
         positiveClassName: String,
         trainingAccuracyRate: Double,
         validationAccuracyPercentage: Double,
-        confusionMatrix: CSBinaryConfusionMatrix?
+        confusionMatrix: CICBinaryConfusionMatrix?
     ) {
         self.modelName = modelName
         self.positiveClassName = positiveClassName
@@ -31,7 +31,7 @@ public struct CICIndividualModelReport {
         - 検証正解率: \(String(format: "%.1f%%", validationAccuracyPercentage))
         """
 
-        if let confusionMatrix = confusionMatrix {
+        if let confusionMatrix {
             report += """
 
             - 再現率 (Recall)    : \(String(format: "%.1f%%", confusionMatrix.recall * 100.0))
@@ -46,4 +46,4 @@ public struct CICIndividualModelReport {
 
         return report
     }
-} 
+}

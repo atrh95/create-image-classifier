@@ -1,7 +1,9 @@
+import CICConfusionMatrix
+import CICFileManager
+import CICInterface
+import CICTrainingResult
 import CoreML
 import CreateML
-import CICInterface
-import CICFileManager
 import Foundation
 
 private struct ImageAnnotation: Codable {
@@ -48,12 +50,14 @@ public class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
         dir.deleteLastPathComponent()
         dir.deleteLastPathComponent()
         let resourcesDir = dir.appendingPathComponent("Resources")
-        
+
         // Resourcesディレクトリ内のJSONファイルを探す
-        guard let files = try? FileManager.default.contentsOfDirectory(at: resourcesDir, includingPropertiesForKeys: nil) else {
+        guard let files = try? FileManager.default
+            .contentsOfDirectory(at: resourcesDir, includingPropertiesForKeys: nil)
+        else {
             return nil
         }
-        
+
         // 最初に見つかったJSONファイルのパスを返す
         return files.first { $0.pathExtension.lowercased() == "json" }?.path
     }
@@ -130,11 +134,11 @@ public class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
                 do {
                     let annotationData = try Data(contentsOf: URL(fileURLWithPath: annotationPath))
                     let annotations = try JSONDecoder().decode([ImageAnnotation].self, from: annotationData)
-                    
+
                     // 一時ディレクトリを作成
                     let tempDir = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent(UUID().uuidString)
                     try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-                    
+
                     // ラベルごとのディレクトリを作成
                     var labelDirs: [String: URL] = [:]
                     for annotation in annotations {
@@ -146,7 +150,7 @@ public class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
                             }
                         }
                     }
-                    
+
                     // 画像をコピー
                     for annotation in annotations {
                         let sourceURL = URL(fileURLWithPath: resourcesPath).appendingPathComponent(annotation.filename)
@@ -159,7 +163,7 @@ public class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
                             }
                         }
                     }
-                    
+
                     trainingDataSource = MLImageClassifier.DataSource.labeledDirectories(at: tempDir)
                 } catch {
                     print("❌ エラー: アノテーションファイルの読み込みに失敗しました: \(error.localizedDescription)")
@@ -225,14 +229,34 @@ public class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
 
                 try imageClassifier.write(to: URL(fileURLWithPath: modelFilePath), metadata: modelMetadata)
 
-                return MultiLabelTrainingResult(
+                let metadata = CICTrainingMetadata(
                     modelName: modelName,
-                    modelOutputPath: modelFilePath,
-                    trainingDataPath: trainingDataParentDirURL.path,
-                    classLabels: classLabelsFromFileSystem,
+                    trainingDurationInSeconds: trainingDurationSeconds,
+                    trainedModelFilePath: modelFilePath,
+                    sourceTrainingDataDirectoryPath: trainingDataParentDirURL.path,
+                    detectedClassLabelsList: classLabelsFromFileSystem,
                     maxIterations: modelParameters.maxIterations,
                     dataAugmentationDescription: commonDataAugmentationDesc,
-                    featureExtractorDescription: commonFeatureExtractorDesc,
+                    featureExtractorDescription: commonFeatureExtractorDesc
+                )
+
+                let individualModelReports = classLabelsFromFileSystem.map { label in
+                    CICIndividualModelReport(
+                        modelName: modelName,
+                        positiveClassName: label,
+                        trainingAccuracyRate: 1.0 - trainingMetrics.classificationError,
+                        validationAccuracyPercentage: 1.0 - validationMetrics.classificationError,
+                        confusionMatrix: CICBinaryConfusionMatrix(
+                            dataTable: validationMetrics.confusion,
+                            predictedColumn: "Predicted",
+                            actualColumn: "True Label",
+                            positiveClass: label
+                        )
+                    )
+                }
+
+                return MultiLabelTrainingResult(
+                    metadata: metadata,
                     trainingMetrics: (
                         accuracy: 1.0 - trainingMetrics.classificationError,
                         errorRate: trainingMetrics.classificationError
@@ -241,8 +265,8 @@ public class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
                         accuracy: 1.0 - validationMetrics.classificationError,
                         errorRate: validationMetrics.classificationError
                     ),
-                    trainingDurationInSeconds: trainingDurationSeconds,
-                    confusionMatrix: nil
+                    confusionMatrix: nil,
+                    individualModelReports: individualModelReports
                 )
 
             } catch let createMLError as CreateML.MLCreateError {

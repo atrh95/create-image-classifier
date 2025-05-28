@@ -8,7 +8,7 @@ public struct ClassMetrics {
     public let f1Score: Double
 }
 
-public final class CSMultiClassConfusionMatrix {
+public final class CICMultiClassConfusionMatrix {
     private let dataTable: MLDataTable
     private let predictedColumn: String
     private let actualColumn: String
@@ -16,7 +16,7 @@ public final class CSMultiClassConfusionMatrix {
     public let labels: [String]
     public private(set) var matrix: [[Int]]
 
-    static func validateDataTable(
+    public static func validateDataTable(
         _ dataTable: MLDataTable,
         predictedColumn: String,
         actualColumn: String

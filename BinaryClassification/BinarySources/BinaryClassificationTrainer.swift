@@ -1,8 +1,9 @@
+import CICConfusionMatrix
+import CICFileManager
+import CICInterface
+import CICTrainingResult
 import CoreML
 import CreateML
-import CICConfusionMatrix
-import CICInterface
-import CICFileManager
 import Foundation
 
 public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
@@ -34,7 +35,11 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
         return dir.appendingPathComponent("Resources").path
     }
 
-    public init(resourcesDirectoryPathOverride: String? = nil, outputDirectoryPathOverride: String? = nil, fileManager: CICFileManager = CICFileManager()) {
+    public init(
+        resourcesDirectoryPathOverride: String? = nil,
+        outputDirectoryPathOverride: String? = nil,
+        fileManager: CICFileManager = CICFileManager()
+    ) {
         self.resourcesDirectoryPathOverride = resourcesDirectoryPathOverride
         self.outputDirectoryPathOverride = outputDirectoryPathOverride
         self.fileManager = fileManager
@@ -100,11 +105,12 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
             let trainingMetrics = imageClassifier.trainingMetrics
             let validationMetrics = imageClassifier.validationMetrics
 
-            // 混同行列の計算をCSBinaryConfusionMatrixに委任
-            let confusionMatrix = CSBinaryConfusionMatrix(
+            // 混同行列の計算をCICBinaryConfusionMatrixに委任
+            let confusionMatrix = CICBinaryConfusionMatrix(
                 dataTable: validationMetrics.confusion,
                 predictedColumn: "Predicted",
-                actualColumn: "True Label"
+                actualColumn: "True Label",
+                positiveClass: classLabelDirURLs[1].lastPathComponent
             )
 
             // トレーニング完了後のパフォーマンス指標を表示
@@ -165,20 +171,37 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
             try imageClassifier.write(to: URL(fileURLWithPath: modelFilePath), metadata: modelMetadata)
             print("✅ モデルファイル保存完了")
 
-            return BinaryTrainingResult(
+            let metadata = CICTrainingMetadata(
                 modelName: modelName,
-                trainingDataAccuracyPercentage: (1.0 - trainingMetrics.classificationError) * 100.0,
-                validationDataAccuracyPercentage: (1.0 - validationMetrics.classificationError) * 100.0,
-                trainingDataMisclassificationRate: trainingMetrics.classificationError,
-                validationDataMisclassificationRate: validationMetrics.classificationError,
                 trainingDurationInSeconds: trainingDurationSeconds,
                 trainedModelFilePath: modelFilePath,
                 sourceTrainingDataDirectoryPath: trainingDataParentDirURL.path,
                 detectedClassLabelsList: classLabelDirURLs.map(\.lastPathComponent),
                 maxIterations: modelParameters.maxIterations,
                 dataAugmentationDescription: augmentationFinalDescription,
-                featureExtractorDescription: featureExtractorDesc,
+                featureExtractorDescription: featureExtractorDesc
+            )
+
+            let individualModelReport = CICIndividualModelReport(
+                modelName: modelName,
+                positiveClassName: classLabelDirURLs[1].lastPathComponent,
+                trainingAccuracyRate: 1.0 - trainingMetrics.classificationError,
+                validationAccuracyPercentage: 1.0 - validationMetrics.classificationError,
                 confusionMatrix: confusionMatrix
+            )
+
+            return BinaryTrainingResult(
+                metadata: metadata,
+                trainingMetrics: (
+                    accuracy: 1.0 - trainingMetrics.classificationError,
+                    errorRate: trainingMetrics.classificationError
+                ),
+                validationMetrics: (
+                    accuracy: 1.0 - validationMetrics.classificationError,
+                    errorRate: validationMetrics.classificationError
+                ),
+                confusionMatrix: confusionMatrix,
+                individualModelReport: individualModelReport
             )
 
         } catch let createMLError as CreateML.MLCreateError {

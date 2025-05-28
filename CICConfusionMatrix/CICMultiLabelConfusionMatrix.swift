@@ -24,7 +24,7 @@ public struct LabelMetrics {
     }
 }
 
-public struct CSMultiLabelConfusionMatrix {
+public struct CICMultiLabelConfusionMatrix {
     private let perLabelMetrics: [String: LabelMetrics]
     private let labels: [String]
     private let predictionThreshold: Float

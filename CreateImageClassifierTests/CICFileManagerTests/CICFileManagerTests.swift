@@ -1,5 +1,5 @@
-import XCTest
 @testable import CICFileManager
+import XCTest
 
 final class CICFileManagerTests: XCTestCase {
     private var sut: CICFileManager!
@@ -81,7 +81,7 @@ final class CICFileManagerTests: XCTestCase {
         let v1Dir = modelDir.appendingPathComponent("v1")
         let v3Dir = modelDir.appendingPathComponent("v3")
         let v4Dir = modelDir.appendingPathComponent("v4")
-        
+
         try FileManager.default.createDirectory(at: v1Dir, withIntermediateDirectories: true)
         try FileManager.default.createDirectory(at: v3Dir, withIntermediateDirectories: true)
         try FileManager.default.createDirectory(at: v4Dir, withIntermediateDirectories: true)
@@ -96,9 +96,9 @@ final class CICFileManagerTests: XCTestCase {
 
         XCTAssertTrue(FileManager.default.fileExists(atPath: outputDir.path))
         XCTAssertEqual(outputDir.lastPathComponent, "Binary_Result_1")
-        
+
         // 親ディレクトリのパスを確認
         let parentDir = outputDir.deletingLastPathComponent()
         XCTAssertEqual(parentDir.lastPathComponent, "v5")
     }
-} 
+}

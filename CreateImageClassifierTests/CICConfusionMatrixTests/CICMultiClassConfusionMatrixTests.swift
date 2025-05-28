@@ -1,8 +1,8 @@
+import CICConfusionMatrix
 import CreateML
-@testable import CICConfusionMatrix
 import XCTest
 
-final class CSMultiClassConfusionMatrixTests: XCTestCase {
+final class CICMultiClassConfusionMatrixTests: XCTestCase {
     private func createMultiClassDataTable(
         matrix: [[Int]],
         labels: [String]
@@ -40,7 +40,7 @@ final class CSMultiClassConfusionMatrixTests: XCTestCase {
 
         let validDataTable = try createMultiClassDataTable(matrix: matrix, labels: labels)
         XCTAssertTrue(
-            CSMultiClassConfusionMatrix.validateDataTable(
+            CICMultiClassConfusionMatrix.validateDataTable(
                 validDataTable,
                 predictedColumn: "Predicted",
                 actualColumn: "True Label"
@@ -56,7 +56,7 @@ final class CSMultiClassConfusionMatrixTests: XCTestCase {
         ])
 
         XCTAssertFalse(
-            CSMultiClassConfusionMatrix.validateDataTable(
+            CICMultiClassConfusionMatrix.validateDataTable(
                 emptyDataTable,
                 predictedColumn: "Predicted",
                 actualColumn: "True Label"
@@ -70,7 +70,7 @@ final class CSMultiClassConfusionMatrixTests: XCTestCase {
         ])
 
         XCTAssertFalse(
-            CSMultiClassConfusionMatrix.validateDataTable(
+            CICMultiClassConfusionMatrix.validateDataTable(
                 missingColumnDataTable,
                 predictedColumn: "Predicted",
                 actualColumn: "True Label"
@@ -86,7 +86,7 @@ final class CSMultiClassConfusionMatrixTests: XCTestCase {
         ])
 
         XCTAssertFalse(
-            CSMultiClassConfusionMatrix.validateDataTable(
+            CICMultiClassConfusionMatrix.validateDataTable(
                 noLabelDataTable,
                 predictedColumn: "Predicted",
                 actualColumn: "True Label"
@@ -106,7 +106,7 @@ final class CSMultiClassConfusionMatrixTests: XCTestCase {
         ])
 
         XCTAssertFalse(
-            CSMultiClassConfusionMatrix.validateDataTable(
+            CICMultiClassConfusionMatrix.validateDataTable(
                 mismatchedDataTable,
                 predictedColumn: "Predicted",
                 actualColumn: "True Label"
@@ -126,7 +126,7 @@ final class CSMultiClassConfusionMatrixTests: XCTestCase {
         let labels = ["猫", "犬", "鳥"]
 
         let dataTable = try createMultiClassDataTable(matrix: matrix, labels: labels)
-        guard let confusionMatrix = CSMultiClassConfusionMatrix(
+        guard let confusionMatrix = CICMultiClassConfusionMatrix(
             dataTable: dataTable,
             predictedColumn: "Predicted",
             actualColumn: "True Label"
@@ -180,7 +180,7 @@ final class CSMultiClassConfusionMatrixTests: XCTestCase {
         let labels = ["猫", "犬", "鳥"]
 
         let dataTable = try createMultiClassDataTable(matrix: matrix, labels: labels)
-        guard let confusionMatrix = CSMultiClassConfusionMatrix(
+        guard let confusionMatrix = CICMultiClassConfusionMatrix(
             dataTable: dataTable,
             predictedColumn: "Predicted",
             actualColumn: "True Label"
@@ -208,7 +208,7 @@ final class CSMultiClassConfusionMatrixTests: XCTestCase {
         let labels = ["猫", "犬", "鳥"]
 
         let dataTable = try createMultiClassDataTable(matrix: matrix, labels: labels)
-        guard let confusionMatrix = CSMultiClassConfusionMatrix(
+        guard let confusionMatrix = CICMultiClassConfusionMatrix(
             dataTable: dataTable,
             predictedColumn: "Predicted",
             actualColumn: "True Label"

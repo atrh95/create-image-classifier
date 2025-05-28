@@ -1,14 +1,15 @@
 import CreateML
 import Foundation
 
-public final class CSBinaryConfusionMatrix {
+public final class CICBinaryConfusionMatrix {
     private let dataTable: MLDataTable
     private let predictedColumn: String
     private let actualColumn: String
+    private let positiveClass: String
 
     public private(set) var matrix: [[Int]]
 
-    static func validateDataTable(
+    public static func validateDataTable(
         _ dataTable: MLDataTable,
         predictedColumn: String,
         actualColumn: String
@@ -35,20 +36,20 @@ public final class CSBinaryConfusionMatrix {
         let labelSet = Set(dataTable.rows.compactMap { $0[actualColumn]?.stringValue })
         let sortedLabels = Array(labelSet).sorted()
 
-        // 2クラス分類の確認
-        guard sortedLabels.count == 2 else {
+        // ラベルが存在することを確認
+        guard !sortedLabels.isEmpty, sortedLabels.count == 2 else {
             print("❌ エラー: 2クラス分類ではありません。検出されたクラス数: \(sortedLabels.count)")
-            print("   検出されたラベル: \(sortedLabels.joined(separator: ", "))")
             return false
         }
 
         return true
     }
 
-    public init?(dataTable: MLDataTable, predictedColumn: String, actualColumn: String) {
+    public init?(dataTable: MLDataTable, predictedColumn: String, actualColumn: String, positiveClass: String) {
         self.dataTable = dataTable
         self.predictedColumn = predictedColumn
         self.actualColumn = actualColumn
+        self.positiveClass = positiveClass
 
         // データの有効性チェック
         guard Self.validateDataTable(dataTable, predictedColumn: predictedColumn, actualColumn: actualColumn) else {
@@ -62,19 +63,19 @@ public final class CSBinaryConfusionMatrix {
         // 混同行列の初期化
         matrix = Array(repeating: Array(repeating: 0, count: 2), count: 2)
 
-        // ラベルからインデックスへのマッピング
-        let labelToIndex = Dictionary(uniqueKeysWithValues: sortedLabels.enumerated().map { ($1, $0) })
-
         // 混同行列の計算
         for row in dataTable.rows {
             guard let actualLabel = row[actualColumn]?.stringValue,
                   let predictedLabel = row[predictedColumn]?.stringValue,
-                  let actualIndex = labelToIndex[actualLabel],
-                  let predictedIndex = labelToIndex[predictedLabel],
                   let count = row["Count"]?.intValue
             else {
                 continue
             }
+
+            // positiveClassに基づいてインデックスを決定
+            let actualIndex = actualLabel == positiveClass ? 1 : 0
+            let predictedIndex = predictedLabel == positiveClass ? 1 : 0
+
             matrix[actualIndex][predictedIndex] += count
         }
     }

@@ -86,4 +86,4 @@ public struct CICTrainingMetadata: TrainingResultProtocol {
             print("--- ここまで --- ")
         }
     }
-} 
+}

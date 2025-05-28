@@ -123,11 +123,15 @@ final class BinaryClassificationTests: XCTestCase {
         result.saveLog(modelAuthor: authorName, modelName: testModelName, modelVersion: testModelVersion)
         let modelFileDir = URL(fileURLWithPath: result.metadata.trainedModelFilePath).deletingLastPathComponent()
 
-        let expectedLogFileName = "\(testModelName)_\(testModelVersion).md"
+        let expectedLogFileName = "Binary_Run_Report_\(testModelVersion).md"
         let expectedLogFilePath = modelFileDir.appendingPathComponent(expectedLogFileName).path
         XCTAssertTrue(fileManager.fileExists(atPath: expectedLogFilePath), "ログファイルが期待パス「\(expectedLogFilePath)」に未生成")
 
-        XCTAssertEqual(result.metadata.modelName, testModelName, "訓練結果modelName「\(result.metadata.modelName)」が期待値「\(testModelName)」と不一致")
+        XCTAssertEqual(
+            result.metadata.modelName,
+            testModelName,
+            "訓練結果modelName「\(result.metadata.modelName)」が期待値「\(testModelName)」と不一致"
+        )
 
         do {
             let logContents = try String(contentsOfFile: expectedLogFilePath, encoding: .utf8)

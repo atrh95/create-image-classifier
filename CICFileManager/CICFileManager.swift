@@ -2,11 +2,11 @@ import Foundation
 
 public class CICFileManager {
     private let fileManager: Foundation.FileManager
-    
+
     public init(fileManager: Foundation.FileManager = .default) {
         self.fileManager = fileManager
     }
-    
+
     public func createOutputDirectory(
         modelName: String,
         version: String,
@@ -25,7 +25,7 @@ public class CICFileManager {
         // 既存の実行を確認
         var runIndex = 1
         var finalOutputDir = baseDir.appendingPathComponent("\(classificationMethod)_Result_\(runIndex)")
-        
+
         // 既存のディレクトリを確認
         while fileManager.fileExists(atPath: finalOutputDir.path) {
             runIndex += 1
@@ -36,7 +36,7 @@ public class CICFileManager {
         try fileManager.createDirectory(at: finalOutputDir, withIntermediateDirectories: true)
         return finalOutputDir
     }
-    
+
     public func getClassLabelDirectories(resourcesPath: String) throws -> [URL] {
         let resourcesDir = URL(fileURLWithPath: resourcesPath)
         return try fileManager.contentsOfDirectory(
@@ -61,4 +61,4 @@ public class CICFileManager {
             return !isDirectory.boolValue && !url.lastPathComponent.hasPrefix(".")
         }
     }
-} 
+}

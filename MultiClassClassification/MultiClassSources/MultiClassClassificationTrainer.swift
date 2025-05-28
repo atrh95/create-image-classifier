@@ -1,8 +1,9 @@
+import CICConfusionMatrix
+import CICFileManager
+import CICInterface
+import CICTrainingResult
 import CoreML
 import CreateML
-import CICConfusionMatrix
-import CICInterface
-import CICFileManager
 import Foundation
 
 public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
@@ -142,8 +143,8 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
                     validationAccuracyPercentage
                 ))
 
-                // 混同行列の計算をCSMultiClassConfusionMatrixに委任
-                let confusionMatrix = CSMultiClassConfusionMatrix(
+                // 混同行列の計算をCICMultiClassConfusionMatrixに委任
+                let confusionMatrix = CICMultiClassConfusionMatrix(
                     dataTable: validationMetrics.confusion,
                     predictedColumn: "Predicted",
                     actualColumn: "True Label"
@@ -197,14 +198,19 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
 
                 try imageClassifier.write(to: URL(fileURLWithPath: modelFilePath), metadata: modelMetadata)
 
-                return MultiClassTrainingResult(
+                let metadata = CICTrainingMetadata(
                     modelName: modelName,
-                    modelOutputPath: modelFilePath,
-                    trainingDataPath: trainingDataParentDirURL.path,
-                    classLabels: classLabelsFromFileSystem,
+                    trainingDurationInSeconds: trainingDurationSeconds,
+                    trainedModelFilePath: modelFilePath,
+                    sourceTrainingDataDirectoryPath: trainingDataParentDirURL.path,
+                    detectedClassLabelsList: classLabelsFromFileSystem,
                     maxIterations: modelParameters.maxIterations,
                     dataAugmentationDescription: commonDataAugmentationDesc,
-                    featureExtractorDescription: commonFeatureExtractorDesc,
+                    featureExtractorDescription: commonFeatureExtractorDesc
+                )
+
+                return MultiClassTrainingResult(
+                    metadata: metadata,
                     trainingMetrics: (
                         accuracy: 1.0 - trainingMetrics.classificationError,
                         errorRate: trainingMetrics.classificationError
@@ -213,7 +219,6 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
                         accuracy: 1.0 - validationMetrics.classificationError,
                         errorRate: validationMetrics.classificationError
                     ),
-                    trainingTimeInSeconds: trainingDurationSeconds,
                     confusionMatrix: confusionMatrix
                 )
 

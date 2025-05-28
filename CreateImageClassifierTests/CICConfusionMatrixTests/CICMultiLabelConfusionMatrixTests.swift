@@ -1,7 +1,7 @@
-@testable import CICConfusionMatrix
+import CICConfusionMatrix
 import XCTest
 
-final class CSMultiLabelConfusionMatrixTests: XCTestCase {
+final class CICMultiLabelConfusionMatrixTests: XCTestCase {
     func testPerfectScore() {
         // 全て正解の場合（100%）
         let labels = ["犬", "猫", "馬"]
@@ -11,7 +11,7 @@ final class CSMultiLabelConfusionMatrixTests: XCTestCase {
             (Set(["馬"]), Set(["馬"])),
         ]
 
-        let matrix = CSMultiLabelConfusionMatrix(
+        let matrix = CICMultiLabelConfusionMatrix(
             predictions: predictions,
             labels: labels
         )
@@ -21,7 +21,8 @@ final class CSMultiLabelConfusionMatrixTests: XCTestCase {
         for metric in metrics {
             guard let recall = metric.recall,
                   let precision = metric.precision,
-                  let f1Score = metric.f1Score else {
+                  let f1Score = metric.f1Score
+            else {
                 XCTFail("メトリクスの計算に失敗しました")
                 return
             }
@@ -40,7 +41,7 @@ final class CSMultiLabelConfusionMatrixTests: XCTestCase {
             (Set(["馬"]), Set(["馬", "犬"])), // 過剰予測
         ]
 
-        let matrix = CSMultiLabelConfusionMatrix(
+        let matrix = CICMultiLabelConfusionMatrix(
             predictions: predictions,
             labels: labels
         )
@@ -51,7 +52,8 @@ final class CSMultiLabelConfusionMatrixTests: XCTestCase {
         guard let dog = metrics.first(where: { $0.label == "犬" }),
               let dogRecall = dog.recall,
               let dogPrecision = dog.precision,
-              let dogF1Score = dog.f1Score else {
+              let dogF1Score = dog.f1Score
+        else {
             XCTFail("犬のメトリクスが見つからないか、計算に失敗しました")
             return
         }
@@ -72,7 +74,8 @@ final class CSMultiLabelConfusionMatrixTests: XCTestCase {
         guard let horse = metrics.first(where: { $0.label == "馬" }),
               let horseRecall = horse.recall,
               let horsePrecision = horse.precision,
-              let horseF1Score = horse.f1Score else {
+              let horseF1Score = horse.f1Score
+        else {
             XCTFail("馬のメトリクスが見つからないか、計算に失敗しました")
             return
         }

@@ -1,9 +1,10 @@
+import CICConfusionMatrix
+import CICFileManager
+import CICInterface
+import CICTrainingResult
 import Combine
 import CoreML
 import CreateML
-import CICConfusionMatrix
-import CICInterface
-import CICFileManager
 import Foundation
 import TabularData
 
@@ -19,7 +20,7 @@ private struct OvOPairTrainingResult {
     let validationErrorRate: Double
     let trainingTime: TimeInterval
     let trainingDataPath: String
-    let confusionMatrix: CSBinaryConfusionMatrix?
+    let confusionMatrix: CICBinaryConfusionMatrix?
 }
 
 public class OvOClassificationTrainer: ScreeningTrainerProtocol {
@@ -157,11 +158,7 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
                     modelName: modelName,
                     author: author,
                     version: version,
-                    pairIndex: allPairTrainingResults.count,
-                    modelParameters: modelParameters,
-                    scenePrintRevision: scenePrintRevision,
-                    commonDataAugmentationDesc: commonDataAugmentationDesc,
-                    commonFeatureExtractorDesc: featureExtractorDesc
+                    modelParameters: modelParameters
                 ) {
                     allPairTrainingResults.append(result)
                     print("  ✅ OvOペア [\(dir.lastPathComponent)] vs [\(otherDir.lastPathComponent)] トレーニング成功")
@@ -190,17 +187,6 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
             ))
         }
 
-        let individualReports: [IndividualModelReport] = allPairTrainingResults.map { result in
-            let individualModelReport = IndividualModelReport(
-                modelName: result.modelName,
-                positiveClassName: result.positiveClassName,
-                trainingAccuracyRate: result.trainingAccuracyRate,
-                validationAccuracyPercentage: result.validationAccuracyRate,
-                confusionMatrix: result.confusionMatrix
-            )
-            return individualModelReport
-        }
-
         let trainingDataPaths = allPairTrainingResults.map(\.trainingDataPath).joined(separator: "; ")
 
         let finalRunOutputPath = mainOutputRunURL.path
@@ -208,7 +194,7 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
         print("🎉 OvOトレーニング全体完了")
         print("結果出力先: \(finalRunOutputPath)")
 
-        let trainingResult = OvOTrainingResult(
+        let metadata = CICTrainingMetadata(
             modelName: modelName,
             trainingDurationInSeconds: allPairTrainingResults.map(\.trainingTime).reduce(0.0, +),
             trainedModelFilePath: finalRunOutputPath,
@@ -216,8 +202,35 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
             detectedClassLabelsList: allLabelSourceDirectories.map(\.lastPathComponent),
             maxIterations: modelParameters.maxIterations,
             dataAugmentationDescription: commonDataAugmentationDesc,
-            featureExtractorDescription: featureExtractorDesc,
-            individualReports: individualReports
+            featureExtractorDescription: featureExtractorDesc
+        )
+
+        let individualModelReports = allPairTrainingResults.map { result in
+            CICIndividualModelReport(
+                modelName: result.modelName,
+                positiveClassName: result.positiveClassName,
+                trainingAccuracyRate: result.trainingAccuracyRate,
+                validationAccuracyPercentage: result.validationAccuracyRate,
+                confusionMatrix: result.confusionMatrix
+            )
+        }
+
+        let trainingResult = OvOTrainingResult(
+            metadata: metadata,
+            trainingMetrics: (
+                accuracy: 1.0 - allPairTrainingResults.map(\.trainingErrorRate)
+                    .reduce(0.0, +) / Double(allPairTrainingResults.count),
+                errorRate: allPairTrainingResults.map(\.trainingErrorRate)
+                    .reduce(0.0, +) / Double(allPairTrainingResults.count)
+            ),
+            validationMetrics: (
+                accuracy: 1.0 - allPairTrainingResults.map(\.validationErrorRate)
+                    .reduce(0.0, +) / Double(allPairTrainingResults.count),
+                errorRate: allPairTrainingResults.map(\.validationErrorRate)
+                    .reduce(0.0, +) / Double(allPairTrainingResults.count)
+            ),
+            confusionMatrix: nil,
+            individualModelReports: individualModelReports
         )
 
         return trainingResult
@@ -231,15 +244,12 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
         modelName: String,
         author: String,
         version: String,
-        pairIndex _: Int,
-        modelParameters: CreateML.MLImageClassifier.ModelParameters,
-        scenePrintRevision _: Int?,
-        commonDataAugmentationDesc: String,
-        commonFeatureExtractorDesc: String
+        modelParameters: CreateML.MLImageClassifier.ModelParameters
     ) async -> OvOPairTrainingResult? {
         let positiveClassNameForModel = oneLabelSourceDirURL.lastPathComponent
         let negativeClassNameForModel = otherLabelSourceDirURL.lastPathComponent
-        let modelFileNameBase = "\(modelName)_\(classificationMethod)_\(positiveClassNameForModel)_vs_\(negativeClassNameForModel)_\(version)"
+        let modelFileNameBase =
+            "\(modelName)_\(classificationMethod)_\(positiveClassNameForModel)_vs_\(negativeClassNameForModel)_\(version)"
         let tempOvOPairRootURL = tempOvOBaseURL.appendingPathComponent(modelFileNameBase)
 
         let tempPositiveDataDirForML = tempOvOPairRootURL.appendingPathComponent(positiveClassNameForModel)
@@ -252,7 +262,9 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
             try FileManager.default.createDirectory(at: tempPositiveDataDirForML, withIntermediateDirectories: true)
             try FileManager.default.createDirectory(at: tempNegativeDataDirForML, withIntermediateDirectories: true)
         } catch {
-            print("🛑 エラー: OvOペア [\(positiveClassNameForModel)] vs [\(negativeClassNameForModel)] 一時学習ディレクトリ作成失敗: \(error.localizedDescription)")
+            print(
+                "🛑 エラー: OvOペア [\(positiveClassNameForModel)] vs [\(negativeClassNameForModel)] 一時学習ディレクトリ作成失敗: \(error.localizedDescription)"
+            )
             return nil
         }
 
@@ -300,11 +312,12 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
             let trainingAccuracyPercent = (1.0 - trainingMetrics.classificationError) * 100.0
             let validationAccuracyPercent = (1.0 - validationMetrics.classificationError) * 100.0
 
-            // 混同行列の計算をCSBinaryConfusionMatrixに委任
-            let confusionMatrix = CSBinaryConfusionMatrix(
+            // 混同行列の計算をCICBinaryConfusionMatrixに委任
+            let confusionMatrix = CICBinaryConfusionMatrix(
                 dataTable: validationMetrics.confusion,
                 predictedColumn: "Predicted",
-                actualColumn: "True Label"
+                actualColumn: "True Label",
+                positiveClass: positiveClassNameForModel
             )
 
             if let confusionMatrix {
@@ -315,6 +328,16 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
             }
 
             let trainingDataPath = tempOvOPairRootURL.path
+
+            // データ拡張の説明
+            let dataAugmentationDesc = if !modelParameters.augmentationOptions.isEmpty {
+                String(describing: modelParameters.augmentationOptions)
+            } else {
+                "なし"
+            }
+
+            // 特徴抽出器の説明
+            let featureExtractorDesc = String(describing: modelParameters.featureExtractor)
 
             // モデルのメタデータを作成
             let modelMetadata = MLModelMetadata(
@@ -330,8 +353,8 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
                     F1スコア: \(String(format: "%.1f%%", matrix.f1Score * 100.0))
                     """
                 } ?? "")
-                データ拡張: \(commonDataAugmentationDesc)
-                特徴抽出器: \(commonFeatureExtractorDesc)
+                データ拡張: \(dataAugmentationDesc)
+                特徴抽出器: \(featureExtractorDesc)
                 """,
                 version: version
             )
@@ -361,7 +384,9 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
             )
             return nil
         } catch {
-            print("🛑 エラー: OvOペア [\(positiveClassNameForModel)] vs [\(negativeClassNameForModel)] トレーニング/保存中に予期しないエラー: \(error.localizedDescription)")
+            print(
+                "🛑 エラー: OvOペア [\(positiveClassNameForModel)] vs [\(negativeClassNameForModel)] トレーニング/保存中に予期しないエラー: \(error.localizedDescription)"
+            )
             return nil
         }
     }

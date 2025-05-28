@@ -160,7 +160,8 @@ final class MultiLabelClassificationTests: XCTestCase {
         let resourcesURL = URL(fileURLWithPath: testResourcesRootPath)
         let classDirs = try fileManager.contentsOfDirectory(at: resourcesURL, includingPropertiesForKeys: nil)
         guard let firstClassDir = classDirs.first,
-              let imageFile = try fileManager.contentsOfDirectory(at: firstClassDir, includingPropertiesForKeys: nil).first
+              let imageFile = try fileManager.contentsOfDirectory(at: firstClassDir, includingPropertiesForKeys: nil)
+              .first
         else {
             XCTFail("テスト用画像ファイルが見つかりません")
             throw TestError.resourcePathError
