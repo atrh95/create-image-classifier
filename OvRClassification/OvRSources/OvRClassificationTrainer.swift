@@ -3,6 +3,7 @@ import CoreML
 import CreateML
 import CICConfusionMatrix
 import CICInterface
+import CICFileManager
 import Foundation
 import TabularData
 
@@ -25,6 +26,7 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
     // DI 用のプロパティ
     private let resourcesDirectoryPathOverride: String?
     private let outputDirectoryPathOverride: String?
+    private let fileManager: CICFileManager
 
     public var outputDirPath: String {
         if let overridePath = outputDirectoryPathOverride {
@@ -50,13 +52,14 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
 
     public init(
         resourcesDirectoryPathOverride: String? = nil,
-        outputDirectoryPathOverride: String? = nil
+        outputDirectoryPathOverride: String? = nil,
+        fileManager: CICFileManager = CICFileManager()
     ) {
         self.resourcesDirectoryPathOverride = resourcesDirectoryPathOverride
         self.outputDirectoryPathOverride = outputDirectoryPathOverride
+        self.fileManager = fileManager
     }
 
-    static let fileManager = FileManager.default
     static let tempBaseDirName = "TempOvRTrainingData"
 
     public func train(
@@ -68,9 +71,11 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
     ) async -> OvRTrainingResult? {
         let mainOutputRunURL: URL
         do {
-            mainOutputRunURL = try createOutputDirectory(
+            mainOutputRunURL = try fileManager.createOutputDirectory(
                 modelName: modelName,
-                version: version
+                version: version,
+                classificationMethod: classificationMethod,
+                moduleOutputPath: outputDirPath
             )
         } catch {
             print("🛑 エラー: 出力ディレクトリ設定失敗: \(error.localizedDescription)")
@@ -81,9 +86,9 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
             .deletingLastPathComponent()
         let tempOvRBaseURL = baseProjectURL.appendingPathComponent(Self.tempBaseDirName)
         defer {
-            if Self.fileManager.fileExists(atPath: tempOvRBaseURL.path) {
+            if FileManager.default.fileExists(atPath: tempOvRBaseURL.path) {
                 do {
-                    try Self.fileManager.removeItem(at: tempOvRBaseURL)
+                    try FileManager.default.removeItem(at: tempOvRBaseURL)
                     print("🗑️ 一時ディレクトリ \(tempOvRBaseURL.path) クリーンアップ完了")
                 } catch {
                     print("⚠️ 一時ディレクトリ \(tempOvRBaseURL.path) クリーンアップ失敗: \(error.localizedDescription)")
@@ -91,10 +96,10 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
             }
         }
 
-        if Self.fileManager.fileExists(atPath: tempOvRBaseURL.path) {
-            try? Self.fileManager.removeItem(at: tempOvRBaseURL)
+        if FileManager.default.fileExists(atPath: tempOvRBaseURL.path) {
+            try? FileManager.default.removeItem(at: tempOvRBaseURL)
         }
-        guard (try? Self.fileManager.createDirectory(at: tempOvRBaseURL, withIntermediateDirectories: true)) != nil
+        guard (try? FileManager.default.createDirectory(at: tempOvRBaseURL, withIntermediateDirectories: true)) != nil
         else {
             print("🛑 エラー: 一時ディレクトリ \(tempOvRBaseURL.path) 作成失敗。処理中止。")
             return nil
@@ -106,15 +111,7 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
 
         let allLabelSourceDirectories: [URL]
         do {
-            allLabelSourceDirectories = try Self.fileManager.contentsOfDirectory(
-                at: ovrResourcesURL,
-                includingPropertiesForKeys: [.isDirectoryKey],
-                options: .skipsHiddenFiles
-            ).filter { url in
-                var isDirectory: ObjCBool = false
-                Self.fileManager.fileExists(atPath: url.path, isDirectory: &isDirectory)
-                return isDirectory.boolValue && !url.lastPathComponent.hasPrefix(".")
-            }
+            allLabelSourceDirectories = try fileManager.getClassLabelDirectories(resourcesPath: resourcesDirectoryPath)
         } catch {
             print("🛑 エラー: リソースディレクトリ内ラベルディレクトリ取得失敗: \(error.localizedDescription)")
             return nil
@@ -242,26 +239,26 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
         let tempPositiveDataDirForML = tempOvRPairRootURL.appendingPathComponent(positiveClassNameForModel)
         let tempRestDataDirForML = tempOvRPairRootURL.appendingPathComponent("Rest")
 
-        if Self.fileManager.fileExists(atPath: tempOvRPairRootURL.path) {
-            try? Self.fileManager.removeItem(at: tempOvRPairRootURL)
+        if FileManager.default.fileExists(atPath: tempOvRPairRootURL.path) {
+            try? FileManager.default.removeItem(at: tempOvRPairRootURL)
         }
         do {
-            try Self.fileManager.createDirectory(at: tempPositiveDataDirForML, withIntermediateDirectories: true)
-            try Self.fileManager.createDirectory(at: tempRestDataDirForML, withIntermediateDirectories: true)
+            try FileManager.default.createDirectory(at: tempPositiveDataDirForML, withIntermediateDirectories: true)
+            try FileManager.default.createDirectory(at: tempRestDataDirForML, withIntermediateDirectories: true)
         } catch {
             print("🛑 エラー: OvRペア [\(positiveClassNameForModel)] 一時学習ディレクトリ作成失敗: \(error.localizedDescription)")
             return nil
         }
 
         var positiveSamplesCount = 0
-        if let positiveSourceFiles = try? getFilesInDirectory(oneLabelSourceDirURL) {
+        if let positiveSourceFiles = try? fileManager.getFilesInDirectory(oneLabelSourceDirURL) {
             for fileURL in positiveSourceFiles {
-                try? Self.fileManager.copyItem(
+                try? FileManager.default.copyItem(
                     at: fileURL,
                     to: tempPositiveDataDirForML.appendingPathComponent(fileURL.lastPathComponent)
                 )
             }
-            positiveSamplesCount = (try? getFilesInDirectory(tempPositiveDataDirForML).count) ?? 0
+            positiveSamplesCount = (try? fileManager.getFilesInDirectory(tempPositiveDataDirForML).count) ?? 0
         }
 
         guard positiveSamplesCount > 0 else {
@@ -279,7 +276,7 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
         var totalNegativeSamplesCollected = 0
 
         for otherDirURL in otherDirsForNegativeSampling {
-            guard let filesInOtherDir = try? getFilesInDirectory(otherDirURL), !filesInOtherDir.isEmpty else {
+            guard let filesInOtherDir = try? fileManager.getFilesInDirectory(otherDirURL), !filesInOtherDir.isEmpty else {
                 continue
             }
 
@@ -292,7 +289,7 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
                 let newFileName = "\(sourceDirNamePrefix)_\(originalFileName)"
 
                 do {
-                    try Self.fileManager.copyItem(
+                    try FileManager.default.copyItem(
                         at: fileURL,
                         to: tempRestDataDirForML.appendingPathComponent(newFileName)
                     )
@@ -383,19 +380,6 @@ public class OvRClassificationTrainer: ScreeningTrainerProtocol {
         } catch {
             print("🛑 エラー: OvRペア [\(positiveClassNameForModel)] トレーニング/保存中に予期しないエラー: \(error.localizedDescription)")
             return nil
-        }
-    }
-
-    // 指定されたディレクトリ内のファイル一覧を取得する
-    private func getFilesInDirectory(_ directoryURL: URL) throws -> [URL] {
-        try Self.fileManager.contentsOfDirectory(
-            at: directoryURL,
-            includingPropertiesForKeys: [.isRegularFileKey],
-            options: [.skipsHiddenFiles, .skipsSubdirectoryDescendants]
-        ).filter { url in
-            var isDirectory: ObjCBool = false
-            Self.fileManager.fileExists(atPath: url.path, isDirectory: &isDirectory)
-            return !isDirectory.boolValue && !url.lastPathComponent.hasPrefix(".")
         }
     }
 }

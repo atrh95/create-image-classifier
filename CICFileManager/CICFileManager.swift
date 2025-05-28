@@ -13,51 +13,45 @@ public class CICFileManager {
         classificationMethod: String,
         moduleOutputPath: String
     ) throws -> URL {
-        let baseDirURL = URL(fileURLWithPath: moduleOutputPath)
+        let outputDir = URL(fileURLWithPath: moduleOutputPath)
             .appendingPathComponent(modelName)
             .appendingPathComponent(version)
+            .appendingPathComponent(classificationMethod)
 
-        var resultNumber = 1
-
-        // 既存のディレクトリを確認して次の番号を決定
-        do {
-            let contents = try fileManager.contentsOfDirectory(at: baseDirURL, includingPropertiesForKeys: nil)
-            let existingNumbers = contents.compactMap { url -> Int? in
-                let dirName = url.lastPathComponent
-                guard dirName.hasPrefix("\(classificationMethod)_Result_") else { return nil }
-                let numberStr = dirName.replacingOccurrences(of: "\(classificationMethod)_Result_", with: "")
-                return Int(numberStr)
-            }
-
-            if let maxNumber = existingNumbers.max() {
-                resultNumber = maxNumber + 1
-            }
-        } catch {
-            // ディレクトリが存在しない場合は1から開始
-            resultNumber = 1
+        // 既存の実行を確認
+        var runIndex = 0
+        var finalOutputDir = outputDir
+        while fileManager.fileExists(atPath: finalOutputDir.path) {
+            runIndex += 1
+            finalOutputDir = outputDir.appendingPathComponent("run\(runIndex)")
         }
 
-        let outputDirURL = baseDirURL.appendingPathComponent("\(classificationMethod)_Result_\(resultNumber)")
-
-        try fileManager.createDirectory(
-            at: outputDirURL,
-            withIntermediateDirectories: true,
-            attributes: nil
-        )
-
-        return outputDirURL
+        try fileManager.createDirectory(at: finalOutputDir, withIntermediateDirectories: true)
+        return finalOutputDir
     }
     
     public func getClassLabelDirectories(resourcesPath: String) throws -> [URL] {
-        let resourcesDirURL = URL(fileURLWithPath: resourcesPath)
+        let resourcesDir = URL(fileURLWithPath: resourcesPath)
         return try fileManager.contentsOfDirectory(
-            at: resourcesDirURL,
+            at: resourcesDir,
             includingPropertiesForKeys: [.isDirectoryKey],
             options: .skipsHiddenFiles
         ).filter { url in
             var isDirectory: ObjCBool = false
             fileManager.fileExists(atPath: url.path, isDirectory: &isDirectory)
             return isDirectory.boolValue && !url.lastPathComponent.hasPrefix(".")
+        }
+    }
+
+    public func getFilesInDirectory(_ directoryURL: URL) throws -> [URL] {
+        try fileManager.contentsOfDirectory(
+            at: directoryURL,
+            includingPropertiesForKeys: [.isRegularFileKey],
+            options: [.skipsHiddenFiles, .skipsSubdirectoryDescendants]
+        ).filter { url in
+            var isDirectory: ObjCBool = false
+            fileManager.fileExists(atPath: url.path, isDirectory: &isDirectory)
+            return !isDirectory.boolValue && !url.lastPathComponent.hasPrefix(".")
         }
     }
 } 

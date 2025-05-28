@@ -94,12 +94,8 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
             // トレーニングに使用する総サンプル数を計算
             var totalImageSamples = 0
             for classDirURL in classLabelDirURLs {
-                if let files = try? FileManager.default.contentsOfDirectory(
-                    at: classDirURL,
-                    includingPropertiesForKeys: [.isRegularFileKey],
-                    options: .skipsHiddenFiles
-                ) {
-                    totalImageSamples += files.filter { !$0.hasDirectoryPath }.count
+                if let files = try? fileManager.getFilesInDirectory(classDirURL) {
+                    totalImageSamples += files.count
                 }
             }
 

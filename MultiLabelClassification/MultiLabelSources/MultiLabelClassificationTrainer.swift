@@ -1,21 +1,16 @@
 import CoreML
 import CreateML
-import CreateMLComponents
-import CICConfusionMatrix
 import CICInterface
+import CICFileManager
 import Foundation
 
-public final class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
+public class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
     public typealias TrainingResultType = MultiLabelTrainingResult
 
-    public struct ManifestEntry: Decodable {
-        let filename: String
-        let annotations: [String]
-    }
-
+    // DI 用のプロパティ
     private let resourcesDirectoryPathOverride: String?
     private let outputDirectoryPathOverride: String?
-    private let annotationFileNameOverride: String?
+    private let fileManager: CICFileManager
 
     public var outputDirPath: String {
         if let overridePath = outputDirectoryPathOverride {
@@ -36,20 +31,17 @@ public final class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
         var dir = URL(fileURLWithPath: #filePath)
         dir.deleteLastPathComponent()
         dir.deleteLastPathComponent()
-        return dir.appending(path: "Resources").path
+        return dir.appendingPathComponent("Resources").path
     }
-
-    // ラベル判定の信頼度閾値
-    private let predictionThreshold: Float = 0.5
 
     public init(
         resourcesDirectoryPathOverride: String? = nil,
         outputDirectoryPathOverride: String? = nil,
-        annotationFileNameOverride: String? = nil
+        fileManager: CICFileManager = CICFileManager()
     ) {
         self.resourcesDirectoryPathOverride = resourcesDirectoryPathOverride
         self.outputDirectoryPathOverride = outputDirectoryPathOverride
-        self.annotationFileNameOverride = annotationFileNameOverride
+        self.fileManager = fileManager
     }
 
     public func train(
@@ -59,260 +51,151 @@ public final class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
         modelParameters: CreateML.MLImageClassifier.ModelParameters,
         scenePrintRevision: Int?
     ) async -> MultiLabelTrainingResult? {
-        let outputDir: URL
-        do {
-            outputDir = try createOutputDirectory(
-                modelName: modelName,
-                version: version
-            )
-        } catch {
-            print("🛑 エラー: 出力ディレクトリの作成に失敗しました – \(error.localizedDescription)")
+        let resourcesPath = resourcesDirectoryPath
+        let resourcesDir = URL(fileURLWithPath: resourcesPath)
+        let trainingDataParentDir = resourcesDir
+
+        guard FileManager.default.fileExists(atPath: trainingDataParentDir.path) else {
+            print("❌ エラー: トレーニングデータ親ディレクトリが見つかりません 。 \(trainingDataParentDir.path)")
             return nil
         }
 
-        let resourcesDir = URL(fileURLWithPath: resourcesDirectoryPath)
+        let finalOutputDir: URL
 
-        let currentAnnotationFileName: String
-        if let overrideName = annotationFileNameOverride {
-            currentAnnotationFileName = overrideName
-        } else {
-            let fileManager = FileManager.default
+        do {
+            finalOutputDir = try fileManager.createOutputDirectory(
+                modelName: modelName,
+                version: version,
+                classificationMethod: classificationMethod,
+                moduleOutputPath: outputDirPath
+            )
+
+            let classLabelDirURLs: [URL]
             do {
-                let items = try fileManager.contentsOfDirectory(
-                    at: resourcesDir,
-                    includingPropertiesForKeys: nil,
-                    options: .skipsHiddenFiles
-                )
-                if let jsonFile = items.first(where: { $0.pathExtension.lowercased() == "json" }) {
-                    currentAnnotationFileName = jsonFile.lastPathComponent
-                } else {
-                    print("🛑 トレーニングエラー: リソースディレクトリ「\(resourcesDirectoryPath)」でJSONアノテーションファイルが見つかりませんでした。(オーバーライドも未指定)")
-                    return nil
-                }
+                classLabelDirURLs = try fileManager.getClassLabelDirectories(resourcesPath: resourcesPath)
+                print("📁 検出されたクラスラベルディレクトリ: \(classLabelDirURLs.map(\.lastPathComponent).joined(separator: ", "))")
             } catch {
-                print(
-                    "🛑 エラー: リソースディレクトリ「\(resourcesDirectoryPath)」の内容読み取り中にエラーが発生しました: \(error.localizedDescription)"
-                )
+                print("🛑 エラー: リソースディレクトリ内ラベルディレクトリ取得失敗: \(error.localizedDescription)")
                 return nil
             }
-        }
 
-        let annotationFileURL = resourcesDir.appending(path: currentAnnotationFileName)
-
-        guard FileManager.default.fileExists(atPath: annotationFileURL.path) else {
-            print("🛑 エラー: アノテーションファイルが見つかりません: \(annotationFileURL.path)")
-            return nil
-        }
-
-        guard
-            let manifestData = try? Data(contentsOf: annotationFileURL),
-            let entries = try? JSONDecoder().decode([ManifestEntry].self, from: manifestData),
-            !entries.isEmpty
-        else {
-            print("🛑 エラー: アノテーションファイルの読み取りまたはデコードに失敗しました: \(annotationFileURL.path)")
-            return nil
-        }
-
-        let annotatedFeatures: [AnnotatedFeature<URL, Set<String>>] = entries.compactMap { entry in
-            let fileURL = resourcesDir.appending(path: entry.filename)
-            return AnnotatedFeature(feature: fileURL, annotation: Set(entry.annotations))
-        }
-
-        let labels = Set(annotatedFeatures.flatMap(\.annotation)).sorted()
-        guard !labels.isEmpty else {
-            print("🛑 エラー: アノテーションファイルでラベルが検出されませんでした。")
-            return nil
-        }
-
-        let classifier = FullyConnectedNetworkMultiLabelClassifier<Float, String>(
-            labels: Set(labels)
-        )
-        let featureExtractor = ImageFeaturePrint(revision: scenePrintRevision ?? 1)
-        let pipeline = featureExtractor.appending(classifier)
-
-        let reader = ImageReader()
-        let (trainSet, validationSet) = annotatedFeatures.randomSplit(by: 0.8)
-
-        guard
-            let trainingFeatures = try? await reader.applied(to: trainSet),
-            let validationFeatures = try? await reader.applied(to: validationSet)
-        else {
-            print("🛑 エラー: 画像リーダーの適用に失敗しました。学習データまたは検証データの処理中にエラーが発生しました。")
-            return nil
-        }
-
-        let t0 = Date()
-        let fittedPipeline: ComposedTransformer<
-            ImageFeaturePrint,
-            FullyConnectedNetworkMultiLabelClassifier<Float, String>.Transformer
-        >
-        do {
-            fittedPipeline = try await pipeline.fitted(to: trainingFeatures, validateOn: validationFeatures)
-        } catch {
-            print("🛑 エラー: トレーニングに失敗しました – \(error.localizedDescription)")
-            return nil
-        }
-        let trainingTime = Date().timeIntervalSince(t0)
-
-        // 評価メトリクスを直接取得せず、混同行列に基づいて算出
-        let trainingError = 1.0 // 評価指標は未算出のため仮値
-        let validationError: Double = await {
-            guard let validationPredictions = try? await fittedPipeline.applied(to: validationFeatures) else {
-                return 1.0
+            guard classLabelDirURLs.count >= 2 else {
+                print("🛑 エラー: MultiLabel分類には最低2つのクラスラベルディレクトリが必要です。現在 \(classLabelDirURLs.count)個。処理中止。")
+                return nil
             }
 
-            var predictions: [(trueLabels: Set<String>, predictedLabels: Set<String>)] = []
-            for i in 0 ..< validationSet.count {
-                let trueAnnotations = validationSet[i].annotation
-                let actualDistribution = validationPredictions[i].feature
+            let classLabelsFromFileSystem = classLabelDirURLs.map(\.lastPathComponent).sorted()
+            print("📚 ファイルシステムから検出されたクラスラベル: \(classLabelsFromFileSystem.joined(separator: ", "))")
 
-                var predictedLabels = Set<String>()
-                for labelInDataset in labels {
-                    if let score = actualDistribution[labelInDataset], score >= predictionThreshold {
-                        predictedLabels.insert(labelInDataset)
-                    }
+            // トレーニングに使用する総サンプル数を計算
+            var totalImageSamples = 0
+            for classDirURL in classLabelDirURLs {
+                if let files = try? fileManager.getFilesInDirectory(classDirURL) {
+                    totalImageSamples += files.count
                 }
-
-                predictions.append((trueLabels: trueAnnotations, predictedLabels: predictedLabels))
             }
 
-            let confusionMatrix = CSMultiLabelConfusionMatrix(
-                predictions: predictions,
-                labels: labels,
-                predictionThreshold: predictionThreshold
-            )
+            print("\n🚀 MultiLabelトレーニング開始 (バージョン: \(version))...")
 
-            // F1スコアの平均に基づいて簡易的なエラー率を推定（仮）
-            let metrics = confusionMatrix.calculateMetrics()
-            let avgF1 = metrics.compactMap(\.f1Score).reduce(0, +) / Double(metrics.count)
-            let avgRecall = metrics.compactMap(\.recall).reduce(0, +) / Double(metrics.count)
-            return 1.0 - (avgF1 + avgRecall) / 2.0
-        }()
+            let trainingDataParentDirURL = classLabelDirURLs[0].deletingLastPathComponent()
+            let trainingDataSource = MLImageClassifier.DataSource.labeledDirectories(at: trainingDataParentDirURL)
 
-        var predictions: [(trueLabels: Set<String>, predictedLabels: Set<String>)] = []
-        if let validationPredictions = try? await fittedPipeline.applied(to: validationFeatures) {
-            for i in 0 ..< validationSet.count {
-                let trueAnnotations = validationSet[i].annotation
-                let annotatedPrediction = validationPredictions[i]
-                let actualDistribution = annotatedPrediction.feature
-
-                var predictedLabels = Set<String>()
-                for labelInDataset in labels {
-                    if let score = actualDistribution[labelInDataset], score >= predictionThreshold {
-                        predictedLabels.insert(labelInDataset)
-                    }
-                }
-
-                predictions.append((trueLabels: trueAnnotations, predictedLabels: predictedLabels))
-            }
-        }
-
-        // 混同行列の計算をCSMultiLabelConfusionMatrixに委任
-        let confusionMatrix = CSMultiLabelConfusionMatrix(
-            predictions: predictions,
-            labels: labels,
-            predictionThreshold: predictionThreshold
-        )
-
-        var descriptionParts: [String] = []
-
-        if !labels.isEmpty {
-            descriptionParts.append("ラベル: " + labels.joined(separator: ", "))
-        } else {
-            descriptionParts.append("ラベル情報なし")
-        }
-
-        descriptionParts.append("最大反復回数 (指定値): \(modelParameters.maxIterations)回")
-        descriptionParts.append(String(
-            format: "学習データ数: %d枚, 検証データ数: %d枚",
-            trainingFeatures.count,
-            validationFeatures.count
-        ))
-
-        let metrics = confusionMatrix.calculateMetrics()
-        if !metrics.isEmpty {
-            descriptionParts.append("ラベル別検証指標 (しきい値: \(predictionThreshold)):")
-            for metric in metrics {
-                let metricsString = String(
-                    format: "    %@: 再現率 %@, 適合率 %@, F1スコア %@",
-                    metric.label,
-                    metric.recall.map { String(format: "%.1f%%", $0 * 100) } ?? "計算不可",
-                    metric.precision.map { String(format: "%.1f%%", $0 * 100) } ?? "計算不可",
-                    metric.f1Score.map { String(format: "%.1f%%", $0 * 100) } ?? "計算不可"
+            do {
+                let trainingStartTime = Date()
+                let imageClassifier = try MLImageClassifier(
+                    trainingData: trainingDataSource,
+                    parameters: modelParameters
                 )
-                descriptionParts.append(metricsString)
+                let trainingEndTime = Date()
+                let trainingDurationSeconds = trainingEndTime.timeIntervalSince(trainingStartTime)
+
+                let trainingMetrics = imageClassifier.trainingMetrics
+                let validationMetrics = imageClassifier.validationMetrics
+
+                let trainingAccuracyPercentage = (1.0 - trainingMetrics.classificationError) * 100.0
+                let validationAccuracyPercentage = (1.0 - validationMetrics.classificationError) * 100.0
+
+                // データ拡張の説明
+                let commonDataAugmentationDesc = if !modelParameters.augmentationOptions.isEmpty {
+                    String(describing: modelParameters.augmentationOptions)
+                } else {
+                    "なし"
+                }
+
+                // 特徴抽出器の説明
+                let baseFeatureExtractorString = String(describing: modelParameters.featureExtractor)
+                let commonFeatureExtractorDesc: String = if let revision = scenePrintRevision {
+                    "\(baseFeatureExtractorString)(revision: \(revision))"
+                } else {
+                    baseFeatureExtractorString
+                }
+
+                // トレーニング完了後のパフォーマンス指標を表示
+                print("\n📊 トレーニング結果サマリー")
+                print(String(
+                    format: "  訓練正解率: %.1f%%, 検証正解率: %.1f%%",
+                    trainingAccuracyPercentage,
+                    validationAccuracyPercentage
+                ))
+
+                // モデルのメタデータを作成
+                let modelMetadata = MLModelMetadata(
+                    author: author,
+                    shortDescription: """
+                    クラス: \(classLabelDirURLs.map(\.lastPathComponent).joined(separator: ", "))
+                    訓練正解率: \(String(format: "%.1f%%", (1.0 - trainingMetrics.classificationError) * 100.0))
+                    検証正解率: \(String(format: "%.1f%%", (1.0 - validationMetrics.classificationError) * 100.0))
+                    データ拡張: \(commonDataAugmentationDesc)
+                    特徴抽出器: \(commonFeatureExtractorDesc)
+                    """,
+                    version: version
+                )
+
+                let modelFileName = "\(modelName)_\(classificationMethod)_\(version).mlmodel"
+                let modelFilePath = finalOutputDir.appendingPathComponent(modelFileName).path
+
+                try imageClassifier.write(to: URL(fileURLWithPath: modelFilePath), metadata: modelMetadata)
+
+                return MultiLabelTrainingResult(
+                    modelName: modelName,
+                    trainingDurationInSeconds: trainingDurationSeconds,
+                    modelOutputPath: modelFilePath,
+                    trainingDataPath: trainingDataParentDirURL.path,
+                    classLabels: classLabelsFromFileSystem,
+                    maxIterations: modelParameters.maxIterations,
+                    trainingMetrics: (
+                        accuracy: 1.0 - trainingMetrics.classificationError,
+                        errorRate: trainingMetrics.classificationError
+                    ),
+                    validationMetrics: (
+                        accuracy: 1.0 - validationMetrics.classificationError,
+                        errorRate: validationMetrics.classificationError
+                    ),
+                    dataAugmentationDescription: commonDataAugmentationDesc,
+                    featureExtractorDescription: commonFeatureExtractorDesc,
+                    scenePrintRevision: scenePrintRevision,
+                    confusionMatrix: nil
+                )
+
+            } catch let createMLError as CreateML.MLCreateError {
+                print("🛑 エラー: モデル [\(modelName)] のトレーニングまたは保存失敗 (CreateML): \(createMLError.localizedDescription)")
+                return nil
+            } catch {
+                print("🛑 エラー: トレーニングプロセス中に予期しないエラー: \(error.localizedDescription)")
+                return nil
             }
-        } else {
-            descriptionParts.append("ラベル別検証指標: 計算スキップまたは失敗")
-        }
 
-        // データ拡張 (Data Augmentation)
-        let augmentationFinalDescription: String
-        if !modelParameters.augmentationOptions.isEmpty {
-            augmentationFinalDescription = String(describing: modelParameters.augmentationOptions)
-            descriptionParts.append("データ拡張: \(augmentationFinalDescription)")
-        } else {
-            augmentationFinalDescription = "なし"
-            descriptionParts.append("データ拡張: なし")
-        }
-
-        // 特徴抽出器 (Feature Extractor)
-        let featureExtractorTypeDescription = "ImageFeaturePrint"
-        let featureExtractorDescForMetadata = if let revision = scenePrintRevision {
-            "\(featureExtractorTypeDescription)(revision: \(revision))"
-        } else {
-            featureExtractorTypeDescription
-        }
-        descriptionParts.append("特徴抽出器: \(featureExtractorDescForMetadata)")
-
-        let modelMetadata = ModelMetadata(
-            description: """
-            ラベル: \(labels.joined(separator: ", "))
-            訓練正解率: \(String(format: "%.1f%%", (1.0 - trainingError) * 100.0))
-            検証正解率: \(String(format: "%.1f%%", (1.0 - validationError) * 100.0))
-            \(confusionMatrix.calculateMetrics().map { metric in
-                """
-                【\(metric.label)】
-                再現率: \(metric.recall.map { String(format: "%.1f%%", $0 * 100.0) } ?? "計算不可"), \
-                適合率: \(metric.precision.map { String(format: "%.1f%%", $0 * 100.0) } ?? "計算不可"), \
-                F1スコア: \(metric.f1Score.map { String(format: "%.1f%%", $0 * 100.0) } ?? "計算不可")
-                """
-            }.joined(separator: "\n"))
-            データ拡張: \(augmentationFinalDescription)
-            特徴抽出器: \(featureExtractorDescForMetadata)
-            """,
-            version: version,
-            author: author
-        )
-
-        let modelURL = outputDir.appendingPathComponent("\(modelName)_\(classificationMethod)_\(version).mlmodel")
-        do {
-            try fittedPipeline.export(to: modelURL, metadata: modelMetadata)
-            print("✅ モデルを \(modelURL.path) に保存しました")
+        } catch let error as CreateML.MLCreateError {
+            print("  ❌ モデル [\(modelName)] のトレーニングまたは保存エラー 。CreateMLエラー: \(error.localizedDescription)")
+            return nil
         } catch {
-            print("🛑 エラー: モデルのエクスポートに失敗しました – \(error.localizedDescription)")
+            print("  ❌ トレーニングプロセス中に予期しないエラーが発生しました 。 \(error.localizedDescription)")
+            if let nsError = error as NSError? {
+                print("  - エラーコード: \(nsError.code)")
+                print("  - エラードメイン: \(nsError.domain)")
+                print("  - エラー説明: \(nsError.localizedDescription)")
+            }
             return nil
         }
-
-        return MultiLabelTrainingResult(
-            modelName: modelName,
-            trainingDurationInSeconds: trainingTime,
-            modelOutputPath: modelURL.path,
-            trainingDataPath: annotationFileURL.path,
-            classLabels: labels,
-            maxIterations: modelParameters.maxIterations,
-            trainingMetrics: (
-                accuracy: 1.0 - trainingError,
-                errorRate: trainingError
-            ),
-            validationMetrics: (
-                accuracy: 1.0 - validationError,
-                errorRate: validationError
-            ),
-            dataAugmentationDescription: augmentationFinalDescription,
-            featureExtractorDescription: featureExtractorTypeDescription,
-            scenePrintRevision: scenePrintRevision,
-            confusionMatrix: confusionMatrix
-        )
     }
 }
