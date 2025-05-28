@@ -1,10 +1,10 @@
+import CICFileManager
 import CoreML
 import CreateML
 import Foundation
 @testable import MultiLabelClassification
 import Vision
 import XCTest
-import CICFileManager
 
 final class MultiLabelClassificationTests: XCTestCase {
     var trainer: MultiLabelClassificationTrainer!

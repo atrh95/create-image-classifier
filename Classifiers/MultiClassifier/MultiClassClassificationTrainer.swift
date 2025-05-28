@@ -1,10 +1,10 @@
-import Foundation
-import CICInterface
 import CICConfusionMatrix
 import CICFileManager
+import CICInterface
 import CICTrainingResult
 import CoreML
 import CreateML
+import Foundation
 
 public final class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
     public typealias TrainingResultType = MultiClassTrainingResult

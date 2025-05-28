@@ -176,7 +176,10 @@ public final class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
         print("📁 トレーニングデータ親ディレクトリ: \(trainingDataParentDirURL.path)")
 
         // JSONファイルを検索
-        let files = try FileManager.default.contentsOfDirectory(at: trainingDataParentDirURL, includingPropertiesForKeys: nil)
+        let files = try FileManager.default.contentsOfDirectory(
+            at: trainingDataParentDirURL,
+            includingPropertiesForKeys: nil
+        )
         guard let jsonFile = files.first(where: { $0.pathExtension.lowercased() == "json" }) else {
             throw NSError(domain: "MultiLabelClassificationTrainer", code: -1, userInfo: [
                 NSLocalizedDescriptionKey: "アノテーションファイル（JSON）が見つかりません。",

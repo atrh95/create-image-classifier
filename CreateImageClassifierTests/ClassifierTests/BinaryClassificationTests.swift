@@ -1,10 +1,10 @@
 @testable import BinaryClassification
+import CICFileManager
 import CoreML
 import CreateML
 import Foundation
 import Vision
 import XCTest
-import CICFileManager
 
 final class BinaryClassificationTests: XCTestCase {
     var trainer: BinaryClassificationTrainer!

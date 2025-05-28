@@ -1,10 +1,10 @@
+import CICFileManager
 import CoreML
 import CreateML
 import Foundation
 @testable import OvRClassification
 import Vision
 import XCTest
-import CICFileManager
 
 final class OvRClassificationTests: XCTestCase {
     var trainer: OvRClassificationTrainer!

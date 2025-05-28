@@ -1,14 +1,14 @@
+import BinaryClassification
+import CICFileManager
 import CoreML
 import CreateML
 import Foundation
 @testable import MultiClassClassification
+import MultiLabelClassification
+import OvOClassification
+import OvRClassification
 import Vision
 import XCTest
-import BinaryClassification
-import MultiLabelClassification
-import OvRClassification
-import OvOClassification
-import CICFileManager
 
 final class MultiClassClassificationTests: XCTestCase {
     var trainer: MultiClassClassificationTrainer!
