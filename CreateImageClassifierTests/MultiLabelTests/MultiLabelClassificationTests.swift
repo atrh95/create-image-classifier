@@ -118,7 +118,7 @@ final class MultiLabelClassificationTests: XCTestCase {
             "訓練モデルファイルが期待されるパス「\(result.modelOutputPath)」に見つかりません"
         )
 
-        let expectedClassLabels = ["black_and_white", "human_hands_detected", "mouth_open", "sphynx"].sorted()
+        let expectedClassLabels = ["black_and_white", "human_hands_detected", "mouth_open", "safe", "sphynx"].sorted()
         XCTAssertEqual(
             Set(result.classLabels.sorted()),
             Set(expectedClassLabels),
