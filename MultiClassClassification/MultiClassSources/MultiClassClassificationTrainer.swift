@@ -2,6 +2,7 @@ import CoreML
 import CreateML
 import CICConfusionMatrix
 import CICInterface
+import CICFileManager
 import Foundation
 
 public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
@@ -10,6 +11,7 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
     // DI 用のプロパティ
     private let resourcesDirectoryPathOverride: String?
     private let outputDirectoryPathOverride: String?
+    private let fileManager: CICFileManager
 
     // ファイルマネージャーの静的プロパティを追加
     private static let fileManager = FileManager.default
@@ -38,10 +40,12 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
 
     public init(
         resourcesDirectoryPathOverride: String? = nil,
-        outputDirectoryPathOverride: String? = nil
+        outputDirectoryPathOverride: String? = nil,
+        fileManager: CICFileManager = CICFileManager()
     ) {
         self.resourcesDirectoryPathOverride = resourcesDirectoryPathOverride
         self.outputDirectoryPathOverride = outputDirectoryPathOverride
+        self.fileManager = fileManager
     }
 
     public func train(
@@ -50,14 +54,12 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
         version: String,
         modelParameters: CreateML.MLImageClassifier.ModelParameters,
         scenePrintRevision: Int?
-    )
-        async -> MultiClassTrainingResult?
-    {
+    ) async -> MultiClassTrainingResult? {
         let resourcesPath = resourcesDirectoryPath
         let resourcesDir = URL(fileURLWithPath: resourcesPath)
         let trainingDataParentDir = resourcesDir
 
-        guard Self.fileManager.fileExists(atPath: trainingDataParentDir.path) else {
+        guard FileManager.default.fileExists(atPath: trainingDataParentDir.path) else {
             print("❌ エラー: トレーニングデータ親ディレクトリが見つかりません 。 \(trainingDataParentDir.path)")
             return nil
         }
@@ -65,49 +67,17 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
         let finalOutputDir: URL
 
         do {
-            finalOutputDir = try createOutputDirectory(
+            finalOutputDir = try fileManager.createOutputDirectory(
                 modelName: modelName,
-                version: version
+                version: version,
+                classificationMethod: classificationMethod,
+                moduleOutputPath: outputDirPath
             )
-
-            let contents = try Self.fileManager.contentsOfDirectory(
-                at: trainingDataParentDir,
-                includingPropertiesForKeys: [.isDirectoryKey],
-                options: .skipsHiddenFiles
-            )
-            let allClassDirs = contents.filter { url in
-                var isDirectory: ObjCBool = false
-                return Self.fileManager.fileExists(atPath: url.path, isDirectory: &isDirectory) && isDirectory
-                    .boolValue
-            }
-            let classLabelsFromFileSystem = allClassDirs.map(\.lastPathComponent).sorted()
-            print("📚 ファイルシステムから検出されたクラスラベル: \(classLabelsFromFileSystem.joined(separator: ", "))")
-
-            // トレーニングに使用する総サンプル数を計算
-            var totalImageSamples = 0
-            for classDirURL in allClassDirs {
-                if let files = try? Self.fileManager.contentsOfDirectory(
-                    at: classDirURL,
-                    includingPropertiesForKeys: [.isRegularFileKey],
-                    options: .skipsHiddenFiles
-                ) {
-                    totalImageSamples += files.filter { !$0.hasDirectoryPath }.count
-                }
-            }
-
-            print("\n🚀 MultiClassトレーニング開始 (バージョン: \(version))...")
 
             let classLabelDirURLs: [URL]
             do {
-                classLabelDirURLs = try Self.fileManager.contentsOfDirectory(
-                    at: resourcesDir,
-                    includingPropertiesForKeys: [.isDirectoryKey],
-                    options: .skipsHiddenFiles
-                ).filter { url in
-                    var isDirectory: ObjCBool = false
-                    Self.fileManager.fileExists(atPath: url.path, isDirectory: &isDirectory)
-                    return isDirectory.boolValue && !url.lastPathComponent.hasPrefix(".")
-                }
+                classLabelDirURLs = try fileManager.getClassLabelDirectories(resourcesPath: resourcesPath)
+                print("📁 検出されたクラスラベルディレクトリ: \(classLabelDirURLs.map(\.lastPathComponent).joined(separator: ", "))")
             } catch {
                 print("🛑 エラー: リソースディレクトリ内ラベルディレクトリ取得失敗: \(error.localizedDescription)")
                 return nil
@@ -117,6 +87,23 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
                 print("🛑 エラー: MultiClass分類には最低2つのクラスラベルディレクトリが必要です。現在 \(classLabelDirURLs.count)個。処理中止。")
                 return nil
             }
+
+            let classLabelsFromFileSystem = classLabelDirURLs.map(\.lastPathComponent).sorted()
+            print("📚 ファイルシステムから検出されたクラスラベル: \(classLabelsFromFileSystem.joined(separator: ", "))")
+
+            // トレーニングに使用する総サンプル数を計算
+            var totalImageSamples = 0
+            for classDirURL in classLabelDirURLs {
+                if let files = try? FileManager.default.contentsOfDirectory(
+                    at: classDirURL,
+                    includingPropertiesForKeys: [.isRegularFileKey],
+                    options: .skipsHiddenFiles
+                ) {
+                    totalImageSamples += files.filter { !$0.hasDirectoryPath }.count
+                }
+            }
+
+            print("\n🚀 MultiClassトレーニング開始 (バージョン: \(version))...")
 
             let trainingDataParentDirURL = classLabelDirURLs[0].deletingLastPathComponent()
             let trainingDataSource = MLImageClassifier.DataSource.labeledDirectories(at: trainingDataParentDirURL)
@@ -248,7 +235,9 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
         } catch {
             print("  ❌ トレーニングプロセス中に予期しないエラーが発生しました 。 \(error.localizedDescription)")
             if let nsError = error as NSError? {
-                print("    詳細なエラー情報: \(nsError.userInfo)")
+                print("  - エラーコード: \(nsError.code)")
+                print("  - エラードメイン: \(nsError.domain)")
+                print("  - エラー説明: \(nsError.localizedDescription)")
             }
             return nil
         }
