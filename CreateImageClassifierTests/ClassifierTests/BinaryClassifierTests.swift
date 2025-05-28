@@ -6,8 +6,8 @@ import Foundation
 import Vision
 import XCTest
 
-final class BinaryClassificationTests: XCTestCase {
-    var trainer: BinaryClassificationTrainer!
+final class BinaryClassifierTests: XCTestCase {
+    var classifier: BinaryClassifier!
     let fileManager = FileManager.default
     var authorName: String = "Test Author"
     var testModelName: String = "TestCats_Binary_Run"
@@ -42,24 +42,24 @@ final class BinaryClassificationTests: XCTestCase {
             attributes: nil
         )
 
-        trainer = BinaryClassificationTrainer(
+        classifier = BinaryClassifier(
             outputDirectoryPathOverride: temporaryOutputDirectoryURL.path
         )
         
         // テストリソースディレクトリのパスを設定
         let currentFileURL = URL(fileURLWithPath: #filePath)
-        trainer.testResourcesDirectoryPath = currentFileURL
+        classifier.testResourcesDirectoryPath = currentFileURL
             .deletingLastPathComponent() // BinaryClassificationTests.swift
             .appendingPathComponent("TestResources")
             .appendingPathComponent("Binary")
             .path
 
-        trainingResult = await trainer.train(
-            author: authorName,
-            modelName: testModelName,
-            version: testModelVersion,
+        trainingResult = await classifier.train(
+            author: "test",
+            modelName: "TestModel",
+            version: "v1",
             modelParameters: modelParameters,
-            scenePrintRevision: 1
+            scenePrintRevision: nil
         )
 
         guard let result = trainingResult else {
@@ -85,14 +85,14 @@ final class BinaryClassificationTests: XCTestCase {
         }
         compiledModelURL = nil
         trainingResult = nil
-        trainer.testResourcesDirectoryPath = nil
-        trainer = nil
+        classifier.testResourcesDirectoryPath = nil
+        classifier = nil
         try super.tearDownWithError()
     }
 
-    func testTrainerDIConfiguration() {
-        XCTAssertNotNil(trainer, "BinaryClassificationTrainerの初期化失敗")
-        XCTAssertEqual(trainer.outputDirPath, temporaryOutputDirectoryURL.path, "トレーナーの出力パスが期待値と不一致")
+    func testClassifierDIConfiguration() {
+        XCTAssertNotNil(classifier, "BinaryClassifierの初期化失敗")
+        XCTAssertEqual(classifier.outputDirPath, temporaryOutputDirectoryURL.path, "分類器の出力パスが期待値と不一致")
     }
 
     enum TestError: Error {
@@ -116,7 +116,7 @@ final class BinaryClassificationTests: XCTestCase {
         )
 
         // Dynamically get expected class labels from the TestResources subdirectories
-        let resourceURL = URL(fileURLWithPath: trainer.resourcesDirectoryPath)
+        let resourceURL = URL(fileURLWithPath: classifier.resourcesDirectoryPath)
 
         var expectedClassLabels: [String] = []
         do {
@@ -163,8 +163,8 @@ final class BinaryClassificationTests: XCTestCase {
             "モデルファイルパスにバージョン「\(testModelVersion)」が含まれていません"
         )
         XCTAssertTrue(
-            result.metadata.trainedModelFilePath.contains(trainer.classificationMethod),
-            "モデルファイルパスに分類法「\(trainer.classificationMethod)」が含まれていません"
+            result.metadata.trainedModelFilePath.contains(classifier.classificationMethod),
+            "モデルファイルパスに分類法「\(classifier.classificationMethod)」が含まれていません"
         )
     }
 
@@ -236,7 +236,7 @@ final class BinaryClassificationTests: XCTestCase {
     }
 
     private func getRandomImageURL(forClassLabel classLabel: String) throws -> URL {
-        let resourceURL = URL(fileURLWithPath: trainer.resourcesDirectoryPath)
+        let resourceURL = URL(fileURLWithPath: classifier.resourcesDirectoryPath)
         let classLabelURL = resourceURL.appendingPathComponent(classLabel)
 
         var isDirectory: ObjCBool = false

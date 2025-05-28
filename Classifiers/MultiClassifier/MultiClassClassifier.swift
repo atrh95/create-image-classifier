@@ -6,7 +6,7 @@ import CoreML
 import CreateML
 import Foundation
 
-public final class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
+public final class MultiClassClassifier: ClassifierProtocol {
     public typealias TrainingResultType = MultiClassTrainingResult
 
     private let fileManager = CICFileManager()
@@ -160,7 +160,7 @@ public final class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
         print("📁 検出されたクラスラベルディレクトリ: \(classLabelDirURLs.map(\.lastPathComponent).joined(separator: ", "))")
 
         guard classLabelDirURLs.count >= 2 else {
-            throw NSError(domain: "MultiClassClassificationTrainer", code: -1, userInfo: [
+            throw NSError(domain: "MultiClassClassifier", code: -1, userInfo: [
                 NSLocalizedDescriptionKey: "MultiClass分類には2つ以上のクラスラベルディレクトリが必要です。現在 \(classLabelDirURLs.count)個。",
             ])
         }

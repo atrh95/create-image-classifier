@@ -6,8 +6,8 @@ import Foundation
 import Vision
 import XCTest
 
-final class OvRClassificationTests: XCTestCase {
-    var trainer: OvRClassificationTrainer!
+final class OvRClassifierTests: XCTestCase {
+    var classifier: OvRClassifier!
     let fileManager = FileManager.default
     let authorName: String = "Test Author"
     let testModelName: String = "TestCats_OvR_Run"
@@ -51,24 +51,24 @@ final class OvRClassificationTests: XCTestCase {
             attributes: nil
         )
 
-        trainer = OvRClassificationTrainer(
+        classifier = OvRClassifier(
             outputDirectoryPathOverride: temporaryOutputDirectoryURL.path
         )
         
         // テストリソースディレクトリのパスを設定
         let currentFileURL = URL(fileURLWithPath: #filePath)
-        trainer.testResourcesDirectoryPath = currentFileURL
+        classifier.testResourcesDirectoryPath = currentFileURL
             .deletingLastPathComponent() // OvRClassificationTests.swift
             .appendingPathComponent("TestResources")
             .appendingPathComponent("OvR")
             .path
 
-        trainingResult = await trainer.train(
-            author: authorName,
-            modelName: testModelName,
-            version: testModelVersion,
+        trainingResult = await classifier.train(
+            author: "test",
+            modelName: "TestModel",
+            version: "v1",
             modelParameters: modelParameters,
-            scenePrintRevision: 1
+            scenePrintRevision: nil
         )
 
         guard trainingResult != nil else {
@@ -87,14 +87,14 @@ final class OvRClassificationTests: XCTestCase {
         }
         compiledModelURL = nil
         trainingResult = nil
-        trainer.testResourcesDirectoryPath = nil
-        trainer = nil
+        classifier.testResourcesDirectoryPath = nil
+        classifier = nil
         try super.tearDownWithError()
     }
 
-    func testTrainerDIConfiguration() throws {
-        XCTAssertNotNil(trainer, "OvRClassificationTrainerの初期化失敗")
-        XCTAssertEqual(trainer.outputDirPath, temporaryOutputDirectoryURL.path, "トレーナーの出力パスが期待値と不一致")
+    func testClassifierDIConfiguration() throws {
+        XCTAssertNotNil(classifier, "OvRClassifierの初期化失敗")
+        XCTAssertEqual(classifier.outputDirPath, temporaryOutputDirectoryURL.path, "分類器の出力パスが期待値と不一致")
     }
 
     func testModelTrainingAndArtifactGeneration() throws {
@@ -109,7 +109,7 @@ final class OvRClassificationTests: XCTestCase {
         )
 
         // Dynamically get expected class labels from the TestResources subdirectories
-        let resourceURL = URL(fileURLWithPath: trainer.resourcesDirectoryPath)
+        let resourceURL = URL(fileURLWithPath: classifier.resourcesDirectoryPath)
 
         var expectedClassLabels: [String] = []
         do {
@@ -204,7 +204,7 @@ final class OvRClassificationTests: XCTestCase {
     }
 
     private func getRandomImageURL(forClassLabel classLabel: String) throws -> URL {
-        let resourceURL = URL(fileURLWithPath: trainer.resourcesDirectoryPath)
+        let resourceURL = URL(fileURLWithPath: classifier.resourcesDirectoryPath)
         let classLabelURL = resourceURL.appendingPathComponent(classLabel)
 
         var isDirectory: ObjCBool = false

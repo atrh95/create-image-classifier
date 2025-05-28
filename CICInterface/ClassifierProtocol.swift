@@ -3,7 +3,7 @@ import CreateML
 import Foundation
 
 /// 画像分類モデルトレーナー
-public protocol ScreeningTrainerProtocol {
+public protocol ClassifierProtocol {
     associatedtype TrainingResultType: TrainingResultProtocol
 
     var outputDirPath: String { get }

@@ -6,7 +6,7 @@ import CoreML
 import CreateML
 import Foundation
 
-public final class BinaryClassificationTrainer: ScreeningTrainerProtocol {
+public final class BinaryClassifier: ClassifierProtocol {
     public typealias TrainingResultType = BinaryTrainingResult
 
     private let fileManager: CICFileManager
@@ -162,7 +162,7 @@ public final class BinaryClassificationTrainer: ScreeningTrainerProtocol {
         print("📁 検出されたクラスラベルディレクトリ: \(classLabelDirURLs.map(\.lastPathComponent).joined(separator: ", "))")
 
         guard classLabelDirURLs.count == 2 else {
-            throw NSError(domain: "BinaryClassificationTrainer", code: -1, userInfo: [
+            throw NSError(domain: "BinaryClassifier", code: -1, userInfo: [
                 NSLocalizedDescriptionKey: "Binary分類には2つのクラスラベルディレクトリが必要です。現在 \(classLabelDirURLs.count)個。",
             ])
         }

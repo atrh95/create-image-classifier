@@ -9,16 +9,16 @@ import OvOClassification
 import OvRClassification
 
 // 分類器の種類
-enum TrainerType: String {
+enum ClassifierType: String {
     case binary, multiClass, multiLabel, ovr, ovo
 
-    func makeTrainer() -> any ScreeningTrainerProtocol {
+    func makeClassifier() -> any ClassifierProtocol {
         switch self {
-            case .binary: BinaryClassificationTrainer()
-            case .multiClass: MultiClassClassificationTrainer()
-            case .multiLabel: MultiLabelClassificationTrainer()
-            case .ovr: OvRClassificationTrainer()
-            case .ovo: OvOClassificationTrainer()
+        case .binary: BinaryClassificationClassifier()
+        case .multiClass: MultiClassClassificationClassifier()
+        case .multiLabel: MultiLabelClassificationClassifier()
+        case .ovr: OvRClassificationClassifier()
+        case .ovo: OvOClassificationClassifier()
         }
     }
 }
@@ -29,19 +29,33 @@ enum MLModelType: String {
 
     struct ModelConfig {
         let name: String
-        let supportedTrainerVersions: [TrainerType: String]
+        let supportedClassifierVersions: [ClassifierType: String]
+        let author: String
+        let modelParameters: CreateML.MLImageClassifier.ModelParameters
+        let scenePrintRevision: Int?
     }
 
     private static let configs: [MLModelType: ModelConfig] = [
         .scaryCatScreeningML: ModelConfig(
             name: "ScaryCatScreeningML",
-            supportedTrainerVersions: [
+            supportedClassifierVersions: [
                 .binary: "v6",
                 .multiClass: "v3",
                 .multiLabel: "v1",
                 .ovr: "v20",
                 .ovo: "v1",
-            ]
+            ],
+            author: "akitora",
+            modelParameters: MLImageClassifier.ModelParameters(
+                validation: .split(strategy: .automatic),
+                maxIterations: 8,
+                augmentation: [],
+                algorithm: .transferLearning(
+                    featureExtractor: .scenePrint(revision: 1),
+                    classifier: .logisticRegressor
+                )
+            ),
+            scenePrintRevision: 1
         ),
     ]
 
@@ -53,16 +67,18 @@ enum MLModelType: String {
     }
 
     var name: String { config.name }
-    var supportedTrainerTypes: [TrainerType] { Array(config.supportedTrainerVersions.keys) }
-    func version(for trainer: TrainerType) -> String? { config.supportedTrainerVersions[trainer] }
+    var supportedClassifierTypes: [ClassifierType] { Array(config.supportedClassifierVersions.keys) }
+    func version(for classifier: ClassifierType) -> String? { config.supportedClassifierVersions[classifier] }
+    var author: String { config.author }
+    var modelParameters: CreateML.MLImageClassifier.ModelParameters { config.modelParameters }
+    var scenePrintRevision: Int? { config.scenePrintRevision }
 }
 
 let semaphore = DispatchSemaphore(value: 0)
 
 Task {
     let selectedModel: MLModelType = .scaryCatScreeningML
-    let selectedTrainer: TrainerType = .binary
-    let author = "akitora"
+    let selectedClassifier: ClassifierType = .binary
     let trainingCount = 1
 
     guard trainingCount > 0 else {
@@ -71,53 +87,37 @@ Task {
         return
     }
 
-    // ModelParametersの設定
-    // 特徴抽出器の設定：ScenePrint の場合のみリビジョンを指定する
-    let scenePrintRevision: Int? = 1
-    let algorithm = MLImageClassifier.ModelParameters.ModelAlgorithmType.transferLearning(
-        featureExtractor: .scenePrint(revision: scenePrintRevision),
-        classifier: .logisticRegressor
-    )
-
-    let modelParameters = MLImageClassifier.ModelParameters(
-        validation: .split(strategy: .automatic),
-        maxIterations: 8,
-        augmentation: [],
-        algorithm: algorithm
-    )
-
-    guard selectedModel.supportedTrainerTypes.contains(selectedTrainer),
-          let version = selectedModel.version(for: selectedTrainer)
+    guard selectedModel.supportedClassifierTypes.contains(selectedClassifier),
+          let version = selectedModel.version(for: selectedClassifier)
     else {
-        print("無効な組み合わせです")
-        semaphore.signal()
-        return
+        print("❌ エラー: 選択されたモデルは指定された分類器タイプをサポートしていません")
+        exit(1)
     }
 
-    let trainer = selectedTrainer.makeTrainer()
+    let classifier = selectedClassifier.makeClassifier()
 
     // 指定された回数分トレーニングを実行
     for i in 1 ... trainingCount {
         print("トレーニング開始: \(i)/\(trainingCount)")
 
-        guard let result = await trainer.train(
-            author: author,
+        guard let result = await classifier.train(
+            author: selectedModel.author,
             modelName: selectedModel.name,
             version: version,
-            modelParameters: modelParameters,
-            scenePrintRevision: scenePrintRevision
-        ) as? TrainingResultProtocol else {
-            print("トレーニングに失敗しました: \(i)/\(trainingCount)")
+            modelParameters: selectedModel.modelParameters,
+            scenePrintRevision: selectedModel.scenePrintRevision
+        ) else {
+            print("❌ エラー: トレーニング失敗")
             continue
         }
 
         result.saveLog(
-            modelAuthor: author,
+            modelAuthor: selectedModel.author,
             modelName: selectedModel.name,
             modelVersion: version
         )
 
-        print("トレーニング完了: \(selectedModel.name) [\(selectedTrainer.rawValue)] - \(i)/\(trainingCount)")
+        print("トレーニング完了: \(selectedModel.name) [\(selectedClassifier.rawValue)] - \(i)/\(trainingCount)")
     }
 
     semaphore.signal()

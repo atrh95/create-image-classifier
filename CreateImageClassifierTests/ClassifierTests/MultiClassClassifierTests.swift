@@ -10,8 +10,8 @@ import OvRClassification
 import Vision
 import XCTest
 
-final class MultiClassClassificationTests: XCTestCase {
-    var trainer: MultiClassClassificationTrainer!
+final class MultiClassClassifierTests: XCTestCase {
+    var classifier: MultiClassClassifier!
     let fileManager = FileManager.default
     let authorName: String = "Test Author"
     let testModelName: String = "TestCats_Multi_Run"
@@ -33,7 +33,7 @@ final class MultiClassClassificationTests: XCTestCase {
 
     var temporaryOutputDirectoryURL: URL!
     var compiledModelURL: URL?
-    var trainingResult: MultiClassClassification.MultiClassTrainingResult?
+    var trainingResult: MultiClassTrainingResult?
 
     override func setUp() async throws {
         try await super.setUp()
@@ -46,24 +46,24 @@ final class MultiClassClassificationTests: XCTestCase {
             attributes: nil
         )
 
-        trainer = MultiClassClassificationTrainer(
+        classifier = MultiClassClassifier(
             outputDirectoryPathOverride: temporaryOutputDirectoryURL.path
         )
         
         // テストリソースディレクトリのパスを設定
         let currentFileURL = URL(fileURLWithPath: #filePath)
-        trainer.testResourcesDirectoryPath = currentFileURL
+        classifier.testResourcesDirectoryPath = currentFileURL
             .deletingLastPathComponent() // MultiClassClassificationTests.swift
             .appendingPathComponent("TestResources")
             .appendingPathComponent("MultiClass")
             .path
 
-        trainingResult = await trainer.train(
+        trainingResult = await classifier.train(
             author: authorName,
             modelName: testModelName,
             version: testModelVersion,
             modelParameters: modelParameters,
-            scenePrintRevision: 1
+            scenePrintRevision: nil
         )
 
         guard let result = trainingResult else {
@@ -99,14 +99,14 @@ final class MultiClassClassificationTests: XCTestCase {
         }
         compiledModelURL = nil
         trainingResult = nil
-        trainer.testResourcesDirectoryPath = nil
-        trainer = nil
+        classifier.testResourcesDirectoryPath = nil
+        classifier = nil
         try super.tearDownWithError()
     }
 
-    func testTrainerDIConfiguration() {
-        XCTAssertNotNil(trainer, "MultiClassClassificationTrainerの初期化失敗")
-        XCTAssertEqual(trainer.outputDirPath, temporaryOutputDirectoryURL.path, "トレーナーの出力パスが期待値と不一致")
+    func testClassifierDIConfiguration() {
+        XCTAssertNotNil(classifier, "MultiClassClassifierの初期化失敗")
+        XCTAssertEqual(classifier.outputDirPath, temporaryOutputDirectoryURL.path, "分類器の出力パスが期待値と不一致")
     }
 
     enum TestError: Error {
@@ -129,7 +129,7 @@ final class MultiClassClassificationTests: XCTestCase {
         )
 
         // Dynamically get expected class labels from the TestResources subdirectories
-        let resourceURL = URL(fileURLWithPath: trainer.resourcesDirectoryPath)
+        let resourceURL = URL(fileURLWithPath: classifier.resourcesDirectoryPath)
 
         var expectedClassLabels: [String] = []
         do {
@@ -190,8 +190,8 @@ final class MultiClassClassificationTests: XCTestCase {
             "モデルファイルのパスにバージョン「\(testModelVersion)」が含まれていません"
         )
         XCTAssertTrue(
-            result.modelOutputPath.contains(trainer.classificationMethod),
-            "モデルファイルのパスに分類手法「\(trainer.classificationMethod)」が含まれていません"
+            result.modelOutputPath.contains(classifier.classificationMethod),
+            "モデルファイルのパスに分類手法「\(classifier.classificationMethod)」が含まれていません"
         )
     }
 
@@ -237,7 +237,7 @@ final class MultiClassClassificationTests: XCTestCase {
     }
 
     private func getRandomImageURL(forClassLabel classLabel: String) throws -> URL {
-        let resourceURL = URL(fileURLWithPath: trainer.resourcesDirectoryPath)
+        let resourceURL = URL(fileURLWithPath: classifier.resourcesDirectoryPath)
         let classLabelURL = resourceURL.appendingPathComponent(classLabel)
 
         var isDirectory: ObjCBool = false

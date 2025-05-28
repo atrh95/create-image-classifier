@@ -8,13 +8,8 @@ import CreateML
 import Foundation
 import TabularData
 
-private struct ImageAnnotation: Codable {
-    let filename: String
-    let annotations: [String]
-}
-
-public final class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
-    public typealias TrainingResultType = MultiLabelTrainingResult
+public final class OvRClassifier: ClassifierProtocol {
+    public typealias TrainingResultType = OvRTrainingResult
 
     private let fileManager = CICFileManager()
     public var outputDirectoryPathOverride: String?
@@ -26,14 +21,14 @@ public final class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
         }
         let currentFileURL = URL(fileURLWithPath: #filePath)
         return currentFileURL
-            .deletingLastPathComponent() // MultiLabelClassifier
+            .deletingLastPathComponent() // OvRClassifier
             .deletingLastPathComponent() // Classifiers
             .appendingPathComponent("CICOutputModels")
-            .appendingPathComponent("MultiLabelClassifier")
+            .appendingPathComponent("OvRClassifier")
             .path
     }
 
-    public var classificationMethod: String { "MultiLabel" }
+    public var classificationMethod: String { "OvR" }
 
     public var resourcesDirectoryPath: String {
         if let testPath = testResourcesDirectoryPath {
@@ -41,11 +36,11 @@ public final class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
         }
         let currentFileURL = URL(fileURLWithPath: #filePath)
         return currentFileURL
-            .deletingLastPathComponent() // MultiLabelClassifier
+            .deletingLastPathComponent() // OvRClassifier
             .deletingLastPathComponent() // Classifiers
             .deletingLastPathComponent() // Project root
             .appendingPathComponent("CICResources")
-            .appendingPathComponent("MultiLabelResources")
+            .appendingPathComponent("OvRResources")
             .path
     }
 
@@ -53,15 +48,17 @@ public final class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
         self.outputDirectoryPathOverride = outputDirectoryPathOverride
     }
 
+    static let tempBaseDirName = "TempOvRTrainingData"
+
     public func train(
         author: String,
         modelName: String,
         version: String,
         modelParameters: CreateML.MLImageClassifier.ModelParameters,
         scenePrintRevision: Int?
-    ) async -> MultiLabelTrainingResult? {
+    ) async -> OvRTrainingResult? {
         print("📁 リソースディレクトリ: \(resourcesDirectoryPath)")
-        print("🚀 MultiLabelトレーニング開始 (バージョン: \(version))...")
+        print("🚀 OvRトレーニング開始 (バージョン: \(version))...")
 
         do {
             // クラスラベルディレクトリの取得
@@ -167,8 +164,8 @@ public final class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
         print("📁 検出されたクラスラベルディレクトリ: \(classLabelDirURLs.map(\.lastPathComponent).joined(separator: ", "))")
 
         guard classLabelDirURLs.count >= 2 else {
-            throw NSError(domain: "MultiLabelClassificationTrainer", code: -1, userInfo: [
-                NSLocalizedDescriptionKey: "マルチラベル分類には2つ以上のクラスラベルディレクトリが必要です。現在 \(classLabelDirURLs.count)個。",
+            throw NSError(domain: "OvRClassifier", code: -1, userInfo: [
+                NSLocalizedDescriptionKey: "OvR分類には少なくとも2つのクラスラベルディレクトリが必要です。現在 \(classLabelDirURLs.count)個。",
             ])
         }
 
@@ -178,23 +175,6 @@ public final class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
     public func prepareTrainingData(from classLabelDirURLs: [URL]) throws -> MLImageClassifier.DataSource {
         let trainingDataParentDirURL = classLabelDirURLs[0].deletingLastPathComponent()
         print("📁 トレーニングデータ親ディレクトリ: \(trainingDataParentDirURL.path)")
-
-        // JSONファイルを検索
-        let files = try FileManager.default.contentsOfDirectory(
-            at: trainingDataParentDirURL,
-            includingPropertiesForKeys: nil
-        )
-        guard let jsonFile = files.first(where: { $0.pathExtension.lowercased() == "json" }) else {
-            throw NSError(domain: "MultiLabelClassificationTrainer", code: -1, userInfo: [
-                NSLocalizedDescriptionKey: "アノテーションファイル（JSON）が見つかりません。",
-            ])
-        }
-
-        // JSONファイルを読み込む
-        let jsonData = try Data(contentsOf: jsonFile)
-        let annotations = try JSONDecoder().decode([ImageAnnotation].self, from: jsonData)
-        print("📄 アノテーションファイル読み込み完了: \(jsonFile.lastPathComponent)")
-
         return MLImageClassifier.DataSource.labeledDirectories(at: trainingDataParentDirURL)
     }
 
@@ -272,7 +252,7 @@ public final class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
         scenePrintRevision: Int?,
         trainingDurationSeconds: TimeInterval,
         modelFilePath: String
-    ) -> MultiLabelTrainingResult {
+    ) -> OvRTrainingResult {
         let augmentationFinalDescription = if !modelParameters.augmentationOptions.isEmpty {
             String(describing: modelParameters.augmentationOptions)
         } else {
@@ -303,7 +283,7 @@ public final class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
             actualColumn: "True Label"
         )
 
-        return MultiLabelTrainingResult(
+        return OvRTrainingResult(
             metadata: metadata,
             trainingMetrics: (
                 accuracy: 1.0 - trainingMetrics.classificationError,
