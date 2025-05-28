@@ -22,6 +22,7 @@ Swiftアプリケーションに典型的なモジュラーでプロトコル指
 .
 ├── CICInterface/
 ├── CICConfusionMatrix/
+├── CICFileManager/
 ├── BinaryClassification/
 │   ├── BinarySources/
 │   ├── OutputModels/

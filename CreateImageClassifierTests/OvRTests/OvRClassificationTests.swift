@@ -96,28 +96,30 @@ final class OvRClassificationTests: XCTestCase {
 
     func testModelTrainingAndArtifactGeneration() throws {
         guard let result = trainingResult else {
-            XCTFail("訓練結果がnilです (OvR testModelTrainingAndArtifactGeneration)")
+            XCTFail("訓練結果がnilです (testModelTrainingAndArtifactGeneration)")
             throw TestError.trainingFailed
         }
 
-        let modelOutputDir = URL(fileURLWithPath: result.trainedModelFilePath)
         XCTAssertTrue(
-            fileManager.fileExists(atPath: modelOutputDir.path),
-            "訓練モデル出力ディレクトリが期待されるパス「\(modelOutputDir.path)」に見つかりません"
+            fileManager.fileExists(atPath: result.metadata.trainedModelFilePath),
+            "訓練モデルファイルが期待されるパス「\(result.metadata.trainedModelFilePath)」に見つかりません"
         )
 
-        let contents = try fileManager.contentsOfDirectory(
-            at: modelOutputDir,
-            includingPropertiesForKeys: nil,
-            options: []
+        let expectedClassLabels = ["black_and_white", "human_hands_detected", "mouth_open", "safe", "sphynx"].sorted()
+        XCTAssertEqual(
+            Set(result.metadata.detectedClassLabelsList.sorted()),
+            Set(expectedClassLabels),
+            "訓練結果のクラスラベル「\(result.metadata.detectedClassLabelsList.sorted())」が期待されるラベル「\(expectedClassLabels)」と一致しません"
         )
-        let mlModelFiles = contents.filter { $0.pathExtension == "mlmodel" }
-        XCTAssertFalse(mlModelFiles.isEmpty, "訓練された .mlmodel ファイルが出力ディレクトリ「\(modelOutputDir.path)」に見つかりません")
 
         result.saveLog(modelAuthor: authorName, modelName: testModelName, modelVersion: testModelVersion)
-        let actualLogFileName = "OvR_Run_Report_\(testModelVersion).md"
-        let expectedLogFilePath = modelOutputDir.appendingPathComponent(actualLogFileName).path
+        let modelFileDir = URL(fileURLWithPath: result.metadata.trainedModelFilePath).deletingLastPathComponent()
+        let expectedLogFileName = "OvR_Run_Report_\(testModelVersion).md"
+        let expectedLogFilePath = modelFileDir.appendingPathComponent(expectedLogFileName).path
         XCTAssertTrue(fileManager.fileExists(atPath: expectedLogFilePath), "ログファイル「\(expectedLogFilePath)」が生成されていません")
+
+        XCTAssertEqual(result.metadata.modelName, testModelName)
+        XCTAssertFalse(result.metadata.sourceTrainingDataDirectoryPath.isEmpty, "訓練データパスが空です")
     }
 
     func testModelCanPerformPrediction() async throws {
@@ -126,7 +128,7 @@ final class OvRClassificationTests: XCTestCase {
             throw TestError.trainingFailed
         }
 
-        let modelOutputDir = URL(fileURLWithPath: result.modelOutputPath)
+        let modelOutputDir = URL(fileURLWithPath: result.metadata.trainedModelFilePath)
         let contents = try fileManager.contentsOfDirectory(
             at: modelOutputDir,
             includingPropertiesForKeys: nil,

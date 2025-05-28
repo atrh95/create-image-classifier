@@ -69,11 +69,21 @@ final class MultiClassClassificationTests: XCTestCase {
             throw TestError.trainingFailed
         }
 
-        let trainedModelURL = URL(fileURLWithPath: result.modelOutputPath)
+        let modelOutputDir = URL(fileURLWithPath: result.metadata.trainedModelFilePath).deletingLastPathComponent()
+        let contents = try fileManager.contentsOfDirectory(
+            at: modelOutputDir,
+            includingPropertiesForKeys: nil,
+            options: []
+        )
+        guard let firstMlModelURL = contents.first(where: { $0.pathExtension == "mlmodel" }) else {
+            throw TestError.modelFileMissing
+        }
+
         do {
-            compiledModelURL = try await MLModel.compileModel(at: trainedModelURL)
+            compiledModelURL = try await MLModel.compileModel(at: firstMlModelURL)
         } catch {
-            throw error
+            print("モデルのコンパイル失敗 (setUp): \(error.localizedDescription)")
+            throw TestError.modelFileMissing
         }
     }
 
@@ -141,25 +151,25 @@ final class MultiClassClassificationTests: XCTestCase {
         }
 
         XCTAssertEqual(
-            Set(result.classLabels.sorted()),
+            Set(result.metadata.detectedClassLabelsList.sorted()),
             Set(expectedClassLabels),
-            "検出されたクラスラベル「\(result.classLabels.sorted())」が期待されるラベル「\(expectedClassLabels)」と一致しません"
+            "検出されたクラスラベル「\(result.metadata.detectedClassLabelsList.sorted())」が期待されるラベル「\(expectedClassLabels)」と一致しません"
         )
 
         result.saveLog(modelAuthor: authorName, modelName: testModelName, modelVersion: testModelVersion)
         let modelFileDir = URL(fileURLWithPath: result.modelOutputPath).deletingLastPathComponent()
-
-        let expectedLogFileName = "\(testModelName)_\(testModelVersion).md"
-        let expectedLogFilePath = modelFileDir.appendingPathComponent(expectedLogFileName).path
+        let resultDir = modelFileDir.appendingPathComponent("MultiClass_Result_1")
+        let expectedLogFileName = "MultiClass_Run_Report_\(testModelVersion).md"
+        let expectedLogFilePath = resultDir.appendingPathComponent(expectedLogFileName).path
         XCTAssertTrue(
             fileManager.fileExists(atPath: expectedLogFilePath),
             "ログファイルが期待されるパス「\(expectedLogFilePath)」に生成されていません"
         )
 
         XCTAssertEqual(
-            result.modelName,
+            result.metadata.modelName,
             testModelName,
-            "訓練結果のmodelName「\(result.modelName)」が期待値「\(testModelName)」と一致しません"
+            "訓練結果のmodelName「\(result.metadata.modelName)」が期待値「\(testModelName)」と一致しません"
         )
 
         do {
@@ -200,7 +210,7 @@ final class MultiClassClassificationTests: XCTestCase {
 
         let baseResourceURL = URL(fileURLWithPath: predictionTestResourcePath)
 
-        let classLabelsForPredictionTest = result.classLabels.sorted()
+        let classLabelsForPredictionTest = result.metadata.detectedClassLabelsList.sorted()
 
         guard !classLabelsForPredictionTest.isEmpty else {
             XCTFail("予測テストの実行には、訓練結果に最低1つのクラスラベルが必要です。検出されたラベルはありません。")

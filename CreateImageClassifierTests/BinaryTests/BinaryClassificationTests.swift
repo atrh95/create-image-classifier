@@ -64,7 +64,7 @@ final class BinaryClassificationTests: XCTestCase {
             throw TestError.trainingFailed
         }
 
-        let trainedModelURL = URL(fileURLWithPath: result.trainedModelFilePath)
+        let trainedModelURL = URL(fileURLWithPath: result.metadata.trainedModelFilePath)
         do {
             compiledModelURL = try await MLModel.compileModel(at: trainedModelURL)
         } catch {
@@ -109,25 +109,25 @@ final class BinaryClassificationTests: XCTestCase {
         }
 
         XCTAssertTrue(
-            fileManager.fileExists(atPath: result.trainedModelFilePath),
-            "訓練モデルファイルが期待パス「\(result.trainedModelFilePath)」に見つからない"
+            fileManager.fileExists(atPath: result.metadata.trainedModelFilePath),
+            "訓練モデルファイルが期待パス「\(result.metadata.trainedModelFilePath)」に見つからない"
         )
 
         let expectedClassLabels = ["NotScary", "Scary"].sorted()
         XCTAssertEqual(
-            Set(result.detectedClassLabelsList.sorted()),
+            Set(result.metadata.detectedClassLabelsList.sorted()),
             Set(expectedClassLabels),
-            "検出クラスラベル「\(result.detectedClassLabelsList.sorted())」が期待ラベル「\(expectedClassLabels)」と不一致"
+            "検出クラスラベル「\(result.metadata.detectedClassLabelsList.sorted())」が期待ラベル「\(expectedClassLabels)」と不一致"
         )
 
         result.saveLog(modelAuthor: authorName, modelName: testModelName, modelVersion: testModelVersion)
-        let modelFileDir = URL(fileURLWithPath: result.trainedModelFilePath).deletingLastPathComponent()
+        let modelFileDir = URL(fileURLWithPath: result.metadata.trainedModelFilePath).deletingLastPathComponent()
 
         let expectedLogFileName = "\(testModelName)_\(testModelVersion).md"
         let expectedLogFilePath = modelFileDir.appendingPathComponent(expectedLogFileName).path
         XCTAssertTrue(fileManager.fileExists(atPath: expectedLogFilePath), "ログファイルが期待パス「\(expectedLogFilePath)」に未生成")
 
-        XCTAssertEqual(result.modelName, testModelName, "訓練結果modelName「\(result.modelName)」が期待値「\(testModelName)」と不一致")
+        XCTAssertEqual(result.metadata.modelName, testModelName, "訓練結果modelName「\(result.metadata.modelName)」が期待値「\(testModelName)」と不一致")
 
         do {
             let logContents = try String(contentsOfFile: expectedLogFilePath, encoding: .utf8)
@@ -137,15 +137,15 @@ final class BinaryClassificationTests: XCTestCase {
         }
 
         XCTAssertTrue(
-            result.trainedModelFilePath.contains(testModelName),
+            result.metadata.trainedModelFilePath.contains(testModelName),
             "モデルファイルパスにモデル名「\(testModelName)」が含まれていません"
         )
         XCTAssertTrue(
-            result.trainedModelFilePath.contains(testModelVersion),
+            result.metadata.trainedModelFilePath.contains(testModelVersion),
             "モデルファイルパスにバージョン「\(testModelVersion)」が含まれていません"
         )
         XCTAssertTrue(
-            result.trainedModelFilePath.contains(trainer.classificationMethod),
+            result.metadata.trainedModelFilePath.contains(trainer.classificationMethod),
             "モデルファイルパスに分類法「\(trainer.classificationMethod)」が含まれていません"
         )
     }
@@ -168,7 +168,7 @@ final class BinaryClassificationTests: XCTestCase {
         let baseResourceURL = URL(fileURLWithPath: testResourcesRootPath)
         print("テストリソースのベースURL: \(baseResourceURL.path)")
 
-        let classLabels = result.detectedClassLabelsList.sorted()
+        let classLabels = result.metadata.detectedClassLabelsList.sorted()
         guard classLabels.count >= 2 else {
             XCTFail("テストには少なくとも2つのクラスラベルが訓練結果に必要です。検出されたラベル: \(classLabels)")
             throw TestError.setupFailed

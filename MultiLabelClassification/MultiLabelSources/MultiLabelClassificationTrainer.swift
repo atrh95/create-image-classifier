@@ -4,6 +4,11 @@ import CICInterface
 import CICFileManager
 import Foundation
 
+private struct ImageAnnotation: Codable {
+    let filename: String
+    let annotations: [String]
+}
+
 public class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
     public typealias TrainingResultType = MultiLabelTrainingResult
 
@@ -119,7 +124,50 @@ public class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
             print("\n🚀 MultiLabelトレーニング開始 (バージョン: \(version))...")
 
             let trainingDataParentDirURL = classLabelDirURLs[0].deletingLastPathComponent()
-            let trainingDataSource = MLImageClassifier.DataSource.labeledDirectories(at: trainingDataParentDirURL)
+            let trainingDataSource: MLImageClassifier.DataSource
+
+            if let annotationPath = annotationFilePath {
+                do {
+                    let annotationData = try Data(contentsOf: URL(fileURLWithPath: annotationPath))
+                    let annotations = try JSONDecoder().decode([ImageAnnotation].self, from: annotationData)
+                    
+                    // 一時ディレクトリを作成
+                    let tempDir = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent(UUID().uuidString)
+                    try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+                    
+                    // ラベルごとのディレクトリを作成
+                    var labelDirs: [String: URL] = [:]
+                    for annotation in annotations {
+                        for label in annotation.annotations {
+                            if labelDirs[label] == nil {
+                                let labelDir = tempDir.appendingPathComponent(label)
+                                try FileManager.default.createDirectory(at: labelDir, withIntermediateDirectories: true)
+                                labelDirs[label] = labelDir
+                            }
+                        }
+                    }
+                    
+                    // 画像をコピー
+                    for annotation in annotations {
+                        let sourceURL = URL(fileURLWithPath: resourcesPath).appendingPathComponent(annotation.filename)
+                        for label in annotation.annotations {
+                            if let labelDir = labelDirs[label] {
+                                try FileManager.default.copyItem(
+                                    at: sourceURL,
+                                    to: labelDir.appendingPathComponent(sourceURL.lastPathComponent)
+                                )
+                            }
+                        }
+                    }
+                    
+                    trainingDataSource = MLImageClassifier.DataSource.labeledDirectories(at: tempDir)
+                } catch {
+                    print("❌ エラー: アノテーションファイルの読み込みに失敗しました: \(error.localizedDescription)")
+                    return nil
+                }
+            } else {
+                trainingDataSource = MLImageClassifier.DataSource.labeledDirectories(at: trainingDataParentDirURL)
+            }
 
             do {
                 let trainingStartTime = Date()
@@ -179,11 +227,12 @@ public class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
 
                 return MultiLabelTrainingResult(
                     modelName: modelName,
-                    trainingDurationInSeconds: trainingDurationSeconds,
                     modelOutputPath: modelFilePath,
                     trainingDataPath: trainingDataParentDirURL.path,
                     classLabels: classLabelsFromFileSystem,
                     maxIterations: modelParameters.maxIterations,
+                    dataAugmentationDescription: commonDataAugmentationDesc,
+                    featureExtractorDescription: commonFeatureExtractorDesc,
                     trainingMetrics: (
                         accuracy: 1.0 - trainingMetrics.classificationError,
                         errorRate: trainingMetrics.classificationError
@@ -192,9 +241,7 @@ public class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
                         accuracy: 1.0 - validationMetrics.classificationError,
                         errorRate: validationMetrics.classificationError
                     ),
-                    dataAugmentationDescription: commonDataAugmentationDesc,
-                    featureExtractorDescription: commonFeatureExtractorDesc,
-                    scenePrintRevision: scenePrintRevision,
+                    trainingDurationInSeconds: trainingDurationSeconds,
                     confusionMatrix: nil
                 )
 

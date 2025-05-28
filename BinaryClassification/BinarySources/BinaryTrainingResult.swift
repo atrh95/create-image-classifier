@@ -1,21 +1,15 @@
 import CICConfusionMatrix
 import CICInterface
+import CICTrainingResult
 import Foundation
 
 /// 画像分類モデルのトレーニング結果を格納する構造体
 public struct BinaryTrainingResult: TrainingResultProtocol {
-    public let modelName: String
+    public let metadata: CICTrainingMetadata
     public let trainingDataAccuracyPercentage: Double
     public let validationDataAccuracyPercentage: Double?
     public let trainingDataMisclassificationRate: Double
     public let validationDataMisclassificationRate: Double?
-    public let trainingDurationInSeconds: TimeInterval
-    public let trainedModelFilePath: String
-    public let sourceTrainingDataDirectoryPath: String
-    public let detectedClassLabelsList: [String]
-    public let maxIterations: Int
-    public let dataAugmentationDescription: String
-    public let featureExtractorDescription: String
     public let confusionMatrix: CSBinaryConfusionMatrix?
 
     public init(
@@ -33,24 +27,26 @@ public struct BinaryTrainingResult: TrainingResultProtocol {
         featureExtractorDescription: String,
         confusionMatrix: CSBinaryConfusionMatrix?
     ) {
-        self.modelName = modelName
+        self.metadata = CICTrainingMetadata(
+            modelName: modelName,
+            trainingDurationInSeconds: trainingDurationInSeconds,
+            trainedModelFilePath: trainedModelFilePath,
+            sourceTrainingDataDirectoryPath: sourceTrainingDataDirectoryPath,
+            detectedClassLabelsList: detectedClassLabelsList,
+            maxIterations: maxIterations,
+            dataAugmentationDescription: dataAugmentationDescription,
+            featureExtractorDescription: featureExtractorDescription
+        )
         self.trainingDataAccuracyPercentage = trainingDataAccuracyPercentage
         self.validationDataAccuracyPercentage = validationDataAccuracyPercentage
         self.trainingDataMisclassificationRate = trainingDataMisclassificationRate
         self.validationDataMisclassificationRate = validationDataMisclassificationRate
-        self.trainingDurationInSeconds = trainingDurationInSeconds
-        self.trainedModelFilePath = trainedModelFilePath
-        self.sourceTrainingDataDirectoryPath = sourceTrainingDataDirectoryPath
-        self.detectedClassLabelsList = detectedClassLabelsList
-        self.maxIterations = maxIterations
-        self.dataAugmentationDescription = dataAugmentationDescription
-        self.featureExtractorDescription = featureExtractorDescription
         self.confusionMatrix = confusionMatrix
     }
 
     public func saveLog(
         modelAuthor: String,
-        modelName _: String,
+        modelName: String,
         modelVersion: String
     ) {
         // ファイル生成日時フォーマッタ
@@ -58,16 +54,12 @@ public struct BinaryTrainingResult: TrainingResultProtocol {
         dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss Z"
         let generatedDateString = dateFormatter.string(from: Date())
 
-        // resultからクラスラベルを取得 (trainer.classLabelsから変更)
-        let classLabelsString = detectedClassLabelsList.isEmpty ? "不明" : detectedClassLabelsList.joined(separator: ", ")
-
         // 文字列フォーマット
         let trainingAccStr = String(format: "%.2f", trainingDataAccuracyPercentage)
         let validationAccStr = validationDataAccuracyPercentage.map { String(format: "%.2f", $0) } ?? "N/A"
-        let trainingErrStr = String(format: "%.2f", trainingDataMisclassificationRate * 100) // %表示に変更
+        let trainingErrStr = String(format: "%.2f", trainingDataMisclassificationRate * 100)
         let validationErrStr = validationDataMisclassificationRate
-            .map { String(format: "%.2f", $0 * 100) } ?? "N/A" // %表示に変更
-        let durationStr = String(format: "%.2f", trainingDurationInSeconds)
+            .map { String(format: "%.2f", $0 * 100) } ?? "N/A"
 
         // 混同行列から計算した指標
         let confusionMatrixSection = if let confusionMatrix {
@@ -92,15 +84,15 @@ public struct BinaryTrainingResult: TrainingResultProtocol {
         ## モデル詳細
         モデル名           : \(modelName)
         ファイル生成日時   : \(generatedDateString)
-        最大反復回数     : \(maxIterations)
-        データ拡張       : \(dataAugmentationDescription)
-        特徴抽出器       : \(featureExtractorDescription)
+        最大反復回数     : \(metadata.maxIterations)
+        データ拡張       : \(metadata.dataAugmentationDescription)
+        特徴抽出器       : \(metadata.featureExtractorDescription)
 
         ## トレーニング設定
-        使用されたクラスラベル : \(classLabelsString)
+        使用されたクラスラベル : \(metadata.detectedClassLabelsList.joined(separator: ", "))
 
         ## パフォーマンス指標
-        トレーニング所要時間: \(durationStr) 秒
+        トレーニング所要時間: \(String(format: "%.2f", metadata.trainingDurationInSeconds)) 秒
         トレーニング誤分類率 : \(trainingErrStr)%
         訓練データ正解率 : \(trainingAccStr)% ※モデルが学習に使用したデータでの正解率
         検証データ正解率 : \(validationAccStr)% ※モデルが学習に使用していない未知のデータでの正解率
@@ -113,8 +105,8 @@ public struct BinaryTrainingResult: TrainingResultProtocol {
         バージョン          : \(modelVersion)
         """
 
-        // Markdownファイルのパスを作成 (モデルファイルと同じディレクトリ、拡張子を.mdに変更)
-        let outputDir = URL(fileURLWithPath: trainedModelFilePath).deletingLastPathComponent()
+        // Markdownファイルのパスを作成
+        let outputDir = URL(fileURLWithPath: metadata.trainedModelFilePath).deletingLastPathComponent()
         let textFileName = "\(modelName)_\(modelVersion).md"
         let textFilePath = outputDir.appendingPathComponent(textFileName).path
 

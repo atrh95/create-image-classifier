@@ -94,6 +94,22 @@ targets:
         CODE_SIGNING_ALLOWED: NO
         CODE_SIGNING_REQUIRED: NO
 
+  CICTrainingResult:
+    type: framework
+    platform: macOS
+    sources:
+      - path: CICTrainingResult
+    dependencies:
+      - target: CICInterface
+      - target: CICConfusionMatrix
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.CICTrainingResult
+        MACOSX_DEPLOYMENT_TARGET: "15.2"
+        DEFINES_MODULE: "YES"
+        CODE_SIGNING_ALLOWED: NO
+        CODE_SIGNING_REQUIRED: NO
+
   BinaryClassification:
     type: framework
     platform: macOS
@@ -105,6 +121,7 @@ targets:
       - target: CICInterface
       - target: CICConfusionMatrix
       - target: CICFileManager
+      - target: CICTrainingResult
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.BinaryClassification
@@ -123,6 +140,7 @@ targets:
       - target: CICInterface
       - target: CICConfusionMatrix
       - target: CICFileManager
+      - target: CICTrainingResult
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.MultiClassClassification
@@ -141,6 +159,7 @@ targets:
       - target: CICInterface
       - target: CICConfusionMatrix
       - target: CICFileManager
+      - target: CICTrainingResult
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.MultiLabelClassification
@@ -160,6 +179,7 @@ targets:
       - target: CICInterface
       - target: CICConfusionMatrix
       - target: CICFileManager
+      - target: CICTrainingResult
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.OvRClassification
@@ -178,6 +198,7 @@ targets:
       - target: CICInterface
       - target: CICConfusionMatrix
       - target: CICFileManager
+      - target: CICTrainingResult
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.OvOClassification

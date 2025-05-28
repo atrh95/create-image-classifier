@@ -77,9 +77,19 @@ final class MultiLabelClassificationTests: XCTestCase {
             throw TestError.trainingFailed
         }
 
-        let trainedModelURL = URL(fileURLWithPath: result.modelOutputPath)
+        // モデルのコンパイル
+        let modelOutputDir = URL(fileURLWithPath: result.metadata.trainedModelFilePath).deletingLastPathComponent()
+        let contents = try fileManager.contentsOfDirectory(
+            at: modelOutputDir,
+            includingPropertiesForKeys: nil,
+            options: []
+        )
+        guard let firstMlModelURL = contents.first(where: { $0.pathExtension == "mlmodel" }) else {
+            throw TestError.modelFileMissing
+        }
+
         do {
-            compiledModelURL = try await MLModel.compileModel(at: trainedModelURL)
+            compiledModelURL = try await MLModel.compileModel(at: firstMlModelURL)
         } catch {
             print("モデルのコンパイル失敗 (setUp): \(error.localizedDescription)")
             throw TestError.modelFileMissing
@@ -120,19 +130,20 @@ final class MultiLabelClassificationTests: XCTestCase {
 
         let expectedClassLabels = ["black_and_white", "human_hands_detected", "mouth_open", "safe", "sphynx"].sorted()
         XCTAssertEqual(
-            Set(result.classLabels.sorted()),
+            Set(result.metadata.detectedClassLabelsList.sorted()),
             Set(expectedClassLabels),
-            "訓練結果のクラスラベル「\(result.classLabels.sorted())」が期待されるラベル「\(expectedClassLabels)」と一致しません"
+            "訓練結果のクラスラベル「\(result.metadata.detectedClassLabelsList.sorted())」が期待されるラベル「\(expectedClassLabels)」と一致しません"
         )
 
         result.saveLog(modelAuthor: authorName, modelName: testModelName, modelVersion: testModelVersion)
         let modelFileDir = URL(fileURLWithPath: result.modelOutputPath).deletingLastPathComponent()
-        let expectedLogFileName = "\(testModelName)_\(testModelVersion).md"
-        let expectedLogFilePath = modelFileDir.appendingPathComponent(expectedLogFileName).path
+        let resultDir = modelFileDir.appendingPathComponent("MultiLabel_Result_1")
+        let expectedLogFileName = "MultiLabel_Run_Report_\(testModelVersion).md"
+        let expectedLogFilePath = resultDir.appendingPathComponent(expectedLogFileName).path
         XCTAssertTrue(fileManager.fileExists(atPath: expectedLogFilePath), "ログファイル「\(expectedLogFilePath)」が生成されていません")
 
-        XCTAssertEqual(result.modelName, testModelName)
-        XCTAssertFalse(result.trainingDataPath.isEmpty, "訓練データパスが空です")
+        XCTAssertEqual(result.metadata.modelName, testModelName)
+        XCTAssertFalse(result.metadata.sourceTrainingDataDirectoryPath.isEmpty, "訓練データパスが空です")
     }
 
     func testModelCanPerformPrediction() throws {

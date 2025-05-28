@@ -1,27 +1,23 @@
 import CICConfusionMatrix
 import CICInterface
+import CICTrainingResult
 import Foundation
 
 public struct MultiClassTrainingResult: TrainingResultProtocol {
-    // 基本情報
-    public let modelName: String
-    public let modelOutputPath: String
-    public let trainingDataPath: String
-
-    // トレーニング設定
-    public let classLabels: [String]
-    public let maxIterations: Int
-    public let dataAugmentationDescription: String
-    public let featureExtractorDescription: String
+    // メタデータ
+    public let metadata: CICTrainingMetadata
 
     // パフォーマンス指標
     public let trainingMetrics: (accuracy: Double, errorRate: Double)
     public let validationMetrics: (accuracy: Double, errorRate: Double)
-    public let trainingTimeInSeconds: TimeInterval
 
     // 詳細な性能指標
     public let confusionMatrix: CSMultiClassConfusionMatrix?
     public let classMetrics: [ClassMetrics]
+
+    public var modelOutputPath: String {
+        URL(fileURLWithPath: metadata.trainedModelFilePath).deletingLastPathComponent().path
+    }
 
     public init(
         modelName: String,
@@ -36,23 +32,25 @@ public struct MultiClassTrainingResult: TrainingResultProtocol {
         trainingTimeInSeconds: TimeInterval,
         confusionMatrix: CSMultiClassConfusionMatrix?
     ) {
-        self.modelName = modelName
-        self.modelOutputPath = modelOutputPath
-        self.trainingDataPath = trainingDataPath
-        self.classLabels = classLabels
-        self.maxIterations = maxIterations
-        self.dataAugmentationDescription = dataAugmentationDescription
-        self.featureExtractorDescription = featureExtractorDescription
+        self.metadata = CICTrainingMetadata(
+            modelName: modelName,
+            trainingDurationInSeconds: trainingTimeInSeconds,
+            trainedModelFilePath: modelOutputPath,
+            sourceTrainingDataDirectoryPath: trainingDataPath,
+            detectedClassLabelsList: classLabels,
+            maxIterations: maxIterations,
+            dataAugmentationDescription: dataAugmentationDescription,
+            featureExtractorDescription: featureExtractorDescription
+        )
         self.trainingMetrics = trainingMetrics
         self.validationMetrics = validationMetrics
-        self.trainingTimeInSeconds = trainingTimeInSeconds
         self.confusionMatrix = confusionMatrix
-        classMetrics = confusionMatrix?.calculateMetrics() ?? []
+        self.classMetrics = confusionMatrix?.calculateMetrics() ?? []
     }
 
     public func saveLog(
         modelAuthor: String,
-        modelName _: String,
+        modelName: String,
         modelVersion: String
     ) {
         let dateFormatter = DateFormatter()
@@ -60,13 +58,11 @@ public struct MultiClassTrainingResult: TrainingResultProtocol {
         dateFormatter.timeZone = TimeZone(identifier: "Asia/Tokyo")
         let generatedDateString = dateFormatter.string(from: Date())
 
-        let classLabelsString = classLabels.isEmpty ? "不明" : classLabels.joined(separator: ", ")
-
         let trainingAccStr = String(format: "%.2f", trainingMetrics.accuracy)
         let validationAccStr = String(format: "%.2f", validationMetrics.accuracy)
         let trainingErrStr = String(format: "%.2f", trainingMetrics.errorRate * 100)
         let validationErrStr = String(format: "%.2f", validationMetrics.errorRate * 100)
-        let durationStr = String(format: "%.2f", trainingTimeInSeconds)
+        let durationStr = String(format: "%.2f", metadata.trainingDurationInSeconds)
 
         var markdownText = """
         # モデルトレーニング情報: \(modelName)
@@ -74,12 +70,12 @@ public struct MultiClassTrainingResult: TrainingResultProtocol {
         ## モデル詳細
         モデル名           : \(modelName)
         ファイル生成日時   : \(generatedDateString)
-        最大反復回数     : \(maxIterations)
-        データ拡張       : \(dataAugmentationDescription)
-        特徴抽出器       : \(featureExtractorDescription)
+        最大反復回数     : \(metadata.maxIterations)
+        データ拡張       : \(metadata.dataAugmentationDescription)
+        特徴抽出器       : \(metadata.featureExtractorDescription)
 
         ## トレーニング設定
-        使用されたクラスラベル : \(classLabelsString)
+        使用されたクラスラベル : \(metadata.detectedClassLabelsList.joined(separator: ", "))
 
         ## パフォーマンス指標 (全体)
         トレーニング所要時間: \(durationStr) 秒
@@ -114,8 +110,8 @@ public struct MultiClassTrainingResult: TrainingResultProtocol {
         バージョン          : \(modelVersion)
         """
 
-        let outputDir = URL(fileURLWithPath: modelOutputPath).deletingLastPathComponent()
-        let textFileName = "\(modelName)_\(modelVersion).md"
+        let outputDir = URL(fileURLWithPath: metadata.trainedModelFilePath).deletingLastPathComponent()
+        let textFileName = "MultiClass_Run_Report_\(modelVersion).md"
         let textFilePath = outputDir.appendingPathComponent(textFileName).path
 
         do {

@@ -1,5 +1,6 @@
 import CICConfusionMatrix
 import CICInterface
+import CICTrainingResult
 import Foundation
 
 public struct IndividualModelReport {
@@ -8,21 +9,36 @@ public struct IndividualModelReport {
     public let trainingAccuracyRate: Double
     public let validationAccuracyPercentage: Double
     public let confusionMatrix: CSBinaryConfusionMatrix?
+
+    func generateMarkdownReport() -> String {
+        var report = """
+        ## \(positiveClassName)
+        - 訓練正解率: \(String(format: "%.1f%%", trainingAccuracyRate))
+        - 検証正解率: \(String(format: "%.1f%%", validationAccuracyPercentage))
+        """
+        if let confusionMatrix = confusionMatrix {
+            report += """
+
+            - 再現率 (Recall)    : \(String(format: "%.1f%%", confusionMatrix.recall * 100.0))
+            - 適合率 (Precision) : \(String(format: "%.1f%%", confusionMatrix.precision * 100.0))
+            - F1スコア          : \(String(format: "%.1f%%", confusionMatrix.f1Score * 100.0))
+
+            \(confusionMatrix.getMatrixGraph())
+            """
+        } else {
+            report += "\n⚠️ 検証データが不十分なため、混同行列の計算をスキップしました\n"
+        }
+        report += "\n"
+        return report
+    }
 }
 
 public struct OvOTrainingResult: TrainingResultProtocol {
-    public let modelName: String
-    public let trainingDurationInSeconds: TimeInterval
-    public let trainedModelFilePath: String
-    public let sourceTrainingDataDirectoryPath: String
-    public let detectedClassLabelsList: [String]
-    public let maxIterations: Int
-    public let dataAugmentationDescription: String
-    public let featureExtractorDescription: String
+    public let metadata: CICTrainingMetadata
     public let individualReports: [IndividualModelReport]
 
     public var modelOutputPath: String {
-        URL(fileURLWithPath: trainedModelFilePath).deletingLastPathComponent().path
+        URL(fileURLWithPath: metadata.trainedModelFilePath).deletingLastPathComponent().path
     }
 
     public init(
@@ -36,14 +52,16 @@ public struct OvOTrainingResult: TrainingResultProtocol {
         featureExtractorDescription: String,
         individualReports: [IndividualModelReport]
     ) {
-        self.modelName = modelName
-        self.trainingDurationInSeconds = trainingDurationInSeconds
-        self.trainedModelFilePath = trainedModelFilePath
-        self.sourceTrainingDataDirectoryPath = sourceTrainingDataDirectoryPath
-        self.detectedClassLabelsList = detectedClassLabelsList
-        self.maxIterations = maxIterations
-        self.dataAugmentationDescription = dataAugmentationDescription
-        self.featureExtractorDescription = featureExtractorDescription
+        self.metadata = CICTrainingMetadata(
+            modelName: modelName,
+            trainingDurationInSeconds: trainingDurationInSeconds,
+            trainedModelFilePath: trainedModelFilePath,
+            sourceTrainingDataDirectoryPath: sourceTrainingDataDirectoryPath,
+            detectedClassLabelsList: detectedClassLabelsList,
+            maxIterations: maxIterations,
+            dataAugmentationDescription: dataAugmentationDescription,
+            featureExtractorDescription: featureExtractorDescription
+        )
         self.individualReports = individualReports
     }
 
@@ -57,24 +75,7 @@ public struct OvOTrainingResult: TrainingResultProtocol {
         // 各ペアの個別指標を表示
         var individualPairSections = ""
         for report in individualReports {
-            individualPairSections += """
-            ## \(report.positiveClassName)
-            - 訓練正解率: \(String(format: "%.1f%%", report.trainingAccuracyRate))
-            - 検証正解率: \(String(format: "%.1f%%", report.validationAccuracyPercentage))
-            """
-            if let confusionMatrix = report.confusionMatrix {
-                individualPairSections += """
-
-                - 再現率 (Recall)    : \(String(format: "%.1f%%", confusionMatrix.recall * 100.0))
-                - 適合率 (Precision) : \(String(format: "%.1f%%", confusionMatrix.precision * 100.0))
-                - F1スコア          : \(String(format: "%.1f%%", confusionMatrix.f1Score * 100.0))
-
-                \(confusionMatrix.getMatrixGraph())
-                """
-            } else {
-                individualPairSections += "\n⚠️ 検証データが不十分なため、混同行列の計算をスキップしました\n"
-            }
-            individualPairSections += "\n"
+            individualPairSections += report.generateMarkdownReport() + "\n"
         }
 
         let markdown = """
@@ -84,17 +85,17 @@ public struct OvOTrainingResult: TrainingResultProtocol {
         モデル群         : OvOモデル群 (One-vs-One)
         モデルベース名   : \(modelName)
         レポート生成日時   : \(generatedDateString)
-        最大反復回数     : \(maxIterations) (各ペアモデル共通)
-        データ拡張       : \(dataAugmentationDescription)
-        特徴抽出器       : \(featureExtractorDescription)
-        検出されたクラス: \(detectedClassLabelsList.joined(separator: ", "))
+        最大反復回数     : \(metadata.maxIterations) (各ペアモデル共通)
+        データ拡張       : \(metadata.dataAugmentationDescription)
+        特徴抽出器       : \(metadata.featureExtractorDescription)
+        検出されたクラス: \(metadata.detectedClassLabelsList.joined(separator: ", "))
 
         ## 個別ペアのトレーニング結果
         \(individualPairSections)
         """
 
         // モデルファイルと同じディレクトリに保存
-        let outputDir = URL(fileURLWithPath: trainedModelFilePath)
+        let outputDir = URL(fileURLWithPath: metadata.trainedModelFilePath).deletingLastPathComponent()
         let textFileName = "OvO_Run_Report_\(modelVersion).md"
         let textFilePath = outputDir.appendingPathComponent(textFileName).path
 
