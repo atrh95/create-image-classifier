@@ -2,15 +2,15 @@ import CICFileManager
 import CoreML
 import CreateML
 import Foundation
-@testable import OvOClassification
+@testable import OvRClassification
 import Vision
 import XCTest
 
-final class OvOClassificationTests: XCTestCase {
-    var trainer: OvOClassificationTrainer!
+final class OvRClassifierTests: XCTestCase {
+    var classifier: OvRClassifier!
     let fileManager = FileManager.default
     let authorName: String = "Test Author"
-    let testModelName: String = "TestCats_OvO_Run"
+    let testModelName: String = "TestModel_OvR_Run"
     let testModelVersion: String = "v1"
 
     let algorithm = MLImageClassifier.ModelParameters.ModelAlgorithmType.transferLearning(
@@ -29,7 +29,7 @@ final class OvOClassificationTests: XCTestCase {
 
     var temporaryOutputDirectoryURL: URL!
     var compiledModelURL: URL?
-    var trainingResult: OvOClassification.OvOTrainingResult?
+    var trainingResult: OvRClassification.OvRTrainingResult?
 
     enum TestError: Error {
         case trainingFailed
@@ -44,31 +44,31 @@ final class OvOClassificationTests: XCTestCase {
         try await super.setUp()
 
         temporaryOutputDirectoryURL = fileManager.temporaryDirectory
-            .appendingPathComponent("TestOutput_OvO")
+            .appendingPathComponent("TestOutput_OvR")
         try fileManager.createDirectory(
             at: temporaryOutputDirectoryURL,
             withIntermediateDirectories: true,
             attributes: nil
         )
 
-        trainer = OvOClassificationTrainer(
+        classifier = OvRClassifier(
             outputDirectoryPathOverride: temporaryOutputDirectoryURL.path
         )
         
         // テストリソースディレクトリのパスを設定
         let currentFileURL = URL(fileURLWithPath: #filePath)
-        trainer.testResourcesDirectoryPath = currentFileURL
-            .deletingLastPathComponent() // OvOClassificationTests.swift
+        classifier.testResourcesDirectoryPath = currentFileURL
+            .deletingLastPathComponent() // OvRClassificationTests.swift
             .appendingPathComponent("TestResources")
-            .appendingPathComponent("OvO")
+            .appendingPathComponent("OvR")
             .path
 
-        trainingResult = await trainer.train(
-            author: authorName,
+        trainingResult = await classifier.train(
+            author: "test",
             modelName: testModelName,
-            version: testModelVersion,
+            version: "v1",
             modelParameters: modelParameters,
-            scenePrintRevision: 1
+            scenePrintRevision: nil
         )
 
         guard trainingResult != nil else {
@@ -87,14 +87,14 @@ final class OvOClassificationTests: XCTestCase {
         }
         compiledModelURL = nil
         trainingResult = nil
-        trainer.testResourcesDirectoryPath = nil
-        trainer = nil
+        classifier.testResourcesDirectoryPath = nil
+        classifier = nil
         try super.tearDownWithError()
     }
 
-    func testTrainerDIConfiguration() throws {
-        XCTAssertNotNil(trainer, "OvOClassificationTrainerの初期化失敗")
-        XCTAssertEqual(trainer.outputDirPath, temporaryOutputDirectoryURL.path, "トレーナーの出力パスが期待値と不一致")
+    func testClassifierDIConfiguration() throws {
+        XCTAssertNotNil(classifier, "OvRClassifierの初期化失敗")
+        XCTAssertEqual(classifier.outputDirPath, temporaryOutputDirectoryURL.path, "分類器の出力パスが期待値と不一致")
     }
 
     func testModelTrainingAndArtifactGeneration() throws {
@@ -108,7 +108,8 @@ final class OvOClassificationTests: XCTestCase {
             "訓練モデルファイルが期待されるパス「\(result.modelOutputPath)」に見つかりません"
         )
 
-        let resourceURL = URL(fileURLWithPath: trainer.resourcesDirectoryPath)
+        // Dynamically get expected class labels from the TestResources subdirectories
+        let resourceURL = URL(fileURLWithPath: classifier.resourcesDirectoryPath)
 
         var expectedClassLabels: [String] = []
         do {
@@ -128,7 +129,7 @@ final class OvOClassificationTests: XCTestCase {
 
         result.saveLog(modelAuthor: authorName, modelName: testModelName, modelVersion: testModelVersion)
         let modelFileDir = URL(fileURLWithPath: result.metadata.trainedModelFilePath).deletingLastPathComponent()
-        let expectedLogFileName = "OvO_Run_Report_\(testModelVersion).md"
+        let expectedLogFileName = "OvR_Run_Report_\(testModelVersion).md"
         let expectedLogFilePath = modelFileDir.appendingPathComponent(expectedLogFileName).path
         XCTAssertTrue(fileManager.fileExists(atPath: expectedLogFilePath), "ログファイル「\(expectedLogFilePath)」が生成されていません")
 
@@ -138,7 +139,7 @@ final class OvOClassificationTests: XCTestCase {
 
     func testModelCanPerformPrediction() async throws {
         guard let result = trainingResult else {
-            XCTFail("訓練結果がnil (OvO testModelCanPerformPrediction)")
+            XCTFail("訓練結果がnil (OvR testModelCanPerformPrediction)")
             throw TestError.trainingFailed
         }
 
@@ -169,7 +170,7 @@ final class OvOClassificationTests: XCTestCase {
         print("Test image for prediction: \(imageURL.path)")
 
         guard fileManager.fileExists(atPath: imageURL.path) else {
-            XCTFail("OvOテスト用画像ファイルが見つかりません: \(imageURL.path)")
+            XCTFail("OvRテスト用画像ファイルが見つかりません: \(imageURL.path)")
             throw TestError.resourcePathError
         }
 
@@ -189,11 +190,11 @@ final class OvOClassificationTests: XCTestCase {
 
             if let topResult = observations.first {
                 print(
-                    "OvO Top prediction for \(imageURL.lastPathComponent) using \(URL(fileURLWithPath: modelFilePath).lastPathComponent): \(topResult.identifier) with confidence \(topResult.confidence)"
+                    "OvR Top prediction for \(imageURL.lastPathComponent) using \(URL(fileURLWithPath: modelFilePath).lastPathComponent): \(topResult.identifier) with confidence \(topResult.confidence)"
                 )
             } else {
                 print(
-                    "OvO prediction for \(imageURL.lastPathComponent) using \(URL(fileURLWithPath: modelFilePath).lastPathComponent): No observations found, though this should have been caught by XCTAssertFalse."
+                    "OvR prediction for \(imageURL.lastPathComponent) using \(URL(fileURLWithPath: modelFilePath).lastPathComponent): No observations found, though this should have been caught by XCTAssertFalse."
                 )
             }
         }
@@ -203,7 +204,7 @@ final class OvOClassificationTests: XCTestCase {
     }
 
     private func getRandomImageURL(forClassLabel classLabel: String) throws -> URL {
-        let resourceURL = URL(fileURLWithPath: trainer.resourcesDirectoryPath)
+        let resourceURL = URL(fileURLWithPath: classifier.resourcesDirectoryPath)
         let classLabelURL = resourceURL.appendingPathComponent(classLabel)
 
         var isDirectory: ObjCBool = false

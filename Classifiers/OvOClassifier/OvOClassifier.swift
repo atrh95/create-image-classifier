@@ -2,14 +2,16 @@ import CICConfusionMatrix
 import CICFileManager
 import CICInterface
 import CICTrainingResult
+import Combine
 import CoreML
 import CreateML
 import Foundation
+import TabularData
 
-public final class BinaryClassificationTrainer: ScreeningTrainerProtocol {
-    public typealias TrainingResultType = BinaryTrainingResult
+public final class OvOClassifier: ClassifierProtocol {
+    public typealias TrainingResultType = OvOTrainingResult
 
-    private let fileManager: CICFileManager
+    private let fileManager = CICFileManager()
     public var outputDirectoryPathOverride: String?
     public var testResourcesDirectoryPath: String?
 
@@ -19,12 +21,14 @@ public final class BinaryClassificationTrainer: ScreeningTrainerProtocol {
         }
         let currentFileURL = URL(fileURLWithPath: #filePath)
         return currentFileURL
-            .deletingLastPathComponent() // BinaryClassifier
+            .deletingLastPathComponent() // OvOClassifier
             .deletingLastPathComponent() // Classifiers
             .appendingPathComponent("CICOutputModels")
-            .appendingPathComponent("BinaryClassifier")
+            .appendingPathComponent("OvOClassifier")
             .path
     }
+
+    public var classificationMethod: String { "OvO" }
 
     public var resourcesDirectoryPath: String {
         if let testPath = testResourcesDirectoryPath {
@@ -32,20 +36,19 @@ public final class BinaryClassificationTrainer: ScreeningTrainerProtocol {
         }
         let currentFileURL = URL(fileURLWithPath: #filePath)
         return currentFileURL
-            .deletingLastPathComponent() // BinaryClassifier
+            .deletingLastPathComponent() // OvOClassifier
             .deletingLastPathComponent() // Classifiers
             .deletingLastPathComponent() // Project root
             .appendingPathComponent("CICResources")
-            .appendingPathComponent("BinaryResources")
+            .appendingPathComponent("OvOResources")
             .path
     }
 
-    public var classificationMethod: String { "Binary" }
-
-    public init(outputDirectoryPathOverride: String? = nil, fileManager: CICFileManager = CICFileManager()) {
+    public init(outputDirectoryPathOverride: String? = nil) {
         self.outputDirectoryPathOverride = outputDirectoryPathOverride
-        self.fileManager = fileManager
     }
+
+    static let tempBaseDirName = "TempOvOTrainingData"
 
     public func train(
         author: String,
@@ -53,9 +56,9 @@ public final class BinaryClassificationTrainer: ScreeningTrainerProtocol {
         version: String,
         modelParameters: CreateML.MLImageClassifier.ModelParameters,
         scenePrintRevision: Int?
-    ) async -> BinaryTrainingResult? {
+    ) async -> OvOTrainingResult? {
         print("📁 リソースディレクトリ: \(resourcesDirectoryPath)")
-        print("🚀 Binaryトレーニング開始 (バージョン: \(version))...")
+        print("🚀 OvOトレーニング開始 (バージョン: \(version))...")
 
         do {
             // クラスラベルディレクトリの取得
@@ -75,11 +78,10 @@ public final class BinaryClassificationTrainer: ScreeningTrainerProtocol {
             let validationMetrics = imageClassifier.validationMetrics
 
             // 混同行列の計算
-            let confusionMatrix = CICBinaryConfusionMatrix(
+            let confusionMatrix = CICMultiClassConfusionMatrix(
                 dataTable: validationMetrics.confusion,
                 predictedColumn: "Predicted",
-                actualColumn: "True Label",
-                positiveClass: classLabelDirURLs[1].lastPathComponent
+                actualColumn: "True Label"
             )
 
             // トレーニング結果の表示
@@ -92,7 +94,7 @@ public final class BinaryClassificationTrainer: ScreeningTrainerProtocol {
             if let confusionMatrix {
                 print(String(
                     format: "  検証正解率: %.1f%%",
-                    confusionMatrix.accuracy * 100.0
+                    (1.0 - validationMetrics.classificationError) * 100.0
                 ))
                 print(confusionMatrix.getMatrixGraph())
             } else {
@@ -161,9 +163,9 @@ public final class BinaryClassificationTrainer: ScreeningTrainerProtocol {
         let classLabelDirURLs = try fileManager.getClassLabelDirectories(resourcesPath: resourcesDirectoryPath)
         print("📁 検出されたクラスラベルディレクトリ: \(classLabelDirURLs.map(\.lastPathComponent).joined(separator: ", "))")
 
-        guard classLabelDirURLs.count == 2 else {
-            throw NSError(domain: "BinaryClassificationTrainer", code: -1, userInfo: [
-                NSLocalizedDescriptionKey: "Binary分類には2つのクラスラベルディレクトリが必要です。現在 \(classLabelDirURLs.count)個。",
+        guard classLabelDirURLs.count >= 2 else {
+            throw NSError(domain: "OvOClassifier", code: -1, userInfo: [
+                NSLocalizedDescriptionKey: "OvO分類には少なくとも2つのクラスラベルディレクトリが必要です。現在 \(classLabelDirURLs.count)個。",
             ])
         }
 
@@ -232,13 +234,13 @@ public final class BinaryClassificationTrainer: ScreeningTrainerProtocol {
         metadata: MLModelMetadata
     ) throws -> String {
         let modelFileName = "\(modelName)_\(classificationMethod)_\(version).mlmodel"
-        let modelFilePath = outputDirectoryURL.appendingPathComponent(modelFileName).path
+        let modelFileURL = outputDirectoryURL.appendingPathComponent(modelFileName)
 
-        print("💾 モデルファイル保存中: \(modelFilePath)")
-        try imageClassifier.write(to: URL(fileURLWithPath: modelFilePath), metadata: metadata)
+        print("💾 モデルファイル保存中: \(modelFileURL.path)")
+        try imageClassifier.write(to: modelFileURL, metadata: metadata)
         print("✅ モデルファイル保存完了")
 
-        return modelFilePath
+        return modelFileURL.path
     }
 
     public func createTrainingResult(
@@ -250,7 +252,7 @@ public final class BinaryClassificationTrainer: ScreeningTrainerProtocol {
         scenePrintRevision: Int?,
         trainingDurationSeconds: TimeInterval,
         modelFilePath: String
-    ) -> BinaryTrainingResult {
+    ) -> OvOTrainingResult {
         let augmentationFinalDescription = if !modelParameters.augmentationOptions.isEmpty {
             String(describing: modelParameters.augmentationOptions)
         } else {
@@ -275,22 +277,13 @@ public final class BinaryClassificationTrainer: ScreeningTrainerProtocol {
             featureExtractorDescription: featureExtractorDesc
         )
 
-        let confusionMatrix = CICBinaryConfusionMatrix(
+        let confusionMatrix = CICMultiClassConfusionMatrix(
             dataTable: validationMetrics.confusion,
             predictedColumn: "Predicted",
-            actualColumn: "True Label",
-            positiveClass: classLabelDirURLs[1].lastPathComponent
+            actualColumn: "True Label"
         )
 
-        let individualModelReport = CICIndividualModelReport(
-            modelName: modelName,
-            positiveClassName: classLabelDirURLs[1].lastPathComponent,
-            trainingAccuracyRate: 1.0 - trainingMetrics.classificationError,
-            validationAccuracyPercentage: 1.0 - validationMetrics.classificationError,
-            confusionMatrix: confusionMatrix
-        )
-
-        return BinaryTrainingResult(
+        return OvOTrainingResult(
             metadata: metadata,
             trainingMetrics: (
                 accuracy: 1.0 - trainingMetrics.classificationError,
@@ -301,7 +294,7 @@ public final class BinaryClassificationTrainer: ScreeningTrainerProtocol {
                 errorRate: validationMetrics.classificationError
             ),
             confusionMatrix: confusionMatrix,
-            individualModelReport: individualModelReport
+            individualModelReports: []
         )
     }
 }

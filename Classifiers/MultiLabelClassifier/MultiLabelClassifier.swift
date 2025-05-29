@@ -2,12 +2,14 @@ import CICConfusionMatrix
 import CICFileManager
 import CICInterface
 import CICTrainingResult
+import Combine
 import CoreML
 import CreateML
 import Foundation
+import TabularData
 
-public final class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
-    public typealias TrainingResultType = MultiClassTrainingResult
+public final class MultiLabelClassifier: ClassifierProtocol {
+    public typealias TrainingResultType = MultiLabelTrainingResult
 
     private let fileManager = CICFileManager()
     public var outputDirectoryPathOverride: String?
@@ -19,12 +21,14 @@ public final class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
         }
         let currentFileURL = URL(fileURLWithPath: #filePath)
         return currentFileURL
-            .deletingLastPathComponent() // MultiClassifier
+            .deletingLastPathComponent() // MultiLabelClassifier
             .deletingLastPathComponent() // Classifiers
-            .appendingPathComponent("Output")
-            .appendingPathComponent("MultiClassifier")
+            .appendingPathComponent("CICOutputModels")
+            .appendingPathComponent("MultiLabelClassifier")
             .path
     }
+
+    public var classificationMethod: String { "MultiLabel" }
 
     public var resourcesDirectoryPath: String {
         if let testPath = testResourcesDirectoryPath {
@@ -32,15 +36,13 @@ public final class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
         }
         let currentFileURL = URL(fileURLWithPath: #filePath)
         return currentFileURL
-            .deletingLastPathComponent() // MultiClassifier
+            .deletingLastPathComponent() // MultiLabelClassifier
             .deletingLastPathComponent() // Classifiers
             .deletingLastPathComponent() // Project root
             .appendingPathComponent("CICResources")
-            .appendingPathComponent("MultiClassResources")
+            .appendingPathComponent("MultiLabelResources")
             .path
     }
-
-    public var classificationMethod: String { "MultiClass" }
 
     public init(outputDirectoryPathOverride: String? = nil) {
         self.outputDirectoryPathOverride = outputDirectoryPathOverride
@@ -52,9 +54,9 @@ public final class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
         version: String,
         modelParameters: CreateML.MLImageClassifier.ModelParameters,
         scenePrintRevision: Int?
-    ) async -> MultiClassTrainingResult? {
+    ) async -> MultiLabelTrainingResult? {
         print("📁 リソースディレクトリ: \(resourcesDirectoryPath)")
-        print("🚀 MultiClassトレーニング開始 (バージョン: \(version))...")
+        print("🚀 MultiLabelトレーニング開始 (バージョン: \(version))...")
 
         do {
             // クラスラベルディレクトリの取得
@@ -160,8 +162,8 @@ public final class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
         print("📁 検出されたクラスラベルディレクトリ: \(classLabelDirURLs.map(\.lastPathComponent).joined(separator: ", "))")
 
         guard classLabelDirURLs.count >= 2 else {
-            throw NSError(domain: "MultiClassClassificationTrainer", code: -1, userInfo: [
-                NSLocalizedDescriptionKey: "MultiClass分類には2つ以上のクラスラベルディレクトリが必要です。現在 \(classLabelDirURLs.count)個。",
+            throw NSError(domain: "MultiLabelClassifier", code: -1, userInfo: [
+                NSLocalizedDescriptionKey: "MultiLabel分類には少なくとも2つのクラスラベルディレクトリが必要です。現在 \(classLabelDirURLs.count)個。",
             ])
         }
 
@@ -171,6 +173,7 @@ public final class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
     public func prepareTrainingData(from classLabelDirURLs: [URL]) throws -> MLImageClassifier.DataSource {
         let trainingDataParentDirURL = classLabelDirURLs[0].deletingLastPathComponent()
         print("📁 トレーニングデータ親ディレクトリ: \(trainingDataParentDirURL.path)")
+
         return MLImageClassifier.DataSource.labeledDirectories(at: trainingDataParentDirURL)
     }
 
@@ -248,7 +251,7 @@ public final class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
         scenePrintRevision: Int?,
         trainingDurationSeconds: TimeInterval,
         modelFilePath: String
-    ) -> MultiClassTrainingResult {
+    ) -> MultiLabelTrainingResult {
         let augmentationFinalDescription = if !modelParameters.augmentationOptions.isEmpty {
             String(describing: modelParameters.augmentationOptions)
         } else {
@@ -279,7 +282,7 @@ public final class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
             actualColumn: "True Label"
         )
 
-        return MultiClassTrainingResult(
+        return MultiLabelTrainingResult(
             metadata: metadata,
             trainingMetrics: (
                 accuracy: 1.0 - trainingMetrics.classificationError,
@@ -289,7 +292,8 @@ public final class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
                 accuracy: 1.0 - validationMetrics.classificationError,
                 errorRate: validationMetrics.classificationError
             ),
-            confusionMatrix: confusionMatrix
+            confusionMatrix: confusionMatrix,
+            individualModelReports: []
         )
     }
 }

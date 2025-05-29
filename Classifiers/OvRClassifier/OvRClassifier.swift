@@ -8,7 +8,7 @@ import CreateML
 import Foundation
 import TabularData
 
-public final class OvRClassificationTrainer: ScreeningTrainerProtocol {
+public final class OvRClassifier: ClassifierProtocol {
     public typealias TrainingResultType = OvRTrainingResult
 
     private let fileManager = CICFileManager()
@@ -164,8 +164,8 @@ public final class OvRClassificationTrainer: ScreeningTrainerProtocol {
         print("📁 検出されたクラスラベルディレクトリ: \(classLabelDirURLs.map(\.lastPathComponent).joined(separator: ", "))")
 
         guard classLabelDirURLs.count >= 2 else {
-            throw NSError(domain: "OvRClassificationTrainer", code: -1, userInfo: [
-                NSLocalizedDescriptionKey: "OvR分類には2つ以上のクラスラベルディレクトリが必要です。現在 \(classLabelDirURLs.count)個。",
+            throw NSError(domain: "OvRClassifier", code: -1, userInfo: [
+                NSLocalizedDescriptionKey: "OvR分類には少なくとも2つのクラスラベルディレクトリが必要です。現在 \(classLabelDirURLs.count)個。",
             ])
         }
 

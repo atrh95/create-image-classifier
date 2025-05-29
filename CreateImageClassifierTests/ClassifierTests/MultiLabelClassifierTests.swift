@@ -6,11 +6,11 @@ import Foundation
 import Vision
 import XCTest
 
-final class MultiLabelClassificationTests: XCTestCase {
-    var trainer: MultiLabelClassificationTrainer!
+final class MultiLabelClassifierTests: XCTestCase {
+    var classifier: MultiLabelClassifier!
     let fileManager = FileManager.default
     let authorName: String = "Test Author"
-    let testModelName: String = "TestCats_MultiLabel_Run"
+    let testModelName: String = "TestModel_MultiLabel_Run"
     let testModelVersion: String = "v1"
 
     let algorithm = MLImageClassifier.ModelParameters.ModelAlgorithmType.transferLearning(
@@ -50,24 +50,24 @@ final class MultiLabelClassificationTests: XCTestCase {
             attributes: nil
         )
 
-        trainer = MultiLabelClassificationTrainer(
+        classifier = MultiLabelClassifier(
             outputDirectoryPathOverride: temporaryOutputDirectoryURL.path
         )
         
         // テストリソースディレクトリのパスを設定
         let currentFileURL = URL(fileURLWithPath: #filePath)
-        trainer.testResourcesDirectoryPath = currentFileURL
+        classifier.testResourcesDirectoryPath = currentFileURL
             .deletingLastPathComponent() // MultiLabelClassificationTests.swift
             .appendingPathComponent("TestResources")
             .appendingPathComponent("MultiLabel")
             .path
 
-        trainingResult = await trainer.train(
-            author: authorName,
+        trainingResult = await classifier.train(
+            author: "test",
             modelName: testModelName,
-            version: testModelVersion,
+            version: "v1",
             modelParameters: modelParameters,
-            scenePrintRevision: 1
+            scenePrintRevision: nil
         )
 
         guard let result = trainingResult else {
@@ -104,14 +104,14 @@ final class MultiLabelClassificationTests: XCTestCase {
         }
         compiledModelURL = nil
         trainingResult = nil
-        trainer.testResourcesDirectoryPath = nil
-        trainer = nil
+        classifier.testResourcesDirectoryPath = nil
+        classifier = nil
         try super.tearDownWithError()
     }
 
-    func testTrainerDIConfiguration() {
-        XCTAssertNotNil(trainer, "MultiLabelClassificationTrainerの初期化失敗")
-        XCTAssertEqual(trainer.outputDirPath, temporaryOutputDirectoryURL.path, "トレーナーの出力パスが期待値と不一致")
+    func testClassifierDIConfiguration() {
+        XCTAssertNotNil(classifier, "MultiLabelClassifierの初期化失敗")
+        XCTAssertEqual(classifier.outputDirPath, temporaryOutputDirectoryURL.path, "分類器の出力パスが期待値と不一致")
     }
 
     func testModelTrainingAndArtifactGeneration() throws {
@@ -154,7 +154,7 @@ final class MultiLabelClassificationTests: XCTestCase {
         }
 
         // テスト用の画像ファイルを取得
-        let resourceURL = URL(fileURLWithPath: trainer.resourcesDirectoryPath)
+        let resourceURL = URL(fileURLWithPath: classifier.resourcesDirectoryPath)
 
         let classDirs = try fileManager.contentsOfDirectory(at: resourceURL, includingPropertiesForKeys: nil)
         guard let firstClassDir = classDirs.first,

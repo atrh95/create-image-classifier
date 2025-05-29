@@ -2,14 +2,12 @@ import CICConfusionMatrix
 import CICFileManager
 import CICInterface
 import CICTrainingResult
-import Combine
 import CoreML
 import CreateML
 import Foundation
-import TabularData
 
-public final class OvOClassificationTrainer: ScreeningTrainerProtocol {
-    public typealias TrainingResultType = OvOTrainingResult
+public final class MultiClassClassifier: ClassifierProtocol {
+    public typealias TrainingResultType = MultiClassTrainingResult
 
     private let fileManager = CICFileManager()
     public var outputDirectoryPathOverride: String?
@@ -21,14 +19,12 @@ public final class OvOClassificationTrainer: ScreeningTrainerProtocol {
         }
         let currentFileURL = URL(fileURLWithPath: #filePath)
         return currentFileURL
-            .deletingLastPathComponent() // OvOClassifier
+            .deletingLastPathComponent() // MultiClassifier
             .deletingLastPathComponent() // Classifiers
-            .appendingPathComponent("CICOutputModels")
-            .appendingPathComponent("OvOClassifier")
+            .appendingPathComponent("Output")
+            .appendingPathComponent("MultiClassifier")
             .path
     }
-
-    public var classificationMethod: String { "OvO" }
 
     public var resourcesDirectoryPath: String {
         if let testPath = testResourcesDirectoryPath {
@@ -36,19 +32,19 @@ public final class OvOClassificationTrainer: ScreeningTrainerProtocol {
         }
         let currentFileURL = URL(fileURLWithPath: #filePath)
         return currentFileURL
-            .deletingLastPathComponent() // OvOClassifier
+            .deletingLastPathComponent() // MultiClassifier
             .deletingLastPathComponent() // Classifiers
             .deletingLastPathComponent() // Project root
             .appendingPathComponent("CICResources")
-            .appendingPathComponent("OvOResources")
+            .appendingPathComponent("MultiClassResources")
             .path
     }
+
+    public var classificationMethod: String { "MultiClass" }
 
     public init(outputDirectoryPathOverride: String? = nil) {
         self.outputDirectoryPathOverride = outputDirectoryPathOverride
     }
-
-    static let tempBaseDirName = "TempOvOTrainingData"
 
     public func train(
         author: String,
@@ -56,9 +52,9 @@ public final class OvOClassificationTrainer: ScreeningTrainerProtocol {
         version: String,
         modelParameters: CreateML.MLImageClassifier.ModelParameters,
         scenePrintRevision: Int?
-    ) async -> OvOTrainingResult? {
+    ) async -> MultiClassTrainingResult? {
         print("📁 リソースディレクトリ: \(resourcesDirectoryPath)")
-        print("🚀 OvOトレーニング開始 (バージョン: \(version))...")
+        print("🚀 MultiClassトレーニング開始 (バージョン: \(version))...")
 
         do {
             // クラスラベルディレクトリの取得
@@ -164,8 +160,8 @@ public final class OvOClassificationTrainer: ScreeningTrainerProtocol {
         print("📁 検出されたクラスラベルディレクトリ: \(classLabelDirURLs.map(\.lastPathComponent).joined(separator: ", "))")
 
         guard classLabelDirURLs.count >= 2 else {
-            throw NSError(domain: "OvOClassificationTrainer", code: -1, userInfo: [
-                NSLocalizedDescriptionKey: "OvO分類には2つ以上のクラスラベルディレクトリが必要です。現在 \(classLabelDirURLs.count)個。",
+            throw NSError(domain: "MultiClassClassifier", code: -1, userInfo: [
+                NSLocalizedDescriptionKey: "MultiClass分類には2つ以上のクラスラベルディレクトリが必要です。現在 \(classLabelDirURLs.count)個。",
             ])
         }
 
@@ -234,13 +230,13 @@ public final class OvOClassificationTrainer: ScreeningTrainerProtocol {
         metadata: MLModelMetadata
     ) throws -> String {
         let modelFileName = "\(modelName)_\(classificationMethod)_\(version).mlmodel"
-        let modelFileURL = outputDirectoryURL.appendingPathComponent(modelFileName)
+        let modelFilePath = outputDirectoryURL.appendingPathComponent(modelFileName).path
 
-        print("💾 モデルファイル保存中: \(modelFileURL.path)")
-        try imageClassifier.write(to: modelFileURL, metadata: metadata)
+        print("💾 モデルファイル保存中: \(modelFilePath)")
+        try imageClassifier.write(to: URL(fileURLWithPath: modelFilePath), metadata: metadata)
         print("✅ モデルファイル保存完了")
 
-        return modelFileURL.path
+        return modelFilePath
     }
 
     public func createTrainingResult(
@@ -252,7 +248,7 @@ public final class OvOClassificationTrainer: ScreeningTrainerProtocol {
         scenePrintRevision: Int?,
         trainingDurationSeconds: TimeInterval,
         modelFilePath: String
-    ) -> OvOTrainingResult {
+    ) -> MultiClassTrainingResult {
         let augmentationFinalDescription = if !modelParameters.augmentationOptions.isEmpty {
             String(describing: modelParameters.augmentationOptions)
         } else {
@@ -283,7 +279,7 @@ public final class OvOClassificationTrainer: ScreeningTrainerProtocol {
             actualColumn: "True Label"
         )
 
-        return OvOTrainingResult(
+        return MultiClassTrainingResult(
             metadata: metadata,
             trainingMetrics: (
                 accuracy: 1.0 - trainingMetrics.classificationError,
@@ -293,8 +289,7 @@ public final class OvOClassificationTrainer: ScreeningTrainerProtocol {
                 accuracy: 1.0 - validationMetrics.classificationError,
                 errorRate: validationMetrics.classificationError
             ),
-            confusionMatrix: confusionMatrix,
-            individualModelReports: []
+            confusionMatrix: confusionMatrix
         )
     }
 }

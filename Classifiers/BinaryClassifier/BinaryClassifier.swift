@@ -2,21 +2,14 @@ import CICConfusionMatrix
 import CICFileManager
 import CICInterface
 import CICTrainingResult
-import Combine
 import CoreML
 import CreateML
 import Foundation
-import TabularData
 
-private struct ImageAnnotation: Codable {
-    let filename: String
-    let annotations: [String]
-}
+public final class BinaryClassifier: ClassifierProtocol {
+    public typealias TrainingResultType = BinaryTrainingResult
 
-public final class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
-    public typealias TrainingResultType = MultiLabelTrainingResult
-
-    private let fileManager = CICFileManager()
+    private let fileManager: CICFileManager
     public var outputDirectoryPathOverride: String?
     public var testResourcesDirectoryPath: String?
 
@@ -26,14 +19,12 @@ public final class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
         }
         let currentFileURL = URL(fileURLWithPath: #filePath)
         return currentFileURL
-            .deletingLastPathComponent() // MultiLabelClassifier
+            .deletingLastPathComponent() // BinaryClassifier
             .deletingLastPathComponent() // Classifiers
             .appendingPathComponent("CICOutputModels")
-            .appendingPathComponent("MultiLabelClassifier")
+            .appendingPathComponent("BinaryClassifier")
             .path
     }
-
-    public var classificationMethod: String { "MultiLabel" }
 
     public var resourcesDirectoryPath: String {
         if let testPath = testResourcesDirectoryPath {
@@ -41,16 +32,19 @@ public final class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
         }
         let currentFileURL = URL(fileURLWithPath: #filePath)
         return currentFileURL
-            .deletingLastPathComponent() // MultiLabelClassifier
+            .deletingLastPathComponent() // BinaryClassifier
             .deletingLastPathComponent() // Classifiers
             .deletingLastPathComponent() // Project root
             .appendingPathComponent("CICResources")
-            .appendingPathComponent("MultiLabelResources")
+            .appendingPathComponent("BinaryResources")
             .path
     }
 
-    public init(outputDirectoryPathOverride: String? = nil) {
+    public var classificationMethod: String { "Binary" }
+
+    public init(outputDirectoryPathOverride: String? = nil, fileManager: CICFileManager = CICFileManager()) {
         self.outputDirectoryPathOverride = outputDirectoryPathOverride
+        self.fileManager = fileManager
     }
 
     public func train(
@@ -59,9 +53,9 @@ public final class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
         version: String,
         modelParameters: CreateML.MLImageClassifier.ModelParameters,
         scenePrintRevision: Int?
-    ) async -> MultiLabelTrainingResult? {
+    ) async -> BinaryTrainingResult? {
         print("📁 リソースディレクトリ: \(resourcesDirectoryPath)")
-        print("🚀 MultiLabelトレーニング開始 (バージョン: \(version))...")
+        print("🚀 Binaryトレーニング開始 (バージョン: \(version))...")
 
         do {
             // クラスラベルディレクトリの取得
@@ -81,10 +75,11 @@ public final class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
             let validationMetrics = imageClassifier.validationMetrics
 
             // 混同行列の計算
-            let confusionMatrix = CICMultiClassConfusionMatrix(
+            let confusionMatrix = CICBinaryConfusionMatrix(
                 dataTable: validationMetrics.confusion,
                 predictedColumn: "Predicted",
-                actualColumn: "True Label"
+                actualColumn: "True Label",
+                positiveClass: classLabelDirURLs[1].lastPathComponent
             )
 
             // トレーニング結果の表示
@@ -97,7 +92,7 @@ public final class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
             if let confusionMatrix {
                 print(String(
                     format: "  検証正解率: %.1f%%",
-                    (1.0 - validationMetrics.classificationError) * 100.0
+                    confusionMatrix.accuracy * 100.0
                 ))
                 print(confusionMatrix.getMatrixGraph())
             } else {
@@ -166,9 +161,9 @@ public final class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
         let classLabelDirURLs = try fileManager.getClassLabelDirectories(resourcesPath: resourcesDirectoryPath)
         print("📁 検出されたクラスラベルディレクトリ: \(classLabelDirURLs.map(\.lastPathComponent).joined(separator: ", "))")
 
-        guard classLabelDirURLs.count >= 2 else {
-            throw NSError(domain: "MultiLabelClassificationTrainer", code: -1, userInfo: [
-                NSLocalizedDescriptionKey: "マルチラベル分類には2つ以上のクラスラベルディレクトリが必要です。現在 \(classLabelDirURLs.count)個。",
+        guard classLabelDirURLs.count == 2 else {
+            throw NSError(domain: "BinaryClassifier", code: -1, userInfo: [
+                NSLocalizedDescriptionKey: "Binary分類には2つのクラスラベルディレクトリが必要です。現在 \(classLabelDirURLs.count)個。",
             ])
         }
 
@@ -178,23 +173,6 @@ public final class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
     public func prepareTrainingData(from classLabelDirURLs: [URL]) throws -> MLImageClassifier.DataSource {
         let trainingDataParentDirURL = classLabelDirURLs[0].deletingLastPathComponent()
         print("📁 トレーニングデータ親ディレクトリ: \(trainingDataParentDirURL.path)")
-
-        // JSONファイルを検索
-        let files = try FileManager.default.contentsOfDirectory(
-            at: trainingDataParentDirURL,
-            includingPropertiesForKeys: nil
-        )
-        guard let jsonFile = files.first(where: { $0.pathExtension.lowercased() == "json" }) else {
-            throw NSError(domain: "MultiLabelClassificationTrainer", code: -1, userInfo: [
-                NSLocalizedDescriptionKey: "アノテーションファイル（JSON）が見つかりません。",
-            ])
-        }
-
-        // JSONファイルを読み込む
-        let jsonData = try Data(contentsOf: jsonFile)
-        let annotations = try JSONDecoder().decode([ImageAnnotation].self, from: jsonData)
-        print("📄 アノテーションファイル読み込み完了: \(jsonFile.lastPathComponent)")
-
         return MLImageClassifier.DataSource.labeledDirectories(at: trainingDataParentDirURL)
     }
 
@@ -272,7 +250,7 @@ public final class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
         scenePrintRevision: Int?,
         trainingDurationSeconds: TimeInterval,
         modelFilePath: String
-    ) -> MultiLabelTrainingResult {
+    ) -> BinaryTrainingResult {
         let augmentationFinalDescription = if !modelParameters.augmentationOptions.isEmpty {
             String(describing: modelParameters.augmentationOptions)
         } else {
@@ -297,13 +275,22 @@ public final class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
             featureExtractorDescription: featureExtractorDesc
         )
 
-        let confusionMatrix = CICMultiClassConfusionMatrix(
+        let confusionMatrix = CICBinaryConfusionMatrix(
             dataTable: validationMetrics.confusion,
             predictedColumn: "Predicted",
-            actualColumn: "True Label"
+            actualColumn: "True Label",
+            positiveClass: classLabelDirURLs[1].lastPathComponent
         )
 
-        return MultiLabelTrainingResult(
+        let individualModelReport = CICIndividualModelReport(
+            modelName: modelName,
+            positiveClassName: classLabelDirURLs[1].lastPathComponent,
+            trainingAccuracyRate: 1.0 - trainingMetrics.classificationError,
+            validationAccuracyPercentage: 1.0 - validationMetrics.classificationError,
+            confusionMatrix: confusionMatrix
+        )
+
+        return BinaryTrainingResult(
             metadata: metadata,
             trainingMetrics: (
                 accuracy: 1.0 - trainingMetrics.classificationError,
@@ -314,7 +301,7 @@ public final class MultiLabelClassificationTrainer: ScreeningTrainerProtocol {
                 errorRate: validationMetrics.classificationError
             ),
             confusionMatrix: confusionMatrix,
-            individualModelReports: []
+            individualModelReport: individualModelReport
         )
     }
 }
