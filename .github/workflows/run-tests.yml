@@ -37,12 +37,11 @@ jobs:
       - name: Generate Xcode Project
         run: mint run xcodegen generate
 
-      # Run All Tests
       - name: Create Test Output Directory
         run: mkdir -p ci-outputs/test-results/all-tests
       - name: Run Unit Tests
         id: execute_all_tests
-        continue-on-error: true # Continue to allow artifact upload even on failure
+        continue-on-error: true 
         run: |
           set -o pipefail
           xcodebuild test \
