@@ -51,6 +51,7 @@ public protocol ClassifierProtocol {
     func saveModel(
         imageClassifier: MLImageClassifier,
         modelName: String,
+        modelFileName: String,
         version: String,
         outputDirectoryURL: URL,
         metadata: MLModelMetadata

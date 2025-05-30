@@ -116,9 +116,18 @@ public final class OvOClassifier: ClassifierProtocol {
             // 出力ディレクトリの設定
             let outputDirectoryURL = try setupOutputDirectory(modelName: modelName, version: version)
 
+            // クラスラベルを取得してファイル名を生成
+            let classLabels = classLabelDirURLs.map { $0.lastPathComponent }
+
+            // OvOの場合は、クラス間の対戦を表す形式に変換
+            let classLabelsString = classLabels.joined(separator: "_vs_")
+
+            let modelFileName = "\(modelName)_\(classificationMethod)_\(classLabelsString)_\(version).mlmodel"
+
             let modelFilePath = try saveModel(
                 imageClassifier: imageClassifier,
                 modelName: modelName,
+                modelFileName: modelFileName,
                 version: version,
                 outputDirectoryURL: outputDirectoryURL,
                 metadata: modelMetadata
@@ -230,11 +239,11 @@ public final class OvOClassifier: ClassifierProtocol {
     public func saveModel(
         imageClassifier: MLImageClassifier,
         modelName: String,
+        modelFileName: String,
         version: String,
         outputDirectoryURL: URL,
         metadata: MLModelMetadata
     ) throws -> String {
-        let modelFileName = "\(modelName)_\(classificationMethod)_\(version).mlmodel"
         let modelFileURL = outputDirectoryURL.appendingPathComponent(modelFileName)
 
         print("💾 モデルファイル保存中: \(modelFileURL.path)")

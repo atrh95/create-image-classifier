@@ -116,9 +116,17 @@ public final class OvRClassifier: ClassifierProtocol {
             // 出力ディレクトリの設定
             let outputDirectoryURL = try setupOutputDirectory(modelName: modelName, version: version)
 
+            // クラスラベルを取得してファイル名を生成
+            let classLabels = classLabelDirURLs.map { $0.lastPathComponent }
+
+            // OvRの場合は、Oneのクラス名のみを使用
+            let oneClassLabel = classLabels.first ?? ""
+            let modelFileName = "\(modelName)_\(classificationMethod)_\(oneClassLabel)_\(version).mlmodel"
+
             let modelFilePath = try saveModel(
                 imageClassifier: imageClassifier,
                 modelName: modelName,
+                modelFileName: modelFileName,
                 version: version,
                 outputDirectoryURL: outputDirectoryURL,
                 metadata: modelMetadata
@@ -230,11 +238,11 @@ public final class OvRClassifier: ClassifierProtocol {
     public func saveModel(
         imageClassifier: MLImageClassifier,
         modelName: String,
+        modelFileName: String,
         version: String,
         outputDirectoryURL: URL,
         metadata: MLModelMetadata
     ) throws -> String {
-        let modelFileName = "\(modelName)_\(classificationMethod)_\(version).mlmodel"
         let modelFilePath = outputDirectoryURL.appendingPathComponent(modelFileName).path
 
         print("💾 モデルファイル保存中: \(modelFilePath)")

@@ -126,6 +126,25 @@ final class OvOClassifierTests: XCTestCase {
             throw TestError.setupFailed
         }
 
+        // モデルファイル名の検証
+        let modelFilePath = result.metadata.trainedModelFilePath
+        let modelFileName = URL(fileURLWithPath: modelFilePath).lastPathComponent
+        
+        // 2クラスの場合は_vs_形式、それ以外は_区切りの形式を期待
+        let expectedFileNamePattern1: String
+        let expectedFileNamePattern2: String
+        if expectedClassLabels.count == 2 {
+            expectedFileNamePattern1 = "\(testModelName)_OvO_\(expectedClassLabels[0])_vs_\(expectedClassLabels[1])_\(testModelVersion).mlmodel"
+            expectedFileNamePattern2 = "\(testModelName)_OvO_\(expectedClassLabels[1])_vs_\(expectedClassLabels[0])_\(testModelVersion).mlmodel"
+            XCTAssertTrue(
+                modelFileName == expectedFileNamePattern1 || modelFileName == expectedFileNamePattern2,
+                "モデルファイル名が期待される形式と一致しません。\n期待値1: \(expectedFileNamePattern1)\n期待値2: \(expectedFileNamePattern2)\n実際: \(modelFileName)"
+            )
+        } else {
+            expectedFileNamePattern1 = "\(testModelName)_OvO_\(expectedClassLabels.joined(separator: "_"))_\(testModelVersion).mlmodel"
+            XCTAssertEqual(modelFileName, expectedFileNamePattern1, "モデルファイル名が期待される形式と一致しません")
+        }
+        
         result.saveLog(modelAuthor: authorName, modelName: testModelName, modelVersion: testModelVersion)
         let modelFileDir = URL(fileURLWithPath: result.metadata.trainedModelFilePath).deletingLastPathComponent()
         let expectedLogFileName = "OvO_Run_Report_\(testModelVersion).md"
@@ -160,7 +179,10 @@ final class OvOClassifierTests: XCTestCase {
 
         let imageURL: URL
         do {
-            imageURL = try getRandomImageURL(forClassLabel: "black_and_white")
+            // 存在するディレクトリからランダムに選択
+            let availableClassLabels = ["sphynx", "mouth_open"]
+            let randomClassLabel = availableClassLabels.randomElement()!
+            imageURL = try getRandomImageURL(forClassLabel: randomClassLabel)
         } catch {
             XCTFail("テストリソースからのランダム画像取得失敗。エラー: \(error.localizedDescription)")
             throw error

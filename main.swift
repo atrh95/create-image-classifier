@@ -27,6 +27,9 @@ enum ClassifierType: String {
 enum MLModelType: String {
     case scaryCatScreeningML
 
+    // scenePrintを使う場合は設定
+    private static let scenePrintRevision: Int? = 2
+
     struct ModelConfig {
         let name: String
         let supportedClassifierVersions: [ClassifierType: String]
@@ -51,11 +54,11 @@ enum MLModelType: String {
                 maxIterations: 11,
                 augmentation: [],
                 algorithm: .transferLearning(
-                    featureExtractor: .scenePrint(revision: 2),
+                    featureExtractor: Self.scenePrintRevision.map { .scenePrint(revision: $0) } ?? .scenePrint(revision: 1),
                     classifier: .logisticRegressor
                 )
             ),
-            scenePrintRevision: 1
+            scenePrintRevision: Self.scenePrintRevision
         ),
     ]
 

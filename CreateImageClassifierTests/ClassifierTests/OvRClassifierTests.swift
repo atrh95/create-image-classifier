@@ -127,6 +127,21 @@ final class OvRClassifierTests: XCTestCase {
             throw TestError.setupFailed
         }
 
+        // モデルファイル名の検証
+        let modelFilePath = result.metadata.trainedModelFilePath
+        let modelFileName = URL(fileURLWithPath: modelFilePath).lastPathComponent
+        
+        // クラスラベルを取得して期待されるファイル名パターンを生成
+        let sortedClassLabels = expectedClassLabels.sorted()
+        let expectedFileNamePatterns = sortedClassLabels.map { classLabel in
+            "\(testModelName)_OvR_\(classLabel)_\(testModelVersion).mlmodel"
+        }
+        
+        XCTAssertTrue(
+            expectedFileNamePatterns.contains(modelFileName),
+            "モデルファイル名が期待される形式と一致しません。\n期待値: \(expectedFileNamePatterns.joined(separator: " または "))\n実際: \(modelFileName)"
+        )
+
         result.saveLog(modelAuthor: authorName, modelName: testModelName, modelVersion: testModelVersion)
         let modelFileDir = URL(fileURLWithPath: result.metadata.trainedModelFilePath).deletingLastPathComponent()
         let expectedLogFileName = "OvR_Run_Report_\(testModelVersion).md"

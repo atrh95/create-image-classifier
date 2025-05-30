@@ -117,6 +117,7 @@ public final class MultiLabelClassifier: ClassifierProtocol {
             let modelFilePath = try saveModel(
                 imageClassifier: imageClassifier,
                 modelName: modelName,
+                modelFileName: "\(modelName)_\(classificationMethod)_\(version).mlmodel",
                 version: version,
                 outputDirectoryURL: outputDirectoryURL,
                 metadata: modelMetadata
@@ -229,11 +230,11 @@ public final class MultiLabelClassifier: ClassifierProtocol {
     public func saveModel(
         imageClassifier: MLImageClassifier,
         modelName: String,
+        modelFileName: String,
         version: String,
         outputDirectoryURL: URL,
         metadata: MLModelMetadata
     ) throws -> String {
-        let modelFileName = "\(modelName)_\(classificationMethod)_\(version).mlmodel"
         let modelFilePath = outputDirectoryURL.appendingPathComponent(modelFileName).path
 
         print("💾 モデルファイル保存中: \(modelFilePath)")
