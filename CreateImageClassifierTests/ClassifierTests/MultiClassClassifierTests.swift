@@ -49,7 +49,7 @@ final class MultiClassClassifierTests: XCTestCase {
         classifier = MultiClassClassifier(
             outputDirectoryPathOverride: temporaryOutputDirectoryURL.path
         )
-        
+
         // テストリソースディレクトリのパスを設定
         let currentFileURL = URL(fileURLWithPath: #filePath)
         classifier.testResourcesDirectoryPath = currentFileURL

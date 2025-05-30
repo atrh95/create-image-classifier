@@ -14,11 +14,11 @@ enum ClassifierType: String {
 
     func makeClassifier() -> any ClassifierProtocol {
         switch self {
-        case .binary: BinaryClassifier()
-        case .multiClass: MultiClassClassifier()
-        case .multiLabel: MultiLabelClassifier()
-        case .ovr: OvRClassifier()
-        case .ovo: OvOClassifier()
+            case .binary: BinaryClassifier()
+            case .multiClass: MultiClassClassifier()
+            case .multiLabel: MultiLabelClassifier()
+            case .ovr: OvRClassifier()
+            case .ovo: OvOClassifier()
         }
     }
 }
@@ -48,10 +48,10 @@ enum MLModelType: String {
             author: "akitora",
             modelParameters: MLImageClassifier.ModelParameters(
                 validation: .split(strategy: .automatic),
-                maxIterations: 8,
+                maxIterations: 11,
                 augmentation: [],
                 algorithm: .transferLearning(
-                    featureExtractor: .scenePrint(revision: 1),
+                    featureExtractor: .scenePrint(revision: 2),
                     classifier: .logisticRegressor
                 )
             ),
@@ -78,8 +78,8 @@ let semaphore = DispatchSemaphore(value: 0)
 
 Task {
     let selectedModel: MLModelType = .scaryCatScreeningML
-    let selectedClassifier: ClassifierType = .binary
-    let trainingCount = 1
+    let selectedClassifier: ClassifierType = .ovr
+    let trainingCount = 5
 
     guard trainingCount > 0 else {
         print("トレーニングの回数は1以上を指定してください")

@@ -23,6 +23,7 @@ public final class OvOClassifier: ClassifierProtocol {
         return currentFileURL
             .deletingLastPathComponent() // OvOClassifier
             .deletingLastPathComponent() // Classifiers
+            .deletingLastPathComponent() // Project root
             .appendingPathComponent("CICOutputModels")
             .appendingPathComponent("OvOClassifier")
             .path

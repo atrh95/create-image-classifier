@@ -23,6 +23,7 @@ public final class MultiLabelClassifier: ClassifierProtocol {
         return currentFileURL
             .deletingLastPathComponent() // MultiLabelClassifier
             .deletingLastPathComponent() // Classifiers
+            .deletingLastPathComponent() // Project root
             .appendingPathComponent("CICOutputModels")
             .appendingPathComponent("MultiLabelClassifier")
             .path

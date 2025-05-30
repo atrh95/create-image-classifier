@@ -21,8 +21,9 @@ public final class MultiClassClassifier: ClassifierProtocol {
         return currentFileURL
             .deletingLastPathComponent() // MultiClassifier
             .deletingLastPathComponent() // Classifiers
-            .appendingPathComponent("Output")
-            .appendingPathComponent("MultiClassifier")
+            .deletingLastPathComponent() // Project root
+            .appendingPathComponent("CICOutputModels")
+            .appendingPathComponent("MultiClassClassifier")
             .path
     }
 

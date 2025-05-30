@@ -21,6 +21,7 @@ public final class BinaryClassifier: ClassifierProtocol {
         return currentFileURL
             .deletingLastPathComponent() // BinaryClassifier
             .deletingLastPathComponent() // Classifiers
+            .deletingLastPathComponent() // Project root
             .appendingPathComponent("CICOutputModels")
             .appendingPathComponent("BinaryClassifier")
             .path
