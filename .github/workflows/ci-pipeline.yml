@@ -73,6 +73,5 @@ jobs:
               ${{ steps.status_check.outputs.message }}\n
               ### ステータス概要:\n
               -   Overall Test Status: ${test_status}
-              -   Code Review: ${review_status}
               `
             });
