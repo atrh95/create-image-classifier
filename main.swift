@@ -14,11 +14,11 @@ enum ClassifierType: String {
 
     func makeClassifier() -> any ClassifierProtocol {
         switch self {
-        case .binary: BinaryClassificationClassifier()
-        case .multiClass: MultiClassClassificationClassifier()
-        case .multiLabel: MultiLabelClassificationClassifier()
-        case .ovr: OvRClassificationClassifier()
-        case .ovo: OvOClassificationClassifier()
+        case .binary: BinaryClassifier()
+        case .multiClass: MultiClassClassifier()
+        case .multiLabel: MultiLabelClassifier()
+        case .ovr: OvRClassifier()
+        case .ovo: OvOClassifier()
         }
     }
 }
@@ -42,7 +42,7 @@ enum MLModelType: String {
                 .binary: "v6",
                 .multiClass: "v3",
                 .multiLabel: "v1",
-                .ovr: "v20",
+                .ovr: "v23",
                 .ovo: "v1",
             ],
             author: "akitora",
