@@ -13,9 +13,9 @@ public final class OvOClassifier: ClassifierProtocol {
 
     private let fileManager = CICFileManager()
     public var outputDirectoryPathOverride: String?
-    public var testResourcesDirectoryPath: String?
+    public var resourceDirPathOverride: String?
 
-    public var outputDirPath: String {
+    public var outputParentDirPath: String {
         if let override = outputDirectoryPathOverride {
             return override
         }
@@ -31,8 +31,8 @@ public final class OvOClassifier: ClassifierProtocol {
     public var classificationMethod: String { "OvO" }
 
     public var resourcesDirectoryPath: String {
-        if let testPath = testResourcesDirectoryPath {
-            return testPath
+        if let override = resourceDirPathOverride {
+            return override
         }
         let currentFileURL = URL(fileURLWithPath: #filePath)
         return currentFileURL
@@ -44,13 +44,14 @@ public final class OvOClassifier: ClassifierProtocol {
             .path
     }
 
-    public init(outputDirectoryPathOverride: String? = nil) {
+    public init(outputDirectoryPathOverride: String? = nil, resourceDirPathOverride: String? = nil) {
         self.outputDirectoryPathOverride = outputDirectoryPathOverride
+        self.resourceDirPathOverride = resourceDirPathOverride
     }
 
     static let tempBaseDirName = "TempOvOTrainingData"
 
-    public func train(
+    public func create(
         author: String,
         modelName: String,
         version: String,
@@ -58,7 +59,7 @@ public final class OvOClassifier: ClassifierProtocol {
         scenePrintRevision: Int?
     ) async -> OvOTrainingResult? {
         print("📁 リソースディレクトリ: \(resourcesDirectoryPath)")
-        print("🚀 OvOトレーニング開始 (バージョン: \(version))...")
+        print("🚀 OvOモデル作成開始 (バージョン: \(version))...")
 
         do {
             // クラスラベルディレクトリの取得
@@ -108,14 +109,13 @@ public final class OvOClassifier: ClassifierProtocol {
                 classLabelDirURLs: classLabelDirURLs,
                 trainingMetrics: trainingMetrics,
                 validationMetrics: validationMetrics,
-                modelParameters: modelParameters,
-                scenePrintRevision: scenePrintRevision
+                modelParameters: modelParameters
             )
 
             // 出力ディレクトリの設定
             let outputDirectoryURL = try setupOutputDirectory(modelName: modelName, version: version)
 
-            let modelFilePath = try saveModel(
+            let modelFilePath = try saveMLModel(
                 imageClassifier: imageClassifier,
                 modelName: modelName,
                 version: version,
@@ -129,7 +129,6 @@ public final class OvOClassifier: ClassifierProtocol {
                 trainingMetrics: trainingMetrics,
                 validationMetrics: validationMetrics,
                 modelParameters: modelParameters,
-                scenePrintRevision: scenePrintRevision,
                 trainingDurationSeconds: trainingDurationSeconds,
                 modelFilePath: modelFilePath
             )
@@ -153,7 +152,7 @@ public final class OvOClassifier: ClassifierProtocol {
             modelName: modelName,
             version: version,
             classificationMethod: classificationMethod,
-            moduleOutputPath: outputDirPath
+            moduleOutputPath: outputParentDirPath
         )
         print("📁 出力ディレクトリ作成成功: \(outputDirectoryURL.path)")
         return outputDirectoryURL
@@ -172,10 +171,9 @@ public final class OvOClassifier: ClassifierProtocol {
         return classLabelDirURLs
     }
 
-    public func prepareTrainingData(from classLabelDirURLs: [URL]) throws -> MLImageClassifier.DataSource {
-        let trainingDataParentDirURL = classLabelDirURLs[0].deletingLastPathComponent()
-        print("📁 トレーニングデータ親ディレクトリ: \(trainingDataParentDirURL.path)")
-        return MLImageClassifier.DataSource.labeledDirectories(at: trainingDataParentDirURL)
+    public func prepareTrainingData(from _: [URL]) throws -> MLImageClassifier.DataSource {
+        print("📁 トレーニングデータ親ディレクトリ: \(resourcesDirectoryPath)")
+        return MLImageClassifier.DataSource.labeledDirectories(at: URL(fileURLWithPath: resourcesDirectoryPath))
     }
 
     public func trainModel(
@@ -197,8 +195,7 @@ public final class OvOClassifier: ClassifierProtocol {
         classLabelDirURLs: [URL],
         trainingMetrics: MLClassifierMetrics,
         validationMetrics: MLClassifierMetrics,
-        modelParameters: CreateML.MLImageClassifier.ModelParameters,
-        scenePrintRevision: Int?
+        modelParameters: CreateML.MLImageClassifier.ModelParameters
     ) -> MLModelMetadata {
         let augmentationFinalDescription = if !modelParameters.augmentationOptions.isEmpty {
             String(describing: modelParameters.augmentationOptions)
@@ -207,11 +204,6 @@ public final class OvOClassifier: ClassifierProtocol {
         }
 
         let featureExtractorDescription = String(describing: modelParameters.featureExtractor)
-        let featureExtractorDesc: String = if let revision = scenePrintRevision {
-            "\(featureExtractorDescription)(revision: \(revision))"
-        } else {
-            featureExtractorDescription
-        }
 
         return MLModelMetadata(
             author: author,
@@ -220,13 +212,13 @@ public final class OvOClassifier: ClassifierProtocol {
             訓練正解率: \(String(format: "%.1f%%", (1.0 - trainingMetrics.classificationError) * 100.0))
             検証正解率: \(String(format: "%.1f%%", (1.0 - validationMetrics.classificationError) * 100.0))
             データ拡張: \(augmentationFinalDescription)
-            特徴抽出器: \(featureExtractorDesc)
+            特徴抽出器: \(featureExtractorDescription)
             """,
             version: version
         )
     }
 
-    public func saveModel(
+    public func saveMLModel(
         imageClassifier: MLImageClassifier,
         modelName: String,
         version: String,
@@ -234,13 +226,13 @@ public final class OvOClassifier: ClassifierProtocol {
         metadata: MLModelMetadata
     ) throws -> String {
         let modelFileName = "\(modelName)_\(classificationMethod)_\(version).mlmodel"
-        let modelFileURL = outputDirectoryURL.appendingPathComponent(modelFileName)
+        let modelFilePath = outputDirectoryURL.appendingPathComponent(modelFileName).path
 
-        print("💾 モデルファイル保存中: \(modelFileURL.path)")
-        try imageClassifier.write(to: modelFileURL, metadata: metadata)
+        print("💾 モデルファイル保存中: \(modelFilePath)")
+        try imageClassifier.write(to: URL(fileURLWithPath: modelFilePath), metadata: metadata)
         print("✅ モデルファイル保存完了")
 
-        return modelFileURL.path
+        return modelFilePath
     }
 
     public func createTrainingResult(
@@ -249,7 +241,6 @@ public final class OvOClassifier: ClassifierProtocol {
         trainingMetrics: MLClassifierMetrics,
         validationMetrics: MLClassifierMetrics,
         modelParameters: CreateML.MLImageClassifier.ModelParameters,
-        scenePrintRevision: Int?,
         trainingDurationSeconds: TimeInterval,
         modelFilePath: String
     ) -> OvOTrainingResult {
@@ -260,21 +251,16 @@ public final class OvOClassifier: ClassifierProtocol {
         }
 
         let featureExtractorDescription = String(describing: modelParameters.featureExtractor)
-        let featureExtractorDesc: String = if let revision = scenePrintRevision {
-            "\(featureExtractorDescription)(revision: \(revision))"
-        } else {
-            featureExtractorDescription
-        }
 
         let metadata = CICTrainingMetadata(
             modelName: modelName,
             trainingDurationInSeconds: trainingDurationSeconds,
             trainedModelFilePath: modelFilePath,
-            sourceTrainingDataDirectoryPath: classLabelDirURLs[0].deletingLastPathComponent().path,
+            sourceTrainingDataDirectoryPath: resourcesDirectoryPath,
             detectedClassLabelsList: classLabelDirURLs.map(\.lastPathComponent),
             maxIterations: modelParameters.maxIterations,
             dataAugmentationDescription: augmentationFinalDescription,
-            featureExtractorDescription: featureExtractorDesc
+            featureExtractorDescription: featureExtractorDescription
         )
 
         let confusionMatrix = CICMultiClassConfusionMatrix(

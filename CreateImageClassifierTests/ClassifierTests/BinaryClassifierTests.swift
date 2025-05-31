@@ -54,9 +54,10 @@ final class BinaryClassifierTests: XCTestCase {
             .appendingPathComponent("Binary")
             .path
 
-        trainingResult = await classifier.train(
-            author: "test",
-            modelName: testModelName,
+        // モデルの作成
+        trainingResult = await classifier.create(
+            author: "TestAuthor",
+            modelName: "TestModel",
             version: "v1",
             modelParameters: modelParameters,
             scenePrintRevision: nil

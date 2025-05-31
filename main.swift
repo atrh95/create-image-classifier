@@ -100,14 +100,16 @@ Task {
     for i in 1 ... trainingCount {
         print("トレーニング開始: \(i)/\(trainingCount)")
 
-        guard let result = await classifier.train(
+        // モデルの作成
+        print("\n🚀 モデル作成開始...")
+        guard let result = await classifier.create(
             author: selectedModel.author,
             modelName: selectedModel.name,
             version: version,
             modelParameters: selectedModel.modelParameters,
             scenePrintRevision: selectedModel.scenePrintRevision
         ) else {
-            print("❌ エラー: トレーニング失敗")
+            print("❌ モデル作成失敗")
             continue
         }
 

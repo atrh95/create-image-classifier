@@ -7,7 +7,6 @@ public struct CICTrainingMetadata: TrainingResultProtocol {
     public let modelName: String
     public let trainingDurationInSeconds: TimeInterval
     public let trainedModelFilePath: String
-    public let sourceTrainingDataDirectoryPath: String
     public let detectedClassLabelsList: [String]
     public let maxIterations: Int
     public let dataAugmentationDescription: String
@@ -17,7 +16,6 @@ public struct CICTrainingMetadata: TrainingResultProtocol {
         modelName: String,
         trainingDurationInSeconds: TimeInterval,
         trainedModelFilePath: String,
-        sourceTrainingDataDirectoryPath: String,
         detectedClassLabelsList: [String],
         maxIterations: Int,
         dataAugmentationDescription: String,
@@ -26,7 +24,6 @@ public struct CICTrainingMetadata: TrainingResultProtocol {
         self.modelName = modelName
         self.trainingDurationInSeconds = trainingDurationInSeconds
         self.trainedModelFilePath = trainedModelFilePath
-        self.sourceTrainingDataDirectoryPath = sourceTrainingDataDirectoryPath
         self.detectedClassLabelsList = detectedClassLabelsList
         self.maxIterations = maxIterations
         self.dataAugmentationDescription = dataAugmentationDescription
