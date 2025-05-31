@@ -27,15 +27,11 @@ enum ClassifierType: String {
 enum MLModelType: String {
     case scaryCatScreeningML
 
-    // scenePrintを使う場合は設定
-    private static let scenePrintRevision: Int? = 2
-
     struct ModelConfig {
         let name: String
         let supportedClassifierVersions: [ClassifierType: String]
         let author: String
         let modelParameters: CreateML.MLImageClassifier.ModelParameters
-        let scenePrintRevision: Int?
     }
 
     static let configs: [MLModelType: ModelConfig] = [
@@ -45,21 +41,19 @@ enum MLModelType: String {
                 .binary: "v6",
                 .multiClass: "v3",
                 .multiLabel: "v1",
-                .ovr: "v25",
+                .ovr: "v23",
                 .ovo: "v1",
             ],
             author: "akitora",
             modelParameters: MLImageClassifier.ModelParameters(
                 validation: .split(strategy: .automatic),
-                maxIterations: 20,
+                maxIterations: 11,
                 augmentation: [],
                 algorithm: .transferLearning(
-                    featureExtractor: Self.scenePrintRevision
-                        .map { .scenePrint(revision: $0) } ?? .scenePrint(revision: 2),
+                    featureExtractor: .scenePrint(revision: 2),
                     classifier: .logisticRegressor
                 )
-            ),
-            scenePrintRevision: Self.scenePrintRevision
+            )
         ),
     ]
 
@@ -76,7 +70,7 @@ let semaphore = DispatchSemaphore(value: 0)
 Task {
     let selectedModel: MLModelType = .scaryCatScreeningML
     let selectedClassifier: ClassifierType = .ovr
-    let trainingCount = 1
+    let trainingCount = 5
 
     guard selectedModel.config.supportedClassifierVersions.keys.contains(selectedClassifier),
           let version = selectedModel.config.supportedClassifierVersions[selectedClassifier]

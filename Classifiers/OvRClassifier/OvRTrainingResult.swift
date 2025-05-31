@@ -49,11 +49,11 @@ public struct OvRTrainingResult: TrainingResultProtocol {
         ## 個別モデルの性能指標
         | クラス | 訓練正解率 | 検証正解率 | 再現率 | 適合率 | F1スコア |
         |--------|------------|------------|--------|--------|----------|
-        \(individualModelReports.enumerated().map { index, report in
+        \(individualModelReports.map { report in
             let recall = report.confusionMatrix?.recall ?? 0.0
             let precision = report.confusionMatrix?.precision ?? 0.0
             let f1Score = report.confusionMatrix?.f1Score ?? 0.0
-            return "| \(String(format: "%2d", index + 1)) | \(report.positiveClassName) | \(String(format: "%.1f%%", report.trainingAccuracyRate * 100.0)) | \(String(format: "%.1f%%", report.validationAccuracyRate * 100.0)) | \(String(format: "%.1f%%", recall * 100.0)) | \(String(format: "%.1f%%", precision * 100.0)) | \(String(format: "%.3f", f1Score)) |"
+            return "| \(report.positiveClassName) | \(String(format: "%.1f%%", report.trainingAccuracyRate * 100.0)) | \(String(format: "%.1f%%", report.validationAccuracyRate * 100.0)) | \(String(format: "%.1f%%", recall * 100.0)) | \(String(format: "%.1f%%", precision * 100.0)) | \(String(format: "%.3f", f1Score)) |"
         }.joined(separator: "\n"))
 
         ## モデルメタデータ
