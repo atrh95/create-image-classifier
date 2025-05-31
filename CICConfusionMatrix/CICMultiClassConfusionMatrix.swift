@@ -23,7 +23,7 @@ public final class CICMultiClassConfusionMatrix {
     ) -> Bool {
         // データの有効性チェック
         guard !dataTable.rows.isEmpty else {
-            print("❌ エラー: データテーブルが空です")
+            print("⚠️ データテーブルが空です")
             return false
         }
 
@@ -45,7 +45,7 @@ public final class CICMultiClassConfusionMatrix {
 
         // ラベルが存在することを確認
         guard !predictedLabels.isEmpty, !actualLabels.isEmpty else {
-            print("❌ エラー: ラベルが存在しません")
+            print("⚠️ ラベルが存在しません")
             print("   予測ラベル: \(predictedLabels.joined(separator: ", "))")
             print("   実際のラベル: \(actualLabels.joined(separator: ", "))")
             return false
@@ -53,7 +53,7 @@ public final class CICMultiClassConfusionMatrix {
 
         // 予測値と実際の値のラベルセットが一致することを確認
         guard predictedLabels == actualLabels else {
-            print("❌ エラー: 予測ラベルと実際のラベルが一致しません")
+            print("⚠️ 予測ラベルと実際のラベルが一致しません")
             print("   予測ラベル: \(predictedLabels.joined(separator: ", "))")
             print("   実際のラベル: \(actualLabels.joined(separator: ", "))")
             return false

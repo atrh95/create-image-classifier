@@ -16,7 +16,7 @@ public final class CICBinaryConfusionMatrix {
     ) -> Bool {
         // データの有効性チェック
         guard !dataTable.rows.isEmpty else {
-            print("❌ エラー: データテーブルが空です")
+            print("⚠️ データテーブルが空です")
             return false
         }
 

@@ -29,6 +29,8 @@ targets:
     platform: macOS
     sources:
       - path: CreateImageClassifierTests
+        excludes:
+          - "ClassifierTests/TestResources/**"
     dependencies:
       - target: BinaryClassification
       - target: MultiClassClassification
@@ -36,6 +38,7 @@ targets:
       - target: OvRClassification
       - target: OvOClassification
       - target: CICFileManager
+      - target: TestResources
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.CreateImageClassifierTests
@@ -267,5 +270,26 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.OvOClassification
         MACOSX_DEPLOYMENT_TARGET: "15.2"
+        CODE_SIGNING_ALLOWED: NO
+        CODE_SIGNING_REQUIRED: NO
+
+  TestResources:
+    type: framework
+    platform: macOS
+    sources:
+      - path: CreateImageClassifierTests/ClassifierTests/TestResources
+        excludes:
+          - "**/*.jpg"
+          - "**/*.jpeg"
+          - "**/*.png"
+    resources:
+      - path: CreateImageClassifierTests/ClassifierTests/TestResources
+        type: directory
+        buildPhase: resources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.TestResources
+        MACOSX_DEPLOYMENT_TARGET: "15.2"
+        DEFINES_MODULE: "YES"
         CODE_SIGNING_ALLOWED: NO
         CODE_SIGNING_REQUIRED: NO
