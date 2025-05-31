@@ -49,7 +49,7 @@ final class MultiClassClassifierTests: XCTestCase {
         classifier = MultiClassClassifier(
             outputDirectoryPathOverride: temporaryOutputDirectoryURL.path
         )
-        
+
         // テストリソースディレクトリのパスを設定
         let currentFileURL = URL(fileURLWithPath: #filePath)
         classifier.testResourcesDirectoryPath = currentFileURL
@@ -262,6 +262,11 @@ final class MultiClassClassifierTests: XCTestCase {
             throw TestError.testResourceMissing
         }
 
-        return allFiles.randomElement()!
+        guard let randomFile = allFiles.randomElement() else {
+            XCTFail("利用可能な画像ファイルが見つかりません")
+            throw TestError.testResourceMissing
+        }
+
+        return randomFile
     }
 }

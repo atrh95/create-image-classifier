@@ -69,12 +69,12 @@ public struct CICMultiLabelConfusionMatrix {
         var result = ""
 
         // ヘッダー
-        result += "Label\tTrue Positives\tTotal Actual\n"
+        result += "Label | True Positives | Total Actual\n"
 
         // データ行
         let metrics = calculateMetrics()
         for metric in metrics {
-            result += "\(metric.label)\t\(metric.truePositives)\t\(metric.truePositives + metric.falseNegatives)\n"
+            result += "\(metric.label) | \(metric.truePositives) | \(metric.truePositives + metric.falseNegatives)\n"
         }
 
         return result

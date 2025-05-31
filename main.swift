@@ -14,11 +14,11 @@ enum ClassifierType: String {
 
     func makeClassifier() -> any ClassifierProtocol {
         switch self {
-        case .binary: BinaryClassificationClassifier()
-        case .multiClass: MultiClassClassificationClassifier()
-        case .multiLabel: MultiLabelClassificationClassifier()
-        case .ovr: OvRClassificationClassifier()
-        case .ovo: OvOClassificationClassifier()
+            case .binary: BinaryClassificationClassifier()
+            case .multiClass: MultiClassClassificationClassifier()
+            case .multiLabel: MultiLabelClassificationClassifier()
+            case .ovr: OvRClassificationClassifier()
+            case .ovo: OvOClassificationClassifier()
         }
     }
 }

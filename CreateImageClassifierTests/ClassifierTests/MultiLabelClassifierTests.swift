@@ -53,7 +53,7 @@ final class MultiLabelClassifierTests: XCTestCase {
         classifier = MultiLabelClassifier(
             outputDirectoryPathOverride: temporaryOutputDirectoryURL.path
         )
-        
+
         // テストリソースディレクトリのパスを設定
         let currentFileURL = URL(fileURLWithPath: #filePath)
         classifier.testResourcesDirectoryPath = currentFileURL
@@ -157,10 +157,13 @@ final class MultiLabelClassifierTests: XCTestCase {
         let resourceURL = URL(fileURLWithPath: classifier.resourcesDirectoryPath)
 
         let classDirs = try fileManager.contentsOfDirectory(at: resourceURL, includingPropertiesForKeys: nil)
-        guard let firstClassDir = classDirs.first,
-              let imageFile = try fileManager.contentsOfDirectory(at: firstClassDir, includingPropertiesForKeys: nil)
-              .first
-        else {
+        guard let firstClassDir = classDirs.first else {
+            XCTFail("テスト用のクラスディレクトリが見つかりません")
+            throw TestError.resourcePathError
+        }
+
+        let imageFiles = try fileManager.contentsOfDirectory(at: firstClassDir, includingPropertiesForKeys: nil)
+        guard let imageFile = imageFiles.first else {
             XCTFail("テスト用画像ファイルが見つかりません")
             throw TestError.resourcePathError
         }
