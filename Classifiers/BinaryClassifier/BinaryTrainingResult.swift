@@ -66,6 +66,15 @@ public struct BinaryTrainingResult: TrainingResultProtocol {
         検証誤分類率 (学習時自動検証) : \(validationErrStr)%
         """
 
+        if let confusionMatrix {
+            markdownText += """
+            ## 性能指標
+            - 再現率 (Recall)    : \(String(format: "%.1f%%", confusionMatrix.recall * 100.0))
+            - 適合率 (Precision) : \(String(format: "%.1f%%", confusionMatrix.precision * 100.0))
+            - F1スコア          : \(String(format: "%.1f%%", confusionMatrix.f1Score * 100.0))
+            """
+        }
+
         markdownText += """
 
         ## 個別モデルの性能指標

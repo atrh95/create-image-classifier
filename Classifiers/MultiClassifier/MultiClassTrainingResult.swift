@@ -81,9 +81,6 @@ public struct MultiClassTrainingResult: TrainingResultProtocol {
                 F1スコア: \(String(format: "%.1f%%", metric.f1Score * 100.0))
                 """
             }.joined(separator: "\n"))
-
-            ## 混同行列
-            \(confusionMatrix.getMatrixGraph())
             """
         }
 

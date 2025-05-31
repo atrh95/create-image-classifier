@@ -67,17 +67,47 @@ public struct MultiLabelTrainingResult: TrainingResultProtocol {
 
         if let confusionMatrix {
             markdownText += """
-            ## 混同行列
-            \(confusionMatrix.getMatrixGraph())
+            ## クラス別性能指標
+            \(confusionMatrix.calculateMetrics().map { metric in
+                """
+
+                ### \(metric.label)
+                再現率: \(String(format: "%.1f%%", metric.recall * 100.0)), \
+                適合率: \(String(format: "%.1f%%", metric.precision * 100.0)), \
+                F1スコア: \(String(format: "%.1f%%", metric.f1Score * 100.0))
+                """
+            }.joined(separator: "\n"))
             """
         }
 
         markdownText += """
 
         ## 個別モデルの性能指標
+        | クラス | 訓練正解率 | 検証正解率 | 再現率 | 適合率 | F1スコア |
+        |--------|------------|------------|--------|--------|----------|
         \(individualModelReports.map { report in
-            report.generateMarkdownReport()
+            let recall = report.confusionMatrix?.recall ?? 0.0
+            let precision = report.confusionMatrix?.precision ?? 0.0
+            let f1Score = report.confusionMatrix?.f1Score ?? 0.0
+            return "| \(report.positiveClassName) | \(String(format: "%.1f%%", report.trainingAccuracyRate * 100.0)) | \(String(format: "%.1f%%", report.validationAccuracyRate * 100.0)) | \(String(format: "%.1f%%", recall * 100.0)) | \(String(format: "%.1f%%", precision * 100.0)) | \(String(format: "%.1f%%", f1Score * 100.0)) |"
         }.joined(separator: "\n"))
+
+        \(confusionMatrix.map { matrix in
+            """
+            
+            ## 混同行列
+            ```
+            \(matrix.getMatrixGraph())
+            ```
+            
+            ## クラス別性能指標
+            | クラス | 再現率 | 適合率 | F1スコア |
+            |--------|--------|--------|----------|
+            \(matrix.calculateMetrics().map { metric in
+                "| \(metric.label) | \(String(format: "%.1f%%", metric.recall * 100.0)) | \(String(format: "%.1f%%", metric.precision * 100.0)) | \(String(format: "%.1f%%", metric.f1Score * 100.0)) |"
+            }.joined(separator: "\n"))
+            """
+        } ?? "")
 
         ## モデルメタデータ
         作成者            : \(modelAuthor)
