@@ -292,31 +292,50 @@ public final class OvOClassifier: ClassifierProtocol {
 
         let featureExtractorDescription = String(describing: modelParameters.featureExtractor)
 
-        // 各クラスの画像枚数を取得
-        let imageExtensions = Set(["jpg", "jpeg", "png"])
-        var classImageCounts: [(className: String, count: Int)] = []
+        // クラス名を取得
+        let classLabels = classLabelDirURLs.map(\.lastPathComponent)
 
-        for classDir in classLabelDirURLs {
-            let files = try? FileManager.default.contentsOfDirectory(at: classDir, includingPropertiesForKeys: nil)
-                .filter { imageExtensions.contains($0.pathExtension.lowercased()) }
-            let count = files?.count ?? 0
-            classImageCounts.append((classDir.lastPathComponent, count))
-        }
+        // 混同行列から再現率と適合率を計算
+        let confusionMatrix = CICBinaryConfusionMatrix(
+            dataTable: validationMetrics.confusion,
+            predictedColumn: "Predicted",
+            actualColumn: "True Label",
+            positiveClass: classLabels[0]  // 最初のクラスを正例として扱う
+        )
+
+        // バランスを取った後の画像枚数を取得
+        let sourceDir = URL(fileURLWithPath: resourcesDirectoryPath)
+        let class1Dir = sourceDir.appendingPathComponent(classLabels[0])
+        let class2Dir = sourceDir.appendingPathComponent(classLabels[1])
+        
+        let imageExtensions = Set(["jpg", "jpeg", "png"])
+        
+        // 各クラスの画像ファイルを取得
+        let class1Files = try? FileManager.default.contentsOfDirectory(
+            at: class1Dir,
+            includingPropertiesForKeys: nil
+        )
+        .filter { imageExtensions.contains($0.pathExtension.lowercased()) }
+        
+        let class2Files = try? FileManager.default.contentsOfDirectory(
+            at: class2Dir,
+            includingPropertiesForKeys: nil
+        )
+        .filter { imageExtensions.contains($0.pathExtension.lowercased()) }
+        
+        // バランスを取った後の枚数を計算
+        let class1Count = class1Files?.count ?? 0
+        let class2Count = class2Files?.count ?? 0
+        let balancedCount = min(class1Count, class2Count)
 
         var metricsDescription = """
-        クラス: \(classLabelDirURLs.map(\.lastPathComponent).joined(separator: ", "))
-        \(classLabelDirURLs[0].lastPathComponent): \(classImageCounts[0].count)枚
-        \(classLabelDirURLs[1].lastPathComponent): \(classImageCounts[1].count)枚
+        \(classLabels[0]): \(balancedCount)枚
+        \(classLabels[1]): \(balancedCount)枚
         訓練正解率: \(String(format: "%.1f%%", (1.0 - trainingMetrics.classificationError) * 100.0))
         検証正解率: \(String(format: "%.1f%%", (1.0 - validationMetrics.classificationError) * 100.0))
         """
 
-        if let confusionMatrix = CICBinaryConfusionMatrix(
-            dataTable: validationMetrics.confusion,
-            predictedColumn: "Predicted",
-            actualColumn: "True Label",
-            positiveClass: classLabelDirURLs[1].lastPathComponent
-        ) {
+        if let confusionMatrix {
             let metrics = [
                 ("再現率", confusionMatrix.recall),
                 ("適合率", confusionMatrix.precision),
@@ -333,6 +352,7 @@ public final class OvOClassifier: ClassifierProtocol {
         }
 
         metricsDescription += """
+
         データ拡張: \(augmentationFinalDescription)
         特徴抽出器: \(featureExtractorDescription)
         """
