@@ -60,8 +60,7 @@ public final class BinaryClassifier: ClassifierProtocol {
         author: String,
         modelName: String,
         version: String,
-        modelParameters: CreateML.MLImageClassifier.ModelParameters,
-        scenePrintRevision _: Int?
+        modelParameters: CreateML.MLImageClassifier.ModelParameters
     ) async -> BinaryTrainingResult? {
         print("📁 リソースディレクトリ: \(resourcesDirectoryPath)")
         print("🚀 Binaryモデル作成開始 (バージョン: \(version))...")

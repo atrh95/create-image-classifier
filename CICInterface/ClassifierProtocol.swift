@@ -17,8 +17,7 @@ public protocol ClassifierProtocol {
         author: String,
         modelName: String,
         version: String,
-        modelParameters: CreateML.MLImageClassifier.ModelParameters,
-        scenePrintRevision: Int?
+        modelParameters: CreateML.MLImageClassifier.ModelParameters
     ) async -> TrainingResultType?
 
 }

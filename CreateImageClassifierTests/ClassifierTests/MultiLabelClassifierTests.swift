@@ -66,8 +66,7 @@ final class MultiLabelClassifierTests: XCTestCase {
             author: authorName,
             modelName: testModelName,
             version: testModelVersion,
-            modelParameters: modelParameters,
-            scenePrintRevision: nil
+            modelParameters: modelParameters
         )
 
         guard let result = trainingResult else {
@@ -232,8 +231,7 @@ final class MultiLabelClassifierTests: XCTestCase {
             author: "TestAuthor",
             modelName: testModelName,
             version: "v1",
-            modelParameters: modelParameters,
-            scenePrintRevision: nil
+            modelParameters: modelParameters
         )
 
         guard let secondResult else {

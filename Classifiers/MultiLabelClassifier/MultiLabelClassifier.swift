@@ -57,8 +57,7 @@ public final class MultiLabelClassifier: ClassifierProtocol {
         author: String,
         modelName: String,
         version: String,
-        modelParameters: CreateML.MLImageClassifier.ModelParameters,
-        scenePrintRevision _: Int?
+        modelParameters: CreateML.MLImageClassifier.ModelParameters
     ) async -> MultiLabelTrainingResult? {
         print("📁 リソースディレクトリ: \(resourcesDirectoryPath)")
         print("🚀 MultiLabelモデル作成開始 (バージョン: \(version))...")

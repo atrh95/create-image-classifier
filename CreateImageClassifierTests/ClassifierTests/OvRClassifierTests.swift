@@ -102,8 +102,7 @@ final class OvRClassifierTests: XCTestCase {
             author: authorName,
             modelName: testModelName,
             version: testModelVersion,
-            modelParameters: modelParameters,
-            scenePrintRevision: nil
+            modelParameters: modelParameters
         )
 
         guard trainingResult != nil else {
@@ -513,8 +512,7 @@ final class OvRClassifierTests: XCTestCase {
             author: "TestAuthor",
             modelName: testModelName,
             version: "v1",
-            modelParameters: modelParameters,
-            scenePrintRevision: nil
+            modelParameters: modelParameters
         )
 
         guard let secondResult else {

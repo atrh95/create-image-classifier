@@ -61,8 +61,7 @@ public final class OvOClassifier: ClassifierProtocol {
         author: String,
         modelName: String,
         version: String,
-        modelParameters: CreateML.MLImageClassifier.ModelParameters,
-        scenePrintRevision _: Int?
+        modelParameters: CreateML.MLImageClassifier.ModelParameters
     ) async -> OvOTrainingResult? {
         print("📁 リソースディレクトリ: \(resourcesDirectoryPath)")
         print("🚀 OvOモデル作成開始 (バージョン: \(version))...")
@@ -452,7 +451,14 @@ public final class OvOClassifier: ClassifierProtocol {
         )
         .filter { Self.imageExtensions.contains($0.pathExtension.lowercased()) }
         
-        print("📊 \(class1): \(class1Files.count)枚, \(class2): \(class2Files.count)枚")
+        // 最小枚数を取得
+        let minCount = min(class1Files.count, class2Files.count)
+        
+        // 各クラスから最小枚数分の画像をランダムに選択
+        let selectedClass1Files = Array(class1Files.shuffled().prefix(minCount))
+        let selectedClass2Files = Array(class2Files.shuffled().prefix(minCount))
+        
+        print("📊 \(class1): \(selectedClass1Files.count)枚, \(class2): \(selectedClass2Files.count)枚")
 
         // 一時ディレクトリを準備
         let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(Self.tempBaseDirName)
@@ -468,12 +474,12 @@ public final class OvOClassifier: ClassifierProtocol {
         try FileManager.default.createDirectory(at: tempClass2Dir, withIntermediateDirectories: true)
 
         // 各クラスの画像をコピー
-        for (index, file) in class1Files.enumerated() {
+        for (index, file) in selectedClass1Files.enumerated() {
             let destination = tempClass1Dir.appendingPathComponent("\(index).\(file.pathExtension)")
             try FileManager.default.copyItem(at: file, to: destination)
         }
 
-        for (index, file) in class2Files.enumerated() {
+        for (index, file) in selectedClass2Files.enumerated() {
             let destination = tempClass2Dir.appendingPathComponent("\(index).\(file.pathExtension)")
             try FileManager.default.copyItem(at: file, to: destination)
         }

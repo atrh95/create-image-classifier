@@ -58,8 +58,7 @@ public final class MultiClassClassifier: ClassifierProtocol {
         author: String,
         modelName: String,
         version: String,
-        modelParameters: CreateML.MLImageClassifier.ModelParameters,
-        scenePrintRevision _: Int?
+        modelParameters: CreateML.MLImageClassifier.ModelParameters
     ) async -> MultiClassTrainingResult? {
         print("📁 リソースディレクトリ: \(resourcesDirectoryPath)")
         print("🚀 MultiClassモデル作成開始 (バージョン: \(version))...")

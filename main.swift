@@ -97,8 +97,7 @@ Task {
             author: selectedModel.config.author,
             modelName: selectedModel.config.name,
             version: version,
-            modelParameters: selectedModel.config.modelParameters,
-            scenePrintRevision: selectedModel.config.scenePrintRevision
+            modelParameters: selectedModel.config.modelParameters
         ) else {
             print("❌ モデル作成失敗")
             continue
