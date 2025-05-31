@@ -121,11 +121,11 @@ public final class CICBinaryConfusionMatrix {
         var result = ""
 
         // ヘッダー行
-        result += "Actual\\Predicted\tPositive\tNegative\n"
+        result += "Actual\\Predicted | Positive | Negative\n"
 
         // 各行（Positive->Negativeの順）
-        result += "Positive\t\(matrix[1][1])\t\(matrix[1][0])\n"
-        result += "Negative\t\(matrix[0][1])\t\(matrix[0][0])\n"
+        result += "Positive | \(matrix[1][1]) | \(matrix[1][0])\n"
+        result += "Negative | \(matrix[0][1]) | \(matrix[0][0])\n"
 
         return result
     }

@@ -63,9 +63,10 @@ final class OvRClassifierTests: XCTestCase {
             .appendingPathComponent("OvR")
             .path
 
-        trainingResult = await classifier.train(
-            author: "test",
-            modelName: testModelName,
+        // モデルの作成
+        trainingResult = await classifier.create(
+            author: "TestAuthor",
+            modelName: "TestModel",
             version: "v1",
             modelParameters: modelParameters,
             scenePrintRevision: nil
@@ -244,6 +245,11 @@ final class OvRClassifierTests: XCTestCase {
             throw TestError.testResourceMissing
         }
 
-        return allFiles.randomElement()!
+        guard let randomFile = allFiles.randomElement() else {
+            XCTFail("利用可能な画像ファイルが見つかりません")
+            throw TestError.testResourceMissing
+        }
+
+        return randomFile
     }
 }

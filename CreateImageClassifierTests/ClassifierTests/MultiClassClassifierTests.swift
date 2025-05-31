@@ -58,10 +58,11 @@ final class MultiClassClassifierTests: XCTestCase {
             .appendingPathComponent("MultiClass")
             .path
 
-        trainingResult = await classifier.train(
-            author: authorName,
-            modelName: testModelName,
-            version: testModelVersion,
+        // モデルの作成
+        trainingResult = await classifier.create(
+            author: "TestAuthor",
+            modelName: "TestModel",
+            version: "1.0",
             modelParameters: modelParameters,
             scenePrintRevision: nil
         )
@@ -262,6 +263,11 @@ final class MultiClassClassifierTests: XCTestCase {
             throw TestError.testResourceMissing
         }
 
-        return allFiles.randomElement()!
+        guard let randomFile = allFiles.randomElement() else {
+            XCTFail("利用可能な画像ファイルが見つかりません")
+            throw TestError.testResourceMissing
+        }
+
+        return randomFile
     }
 }

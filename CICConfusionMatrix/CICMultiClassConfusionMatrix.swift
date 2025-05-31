@@ -144,7 +144,7 @@ public final class CICMultiClassConfusionMatrix {
         // ヘッダー
         result += "Actual\\Predicted"
         for label in labels {
-            result += "\t\(label)"
+            result += " | \(label)"
         }
         result += "\n"
 
@@ -152,7 +152,7 @@ public final class CICMultiClassConfusionMatrix {
         for (i, label) in labels.enumerated() {
             result += label
             for value in matrix[i] {
-                result += "\t\(value)"
+                result += " | \(value)"
             }
             result += "\n"
         }

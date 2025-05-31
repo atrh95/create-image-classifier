@@ -6,14 +6,15 @@ import Foundation
 public protocol ClassifierProtocol {
     associatedtype TrainingResultType: TrainingResultProtocol
 
-    var outputDirPath: String { get }
+    var outputParentDirPath: String { get }
     var classificationMethod: String { get }
     var resourcesDirectoryPath: String { get }
     var testResourcesDirectoryPath: String? { get set }
     var outputDirectoryPathOverride: String? { get set }
+    var resourceDirPathOverride: String? { get set }
 
-    /// トレーニングの実行
-    func train(
+    /// モデルの作成
+    func create(
         author: String,
         modelName: String,
         version: String,
@@ -43,12 +44,11 @@ public protocol ClassifierProtocol {
         classLabelDirURLs: [URL],
         trainingMetrics: MLClassifierMetrics,
         validationMetrics: MLClassifierMetrics,
-        modelParameters: CreateML.MLImageClassifier.ModelParameters,
-        scenePrintRevision: Int?
+        modelParameters: CreateML.MLImageClassifier.ModelParameters
     ) -> MLModelMetadata
 
     /// トレーニング済みモデルを保存
-    func saveModel(
+    func saveMLModel(
         imageClassifier: MLImageClassifier,
         modelName: String,
         modelFileName: String,
@@ -64,7 +64,6 @@ public protocol ClassifierProtocol {
         trainingMetrics: MLClassifierMetrics,
         validationMetrics: MLClassifierMetrics,
         modelParameters: CreateML.MLImageClassifier.ModelParameters,
-        scenePrintRevision: Int?,
         trainingDurationSeconds: TimeInterval,
         modelFilePath: String
     ) -> TrainingResultType
