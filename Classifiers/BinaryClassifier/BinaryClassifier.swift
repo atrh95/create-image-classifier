@@ -12,6 +12,7 @@ public final class BinaryClassifier: ClassifierProtocol {
     private let fileManager: CICFileManager
     public var outputDirectoryPathOverride: String?
     public var resourceDirPathOverride: String?
+    private var classImageCounts: [String: Int] = [:]
 
     private static let imageExtensions = Set(["jpg", "jpeg", "png"])
     private static let tempBaseDirName = "TempBinaryTrainingData"
@@ -193,6 +194,19 @@ public final class BinaryClassifier: ClassifierProtocol {
     public func prepareTrainingData(from classLabelDirURLs: [URL]) throws -> MLImageClassifier.DataSource {
         let trainingDataParentDirURL = classLabelDirURLs[0].deletingLastPathComponent()
         print("📁 トレーニングデータ親ディレクトリ: \(trainingDataParentDirURL.path)")
+        
+        // 各クラスの画像枚数を効率的にカウント
+        for classDir in classLabelDirURLs {
+            let className = classDir.lastPathComponent
+            let files = try FileManager.default.contentsOfDirectory(
+                at: classDir,
+                includingPropertiesForKeys: nil
+            )
+            let count = files.filter { Self.imageExtensions.contains($0.pathExtension.lowercased()) }.count
+            classImageCounts[className] = count
+            print("📊 \(className): \(count)枚")
+        }
+        
         return MLImageClassifier.DataSource.labeledDirectories(at: trainingDataParentDirURL)
     }
 
@@ -234,7 +248,7 @@ public final class BinaryClassifier: ClassifierProtocol {
         )
 
         var metricsDescription = """
-        クラス: \(classLabelDirURLs.map(\.lastPathComponent).joined(separator: ", "))
+        \(classLabelDirURLs.map { "\($0.lastPathComponent): \(classImageCounts[$0.lastPathComponent] ?? 0)枚" }.joined(separator: ", "))
         訓練正解率: \(String(format: "%.1f%%", (1.0 - trainingMetrics.classificationError) * 100.0))
         検証正解率: \(String(format: "%.1f%%", (1.0 - validationMetrics.classificationError) * 100.0))
         """

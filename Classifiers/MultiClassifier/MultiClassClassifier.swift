@@ -178,27 +178,16 @@ public final class MultiClassClassifier: ClassifierProtocol {
         print("📁 トレーニングデータ親ディレクトリ: \(resourcesDirectoryPath)")
         
         // 各クラスの画像枚数を効率的にカウント
-        var classImageCounts: [String: Int] = [:]
         for classDir in classLabelDirURLs {
             let className = classDir.lastPathComponent
-            let enumerator = FileManager.default.enumerator(
+            let files = try FileManager.default.contentsOfDirectory(
                 at: classDir,
-                includingPropertiesForKeys: nil,
-                options: [.skipsHiddenFiles]
+                includingPropertiesForKeys: nil
             )
-            
-            var count = 0
-            while let fileURL = enumerator?.nextObject() as? URL {
-                if Self.imageExtensions.contains(fileURL.pathExtension.lowercased()) {
-                    count += 1
-                }
-            }
+            let count = files.filter { Self.imageExtensions.contains($0.pathExtension.lowercased()) }.count
             classImageCounts[className] = count
             print("📊 \(className): \(count)枚")
         }
-        
-        // 画像枚数をメタデータとして保存
-        self.classImageCounts = classImageCounts
         
         return MLImageClassifier.DataSource.labeledDirectories(at: URL(fileURLWithPath: resourcesDirectoryPath))
     }
