@@ -51,6 +51,18 @@ public final class OvRClassifier: ClassifierProtocol {
 
     static let tempBaseDirName = "TempOvRTrainingData"
 
+    /// Trains a One-vs-Rest (OvR) image classification model using the provided parameters and saves the trained model to disk.
+    ///
+    /// Loads class label directories, prepares training data, trains the model, evaluates metrics, generates metadata, and saves the model file. Returns a training result containing model metadata, accuracy metrics, and confusion matrix. Returns `nil` if training or saving fails due to errors.
+    ///
+    /// - Parameters:
+    ///   - author: The name of the model author.
+    ///   - modelName: The name to assign to the trained model.
+    ///   - version: The version string for the model.
+    ///   - modelParameters: Parameters for the CreateML image classifier.
+    ///   - scenePrintRevision: Optional revision number for the feature extractor.
+    ///
+    /// - Returns: An `OvRTrainingResult` containing training details and metrics, or `nil` if training fails.
     public func train(
         author: String,
         modelName: String,
@@ -235,6 +247,10 @@ public final class OvRClassifier: ClassifierProtocol {
         )
     }
 
+    /// Saves a trained MLImageClassifier model to disk with the specified metadata and filename.
+    ///
+    /// - Returns: The file path of the saved model.
+    /// - Throws: An error if the model cannot be written to disk.
     public func saveModel(
         imageClassifier: MLImageClassifier,
         modelName: String,

@@ -48,6 +48,18 @@ public final class BinaryClassifier: ClassifierProtocol {
         self.fileManager = fileManager
     }
 
+    /// Trains a binary image classification model using the provided parameters and resources.
+    ///
+    /// Loads class label directories, prepares training data, trains the model, evaluates performance, saves the trained model with metadata, and returns a summary of the training results. Returns `nil` if training or saving fails due to errors.
+    ///
+    /// - Parameters:
+    ///   - author: The name of the model author for metadata.
+    ///   - modelName: The name of the model to be trained.
+    ///   - version: The version identifier for the model.
+    ///   - modelParameters: Parameters to configure the image classifier.
+    ///   - scenePrintRevision: Optional revision number for the feature extractor.
+    ///
+    /// - Returns: A `BinaryTrainingResult` containing training metrics, validation results, confusion matrix, and model metadata, or `nil` if an error occurs.
     public func train(
         author: String,
         modelName: String,
@@ -226,6 +238,19 @@ public final class BinaryClassifier: ClassifierProtocol {
         )
     }
 
+    /// Saves the trained image classifier model to disk with the specified metadata.
+    ///
+    /// - Parameters:
+    ///   - imageClassifier: The trained MLImageClassifier to be saved.
+    ///   - modelName: The name of the model.
+    ///   - modelFileName: The file name to use when saving the model.
+    ///   - version: The version string for the model.
+    ///   - outputDirectoryURL: The directory URL where the model file will be saved.
+    ///   - metadata: Metadata to include with the saved model.
+    ///
+    /// - Returns: The file path of the saved model.
+    ///
+    /// - Throws: An error if the model cannot be written to disk.
     public func saveModel(
         imageClassifier: MLImageClassifier,
         modelName: String,

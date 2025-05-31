@@ -49,6 +49,18 @@ public final class MultiLabelClassifier: ClassifierProtocol {
         self.outputDirectoryPathOverride = outputDirectoryPathOverride
     }
 
+    /// Trains a multi-label image classification model using the provided parameters and resources.
+    ///
+    /// This method orchestrates the full training pipeline: it loads class label directories, prepares training data, trains the model, evaluates performance, generates metadata, saves the trained model, and returns a summary of the training results. If an error occurs during training or saving, it logs the error and returns `nil`.
+    ///
+    /// - Parameters:
+    ///   - author: The name of the model author for metadata.
+    ///   - modelName: The name to assign to the trained model.
+    ///   - version: The version string for the model.
+    ///   - modelParameters: Parameters to configure the image classifier training.
+    ///   - scenePrintRevision: Optional revision number for the scene print feature extractor.
+    ///
+    /// - Returns: A `MultiLabelTrainingResult` containing training and validation metrics, confusion matrix, and metadata, or `nil` if training fails.
     public func train(
         author: String,
         modelName: String,
@@ -227,6 +239,19 @@ public final class MultiLabelClassifier: ClassifierProtocol {
         )
     }
 
+    /// Saves the trained MLImageClassifier model to disk with the specified file name and metadata.
+    ///
+    /// - Parameters:
+    ///   - imageClassifier: The trained image classifier model to save.
+    ///   - modelName: The name of the model.
+    ///   - modelFileName: The file name to use when saving the model.
+    ///   - version: The version string for the model.
+    ///   - outputDirectoryURL: The directory URL where the model file will be saved.
+    ///   - metadata: Metadata to include with the saved model.
+    ///
+    /// - Returns: The file path of the saved model.
+    ///
+    /// - Throws: An error if the model cannot be written to disk.
     public func saveModel(
         imageClassifier: MLImageClassifier,
         modelName: String,

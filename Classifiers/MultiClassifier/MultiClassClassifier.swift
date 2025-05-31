@@ -47,6 +47,18 @@ public final class MultiClassClassifier: ClassifierProtocol {
         self.outputDirectoryPathOverride = outputDirectoryPathOverride
     }
 
+    /// Trains a multi-class image classifier using labeled image directories and specified model parameters.
+    ///
+    /// This method orchestrates the full training workflow: it locates class label directories, prepares the training data source, trains the model, computes training and validation metrics (including a confusion matrix), generates model metadata, saves the trained model to disk, and returns a summary of the training results. If an error occurs during training or saving, it logs the error and returns nil.
+    ///
+    /// - Parameters:
+    ///   - author: The name of the model's author for metadata.
+    ///   - modelName: The name to assign to the trained model.
+    ///   - version: The version string for the model.
+    ///   - modelParameters: Parameters to configure the CreateML image classifier.
+    ///   - scenePrintRevision: Optional revision number for the feature extractor.
+    ///
+    /// - Returns: A `MultiClassTrainingResult` containing training metrics, metadata, and file paths, or nil if training fails.
     public func train(
         author: String,
         modelName: String,
@@ -224,6 +236,19 @@ public final class MultiClassClassifier: ClassifierProtocol {
         )
     }
 
+    /// Saves a trained image classifier model to disk with the specified metadata.
+    ///
+    /// - Parameters:
+    ///   - imageClassifier: The trained MLImageClassifier to save.
+    ///   - modelName: The name of the model.
+    ///   - modelFileName: The file name to use for the saved model.
+    ///   - version: The version string for the model.
+    ///   - outputDirectoryURL: The directory URL where the model will be saved.
+    ///   - metadata: Metadata to associate with the saved model.
+    ///
+    /// - Returns: The file path of the saved model.
+    ///
+    /// - Throws: An error if writing the model to disk fails.
     public func saveModel(
         imageClassifier: MLImageClassifier,
         modelName: String,

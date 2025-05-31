@@ -12,6 +12,9 @@ import OvRClassification
 enum ClassifierType: String {
     case binary, multiClass, multiLabel, ovr, ovo
 
+    /// Creates and returns a classifier instance corresponding to the current classifier type.
+    ///
+    /// - Returns: An instance conforming to `ClassifierProtocol` for the selected classifier type.
     func makeClassifier() -> any ClassifierProtocol {
         switch self {
             case .binary: BinaryClassifier()

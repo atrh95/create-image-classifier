@@ -51,6 +51,18 @@ public final class OvOClassifier: ClassifierProtocol {
 
     static let tempBaseDirName = "TempOvOTrainingData"
 
+    /// Trains an OvO (One-vs-One) image classification model asynchronously using the provided parameters and resources.
+    ///
+    /// This method orchestrates the full training pipeline: it loads class label directories, prepares the training data, trains the model, evaluates performance metrics, generates metadata, saves the trained model to disk with a descriptive file name, and returns a structured training result. If any error occurs during the process, it logs the error and returns `nil`.
+    ///
+    /// - Parameters:
+    ///   - author: The name of the model's author for metadata.
+    ///   - modelName: The base name for the model and output files.
+    ///   - version: The version string for the model.
+    ///   - modelParameters: Parameters to configure the CreateML image classifier.
+    ///   - scenePrintRevision: Optional revision number for the feature extractor.
+    ///
+    /// - Returns: An `OvOTrainingResult` containing training metadata and evaluation metrics, or `nil` if training or saving fails.
     public func train(
         author: String,
         modelName: String,
@@ -236,6 +248,19 @@ public final class OvOClassifier: ClassifierProtocol {
         )
     }
 
+    /// Saves the trained image classifier model to disk with the specified file name and metadata.
+    ///
+    /// - Parameters:
+    ///   - imageClassifier: The trained MLImageClassifier to be saved.
+    ///   - modelName: The name of the model.
+    ///   - modelFileName: The file name to use when saving the model.
+    ///   - version: The version string for the model.
+    ///   - outputDirectoryURL: The directory where the model file will be saved.
+    ///   - metadata: Metadata to include with the saved model.
+    ///
+    /// - Returns: The file path of the saved model.
+    ///
+    /// - Throws: An error if the model cannot be written to disk.
     public func saveModel(
         imageClassifier: MLImageClassifier,
         modelName: String,
