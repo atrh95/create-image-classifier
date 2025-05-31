@@ -204,10 +204,7 @@ public final class OvRClassifier: ClassifierProtocol {
         // 各restクラスから取得する枚数を計算
         let restClassCount = classLabelDirURLs.count - 1
         let samplesPerRestClass = Int(ceil(Double(oneClassCount) / Double(restClassCount)))
-        print("📊 Oneクラス [\(classLabelDirURLs[0].lastPathComponent)] の画像枚数: \(oneClassCount)")
-        print("📊 restクラス数: \(restClassCount)")
-        print("📊 restクラスあたりのサンプル数: \(samplesPerRestClass)")
-        print("📊 合計rest枚数: \(samplesPerRestClass * restClassCount)")
+        print("📊 Oneクラス [\(classLabelDirURLs[0].lastPathComponent)]: \(oneClassCount)枚, restクラス: \(restClassCount)個, restクラスあたり: \(samplesPerRestClass)枚, 合計rest: \(samplesPerRestClass * restClassCount)枚")
         
         // 負例クラスのディレクトリを作成
         let restDir = tempDir.appendingPathComponent("rest")

@@ -38,7 +38,7 @@ enum MLModelType: String {
         let scenePrintRevision: Int?
     }
 
-    private static let configs: [MLModelType: ModelConfig] = [
+    static let configs: [MLModelType: ModelConfig] = [
         .scaryCatScreeningML: ModelConfig(
             name: "ScaryCatScreeningML",
             supportedClassifierVersions: [
@@ -51,10 +51,10 @@ enum MLModelType: String {
             author: "akitora",
             modelParameters: MLImageClassifier.ModelParameters(
                 validation: .split(strategy: .automatic),
-                maxIterations: 11,
+                maxIterations: 8,
                 augmentation: [],
                 algorithm: .transferLearning(
-                    featureExtractor: Self.scenePrintRevision.map { .scenePrint(revision: $0) } ?? .scenePrint(revision: 1),
+                    featureExtractor: Self.scenePrintRevision.map { .scenePrint(revision: $0) } ?? .scenePrint(revision: 2),
                     classifier: .logisticRegressor
                 )
             ),
@@ -62,7 +62,7 @@ enum MLModelType: String {
         ),
     ]
 
-    private var config: ModelConfig {
+    var config: ModelConfig {
         guard let config = Self.configs[self] else {
             fatalError("Configが存在しないモデルタイプ: \(self)")
         }

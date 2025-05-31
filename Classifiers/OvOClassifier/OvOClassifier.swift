@@ -381,9 +381,7 @@ public final class OvOClassifier: ClassifierProtocol {
         let class2Files = try FileManager.default.contentsOfDirectory(at: class2Dir, includingPropertiesForKeys: nil)
             .filter { $0.pathExtension.lowercased() == "jpg" || $0.pathExtension.lowercased() == "jpeg" || $0.pathExtension.lowercased() == "png" }
         
-        print("📊 クラス [\(class1)] の画像枚数: \(class1Files.count)")
-        print("📊 クラス [\(class2)] の画像枚数: \(class2Files.count)")
-        print("📊 最小枚数に合わせて \(class1Count) 枚に統一します")
+        print("📊 クラス [\(class1)]: \(class1Files.count)枚, クラス [\(class2)]: \(class2Files.count)枚, 最小枚数: \(class1Count)枚")
         
         // 一時ディレクトリを作成
         let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(Self.tempBaseDirName)
