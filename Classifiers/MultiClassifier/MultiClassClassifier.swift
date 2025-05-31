@@ -174,8 +174,32 @@ public final class MultiClassClassifier: ClassifierProtocol {
         return classLabelDirURLs
     }
 
-    public func prepareTrainingData(from _: [URL]) throws -> MLImageClassifier.DataSource {
+    public func prepareTrainingData(from classLabelDirURLs: [URL]) throws -> MLImageClassifier.DataSource {
         print("📁 トレーニングデータ親ディレクトリ: \(resourcesDirectoryPath)")
+        
+        // 各クラスの画像枚数を効率的にカウント
+        var classImageCounts: [String: Int] = [:]
+        for classDir in classLabelDirURLs {
+            let className = classDir.lastPathComponent
+            let enumerator = FileManager.default.enumerator(
+                at: classDir,
+                includingPropertiesForKeys: nil,
+                options: [.skipsHiddenFiles]
+            )
+            
+            var count = 0
+            while let fileURL = enumerator?.nextObject() as? URL {
+                if Self.imageExtensions.contains(fileURL.pathExtension.lowercased()) {
+                    count += 1
+                }
+            }
+            classImageCounts[className] = count
+            print("📊 \(className): \(count)枚")
+        }
+        
+        // 画像枚数をメタデータとして保存
+        self.classImageCounts = classImageCounts
+        
         return MLImageClassifier.DataSource.labeledDirectories(at: URL(fileURLWithPath: resourcesDirectoryPath))
     }
 
@@ -192,6 +216,8 @@ public final class MultiClassClassifier: ClassifierProtocol {
         return (imageClassifier, trainingDurationSeconds)
     }
 
+    private var classImageCounts: [String: Int] = [:]
+    
     public func createModelMetadata(
         author: String,
         version: String,
@@ -216,7 +242,7 @@ public final class MultiClassClassifier: ClassifierProtocol {
         )
 
         var metricsDescription = """
-        クラス: \(classLabelDirURLs.map(\.lastPathComponent).joined(separator: ", "))
+        \(classLabelDirURLs.map { "\($0.lastPathComponent): \(classImageCounts[$0.lastPathComponent] ?? 0)枚" }.joined(separator: ", "))
         訓練正解率: \(String(format: "%.1f%%", (1.0 - trainingMetrics.classificationError) * 100.0))
         検証正解率: \(String(format: "%.1f%%", (1.0 - validationMetrics.classificationError) * 100.0))
         """
@@ -226,10 +252,8 @@ public final class MultiClassClassifier: ClassifierProtocol {
             metricsDescription += """
 
             クラス別性能指標:
-            | クラス | 再現率 | 適合率 | F1スコア |
-            |--------|--------|--------|----------|
             \(classMetrics.map { metric in
-                "| \(metric.label) | \(String(format: "%.1f%%", metric.recall * 100.0)) | \(String(format: "%.1f%%", metric.precision * 100.0)) | \(String(format: "%.3f", metric.f1Score)) |"
+                "\(metric.label): 再現率 \(String(format: "%.1f%%", metric.recall * 100.0)), 適合率 \(String(format: "%.1f%%", metric.precision * 100.0)), F1 \(String(format: "%.3f", metric.f1Score))"
             }.joined(separator: "\n"))
             """
         }

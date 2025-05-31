@@ -190,9 +190,10 @@ public final class BinaryClassifier: ClassifierProtocol {
         return classLabelDirURLs
     }
 
-    public func prepareTrainingData(from _: [URL]) throws -> MLImageClassifier.DataSource {
-        print("📁 トレーニングデータ親ディレクトリ: \(resourcesDirectoryPath)")
-        return MLImageClassifier.DataSource.labeledDirectories(at: URL(fileURLWithPath: resourcesDirectoryPath))
+    public func prepareTrainingData(from classLabelDirURLs: [URL]) throws -> MLImageClassifier.DataSource {
+        let trainingDataParentDirURL = classLabelDirURLs[0].deletingLastPathComponent()
+        print("📁 トレーニングデータ親ディレクトリ: \(trainingDataParentDirURL.path)")
+        return MLImageClassifier.DataSource.labeledDirectories(at: trainingDataParentDirURL)
     }
 
     public func trainModel(
