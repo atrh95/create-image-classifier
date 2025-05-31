@@ -198,26 +198,38 @@ public final class OvRClassifier: ClassifierProtocol {
         try Foundation.FileManager.default.createDirectory(at: oneClassDir, withIntermediateDirectories: true)
         try copyDirectoryContents(from: classLabelDirURLs[0], to: oneClassDir)
         
-        // Restクラスのデータをサンプリングしてコピー
+        // Oneクラスの画像枚数を取得
         let oneClassCount = try Foundation.FileManager.default.contentsOfDirectory(at: oneClassDir, includingPropertiesForKeys: nil).count
-        let restClassCount = oneClassCount / (classLabelDirURLs.count - 1)
         
+        // 各restクラスから取得する枚数を計算
+        let restClassCount = classLabelDirURLs.count - 1
+        let samplesPerRestClass = Int(ceil(Double(oneClassCount) / Double(restClassCount)))
+        print("📊 Oneクラス [\(classLabelDirURLs[0].lastPathComponent)] の画像枚数: \(oneClassCount)")
+        print("📊 restクラス数: \(restClassCount)")
+        print("📊 restクラスあたりのサンプル数: \(samplesPerRestClass)")
+        print("📊 合計rest枚数: \(samplesPerRestClass * restClassCount)")
+        
+        // 負例クラスのディレクトリを作成
+        let restDir = tempDir.appendingPathComponent("rest")
+        try Foundation.FileManager.default.createDirectory(at: restDir, withIntermediateDirectories: true)
+        
+        // 各負例クラスからサンプリングしてコピー
+        var totalRestCount = 0
         for i in 1..<classLabelDirURLs.count {
-            let restClassDir = tempDir.appendingPathComponent(classLabelDirURLs[i].lastPathComponent)
-            try Foundation.FileManager.default.createDirectory(at: restClassDir, withIntermediateDirectories: true)
-            
-            let sourceFiles = try Foundation.FileManager.default.contentsOfDirectory(
+            let files = try Foundation.FileManager.default.contentsOfDirectory(
                 at: classLabelDirURLs[i],
                 includingPropertiesForKeys: nil
             )
+            let sampledFiles = files.shuffled().prefix(samplesPerRestClass)
             
-            // ランダムにサンプリング
-            let sampledFiles = Array(sourceFiles.shuffled().prefix(restClassCount))
-            for file in sampledFiles {
-                let destination = restClassDir.appendingPathComponent(file.lastPathComponent)
+            for (index, file) in sampledFiles.enumerated() {
+                let destination = restDir.appendingPathComponent("\(totalRestCount + index).\(file.pathExtension)")
                 try Foundation.FileManager.default.copyItem(at: file, to: destination)
             }
+            totalRestCount += sampledFiles.count
         }
+        
+        print("📊 合計rest枚数: \(totalRestCount)")
         
         return MLImageClassifier.DataSource.labeledDirectories(at: tempDir)
     }

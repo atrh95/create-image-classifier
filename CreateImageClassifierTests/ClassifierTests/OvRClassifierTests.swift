@@ -224,38 +224,66 @@ final class OvRClassifierTests: XCTestCase {
         try handler.perform([request])
     }
 
-    /// 各クラスにおいて、一時ディレクトリ内の正例クラスと負例クラスの画像枚数が一致していることを検証する
+    /// 各クラスにおいて、一時ディレクトリ内の正例クラスとrestクラスの画像枚数が適切にバランスされていることを検証する
     func testClassImageBalance() throws {
-        let resourceURL = URL(fileURLWithPath: classifier.resourcesDirectoryPath)
-        let classLabels = try FileManager.default.contentsOfDirectory(at: resourceURL, includingPropertiesForKeys: [.isDirectoryKey])
-            .filter { $0.hasDirectoryPath }
-            .map { $0.lastPathComponent }
-        
-        // 各クラスで画像枚数のバランスを確認
-        for positiveClass in classLabels {
-            // トレーニングデータを準備
-            _ = try classifier.prepareTrainingData(positiveClass: positiveClass, basePath: resourceURL.path)
-            
-            // クラス間の画像枚数を取得
-            let (positiveCount, negativeCount) = try classifier.balanceClassImages(positiveClass: positiveClass, basePath: resourceURL.path)
-            
-            // 一時ディレクトリのパスを取得
-            let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(OvRClassifier.tempBaseDirName)
-            let tempPositiveDir = tempDir.appendingPathComponent(positiveClass)
-            let tempNegativeDir = tempDir.appendingPathComponent("negative")
-            
-            // 一時ディレクトリ内の画像枚数を確認
-            let tempPositiveFiles = try FileManager.default.contentsOfDirectory(at: tempPositiveDir, includingPropertiesForKeys: nil)
-                .filter { $0.pathExtension.lowercased() == "jpg" || $0.pathExtension.lowercased() == "jpeg" || $0.pathExtension.lowercased() == "png" }
-            
-            let tempNegativeFiles = try FileManager.default.contentsOfDirectory(at: tempNegativeDir, includingPropertiesForKeys: nil)
-                .filter { $0.pathExtension.lowercased() == "jpg" || $0.pathExtension.lowercased() == "jpeg" || $0.pathExtension.lowercased() == "png" }
-            
-            // 画像枚数が一致することを確認
-            XCTAssertEqual(tempPositiveFiles.count, positiveCount, "正例クラス [\(positiveClass)] の画像枚数が一致しません。期待値: \(positiveCount), 実際: \(tempPositiveFiles.count)")
-            XCTAssertEqual(tempNegativeFiles.count, negativeCount, "負例クラスの画像枚数が一致しません。期待値: \(negativeCount), 実際: \(tempNegativeFiles.count)")
-            XCTAssertEqual(tempPositiveFiles.count, tempNegativeFiles.count, "正例クラス [\(positiveClass)] と負例クラスの画像枚数が一致しません。")
+        guard let result = trainingResult else {
+            XCTFail("訓練結果がnilです")
+            throw TestError.trainingFailed
         }
+
+        // 一時ディレクトリのパスを取得
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(OvRClassifier.tempBaseDirName)
+        
+        // 一時ディレクトリが存在することを確認
+        XCTAssertTrue(FileManager.default.fileExists(atPath: tempDir.path), "一時ディレクトリが存在しません: \(tempDir.path)")
+        
+        // 一時ディレクトリ内のクラスディレクトリを取得
+        let classDirs = try FileManager.default.contentsOfDirectory(at: tempDir, includingPropertiesForKeys: [.isDirectoryKey])
+            .filter { $0.hasDirectoryPath }
+        
+        // 正例クラスとrestクラスのディレクトリを取得
+        let positiveClassDir = classDirs.first { $0.lastPathComponent != "rest" }
+        let restDir = classDirs.first { $0.lastPathComponent == "rest" }
+        
+        XCTAssertNotNil(positiveClassDir, "正例クラスのディレクトリが見つかりません")
+        XCTAssertNotNil(restDir, "restクラスのディレクトリが見つかりません")
+        
+        // 正例クラスの画像枚数を確認
+        let positiveFiles = try FileManager.default.contentsOfDirectory(at: positiveClassDir!, includingPropertiesForKeys: nil)
+            .filter { $0.pathExtension.lowercased() == "jpg" || $0.pathExtension.lowercased() == "jpeg" || $0.pathExtension.lowercased() == "png" }
+        
+        // restクラスの画像枚数を確認
+        let restFiles = try FileManager.default.contentsOfDirectory(at: restDir!, includingPropertiesForKeys: nil)
+            .filter { $0.pathExtension.lowercased() == "jpg" || $0.pathExtension.lowercased() == "jpeg" || $0.pathExtension.lowercased() == "png" }
+        
+        // 正例クラスの枚数を取得
+        let positiveCount = positiveFiles.count
+        
+        // restクラス数（正例クラスを除く）
+        let restClassCount = try FileManager.default.contentsOfDirectory(at: URL(fileURLWithPath: classifier.resourcesDirectoryPath), includingPropertiesForKeys: [.isDirectoryKey])
+            .filter { $0.hasDirectoryPath }
+            .count - 1
+        
+        // 各restクラスから取得されるべき枚数（切り上げ除算）
+        let expectedSamplesPerRestClass = Int(ceil(Double(positiveCount) / Double(restClassCount)))
+        
+        // restの合計枚数が期待値と一致することを確認
+        let expectedTotalRestCount = expectedSamplesPerRestClass * restClassCount
+        XCTAssertEqual(restFiles.count, expectedTotalRestCount,
+                      """
+                      restクラスの合計枚数が期待値と一致しません。
+                      正例クラス [\(positiveClassDir!.lastPathComponent)]: \(positiveCount)枚
+                      restクラス数: \(restClassCount)
+                      期待される各restクラスの枚数: \(expectedSamplesPerRestClass)
+                      期待される合計rest枚数: \(expectedTotalRestCount)
+                      実際のrest枚数: \(restFiles.count)
+                      """)
+        
+        // 正例クラスの枚数が0でないことを確認
+        XCTAssertGreaterThan(positiveCount, 0, "正例クラスの枚数が0です")
+        
+        // restクラスの枚数が0でないことを確認
+        XCTAssertGreaterThan(restFiles.count, 0, "restクラスの枚数が0です")
     }
 
     /// 各クラスにおいて、一時ディレクトリ内の正例クラスと負例クラスの画像枚数が一致していることを検証する
