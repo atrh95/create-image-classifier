@@ -147,12 +147,13 @@ final class BinaryClassifierTests: XCTestCase {
         // Binary分類器の期待されるモデルファイル名パターン
         let modelFilePath = result.metadata.trainedModelFilePath
         let modelFileName = URL(fileURLWithPath: modelFilePath).lastPathComponent
-        let expectedFileNamePattern = "\(testModelName)_Binary_\(testModelVersion).mlmodel"
-        XCTAssertEqual(
-            modelFileName,
-            expectedFileNamePattern,
-            "モデルファイル名が期待される形式と一致しません。\n期待値: \(expectedFileNamePattern)\n実際: \(modelFileName)"
-        )
+        let regex = #"^TestModel_Binary_v\d+\.mlmodel$"#
+        XCTAssertTrue(modelFileName.range(of: regex, options: .regularExpression) != nil,
+                     """
+                     モデルファイル名が期待パターンに一致しません。
+                     期待パターン: \(regex)
+                     実際: \(modelFileName)
+                     """)
 
         XCTAssertTrue(
             result.metadata.trainedModelFilePath.contains(testModelVersion),

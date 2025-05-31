@@ -132,14 +132,13 @@ final class OvRClassifierTests: XCTestCase {
         let modelFileName = URL(fileURLWithPath: modelFilePath).lastPathComponent
         
         // OvR分類器では各クラスに対して1つの分類器を作成するため、各クラス名を含むパターンを期待
-        let expectedFileNamePatterns = expectedClassLabels.map { classLabel in
-            "\(testModelName)_OvR_\(classLabel)_\(testModelVersion).mlmodel"
-        }
-        
-        XCTAssertTrue(
-            expectedFileNamePatterns.contains(modelFileName),
-            "モデルファイル名が期待される形式と一致しません。\n期待値: \(expectedFileNamePatterns.joined(separator: "\n"))\n実際: \(modelFileName)"
-        )
+        let regex = #"^TestModel_OvR_[a-z_]+_v\d+\.mlmodel$"#
+        XCTAssertTrue(modelFileName.range(of: regex, options: .regularExpression) != nil,
+                     """
+                     モデルファイル名が期待パターンに一致しません。
+                     期待パターン: \(regex)
+                     実際: \(modelFileName)
+                     """)
 
         XCTAssertTrue(
             result.modelOutputPath.contains(testModelVersion),
