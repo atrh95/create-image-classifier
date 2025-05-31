@@ -150,6 +150,19 @@ public final class OvRClassifier: ClassifierProtocol {
                 throw NSError(domain: "OvRClassifier", code: -1, userInfo: [NSLocalizedDescriptionKey: "Training failed"])
             }
 
+            // 全モデルの比較表を表示
+            print("\n📊 全モデルの性能")
+            print("+------------------+------------------+------------------+------------------+------------------+------------------+")
+            print("| クラス           | 訓練正解率       | 検証正解率       | 再現率           | 適合率           | F1スコア         |")
+            print("+------------------+------------------+------------------+------------------+------------------+------------------+")
+            for report in individualModelReports {
+                let recall = report.confusionMatrix?.recall ?? 0.0
+                let precision = report.confusionMatrix?.precision ?? 0.0
+                let f1Score = report.confusionMatrix?.f1Score ?? 0.0
+                print("| \(report.positiveClassName.padding(toLength: 16, withPad: " ", startingAt: 0)) | \(String(format: "%14.1f%%", report.trainingAccuracyRate * 100.0)) | \(String(format: "%14.1f%%", report.validationAccuracyRate * 100.0)) | \(String(format: "%14.1f%%", recall * 100.0)) | \(String(format: "%14.1f%%", precision * 100.0)) | \(String(format: "%14.1f%%", f1Score * 100.0)) |")
+            }
+            print("+------------------+------------------+------------------+------------------+------------------+------------------+")
+
             return createTrainingResult(
                 modelName: modelName,
                 classLabelDirURLs: classLabelDirURLs,
@@ -207,7 +220,11 @@ public final class OvRClassifier: ClassifierProtocol {
         try copyDirectoryContents(from: classLabelDirURLs[0], to: oneClassDir)
         
         // Oneクラスの画像枚数を取得
-        let oneClassCount = try Foundation.FileManager.default.contentsOfDirectory(at: oneClassDir, includingPropertiesForKeys: nil).count
+        let sourceOneClassDir = URL(fileURLWithPath: resourcesDirectoryPath).appendingPathComponent(classLabelDirURLs[0].lastPathComponent)
+        let imageExtensions = Set(["jpg", "jpeg", "png"])
+        let oneClassFiles = try? FileManager.default.contentsOfDirectory(at: sourceOneClassDir, includingPropertiesForKeys: nil)
+            .filter { imageExtensions.contains($0.pathExtension.lowercased()) }
+        let oneClassCount = oneClassFiles?.count ?? 0
         
         // 各restクラスから取得する枚数を計算
         let restClassCount = classLabelDirURLs.count - 1
@@ -278,15 +295,62 @@ public final class OvRClassifier: ClassifierProtocol {
 
         let featureExtractorDescription = String(describing: modelParameters.featureExtractor)
 
+        // OneクラスとRestクラスの画像枚数を取得
+        let oneClassLabel = classLabelDirURLs[0].lastPathComponent
+
+        // 混同行列から再現率と適合率を計算
+        let confusionMatrix = CICBinaryConfusionMatrix(
+            dataTable: validationMetrics.confusion,
+            predictedColumn: "Predicted",
+            actualColumn: "True Label",
+            positiveClass: oneClassLabel
+        )
+        
+        // OneクラスとRestクラスの画像枚数を取得
+        let oneClassDir = URL(fileURLWithPath: resourcesDirectoryPath).appendingPathComponent(oneClassLabel)
+        let imageExtensions = Set(["jpg", "jpeg", "png"])
+
+        // Restクラスの画像枚数を計算
+        let totalRestCount = try? FileManager.default.contentsOfDirectory(
+            at: URL(fileURLWithPath: resourcesDirectoryPath).appendingPathComponent("rest"),
+            includingPropertiesForKeys: nil
+        ).count
+
+        // Restクラスのクラス名を取得
+        let restClassLabels = classLabelDirURLs.dropFirst().map(\.lastPathComponent)
+
+        var metricsDescription = """
+        Restクラス: \(restClassLabels.joined(separator: ", "))
+        Rest: \(String(describing: totalRestCount))枚
+        訓練正解率: \(String(format: "%.1f%%", (1.0 - trainingMetrics.classificationError) * 100.0))
+        検証正解率: \(String(format: "%.1f%%", (1.0 - validationMetrics.classificationError) * 100.0))
+        """
+
+        if let confusionMatrix {
+            let metrics = [
+                ("再現率", confusionMatrix.recall),
+                ("適合率", confusionMatrix.precision),
+                ("F1スコア", confusionMatrix.f1Score)
+            ]
+            
+            let validMetrics = metrics
+                .filter { $0.1.isFinite }
+                .map { "\($0.0): \(String(format: "%.1f%%", $0.1 * 100.0))" }
+            
+            if !validMetrics.isEmpty {
+                metricsDescription += "\n\n" + validMetrics.joined(separator: "\n")
+            }
+        }
+
+        metricsDescription += """
+        
+        データ拡張: \(augmentationFinalDescription)
+        特徴抽出器: \(featureExtractorDescription)
+        """
+
         return MLModelMetadata(
             author: author,
-            shortDescription: """
-            クラス: \(classLabelDirURLs.map(\.lastPathComponent).joined(separator: ", "))
-            訓練正解率: \(String(format: "%.1f%%", (1.0 - trainingMetrics.classificationError) * 100.0))
-            検証正解率: \(String(format: "%.1f%%", (1.0 - validationMetrics.classificationError) * 100.0))
-            データ拡張: \(augmentationFinalDescription)
-            特徴抽出器: \(featureExtractorDescription)
-            """,
+            shortDescription: metricsDescription,
             version: version
         )
     }
@@ -371,9 +435,11 @@ public final class OvRClassifier: ClassifierProtocol {
         let sourceDir = URL(fileURLWithPath: basePath)
         let positiveClassDir = sourceDir.appendingPathComponent(positiveClass)
         
+        let imageExtensions = Set(["jpg", "jpeg", "png"])
+        
         // 正例クラスの画像ファイルを取得
         let positiveClassFiles = try FileManager.default.contentsOfDirectory(at: positiveClassDir, includingPropertiesForKeys: nil)
-            .filter { $0.pathExtension.lowercased() == "jpg" || $0.pathExtension.lowercased() == "jpeg" || $0.pathExtension.lowercased() == "png" }
+            .filter { imageExtensions.contains($0.pathExtension.lowercased()) }
         
         // 負例クラスの画像ファイルを取得
         var negativeClassFiles: [URL] = []
@@ -382,13 +448,14 @@ public final class OvRClassifier: ClassifierProtocol {
         
         // 各restクラスから均等にサンプリング
         let samplesPerRestClass = Int(ceil(Double(positiveClassFiles.count) / Double(subdirectories.count)))
+        
         for subdir in subdirectories {
             let files = try FileManager.default.contentsOfDirectory(at: subdir, includingPropertiesForKeys: nil)
-                .filter { $0.pathExtension.lowercased() == "jpg" || $0.pathExtension.lowercased() == "jpeg" || $0.pathExtension.lowercased() == "png" }
+                .filter { imageExtensions.contains($0.pathExtension.lowercased()) }
             let sampledFiles = files.shuffled().prefix(samplesPerRestClass)
             negativeClassFiles.append(contentsOf: sampledFiles)
         }
-        print("📊 サンプリング: 正例[\(positiveClass)]=\(positiveClassFiles.count)枚, rest=\(subdirectories.count)クラス×\(samplesPerRestClass)枚 → 合計\(negativeClassFiles.count)枚")
+        print("📊 \(positiveClass): \(positiveClassFiles.count)枚, rest: \(negativeClassFiles.count)枚")
 
         // 一時ディレクトリを準備
         let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(Self.tempBaseDirName)

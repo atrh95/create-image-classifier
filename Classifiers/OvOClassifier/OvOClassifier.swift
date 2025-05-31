@@ -177,6 +177,19 @@ public final class OvOClassifier: ClassifierProtocol {
                 ))
             }
 
+            // 全モデルの比較表を表示
+            print("\n📊 全モデルの性能")
+            print("+------------------+------------------+------------------+------------------+------------------+------------------+")
+            print("| クラス           | 訓練正解率       | 検証正解率       | 再現率           | 適合率           | F1スコア         |")
+            print("+------------------+------------------+------------------+------------------+------------------+------------------+")
+            for report in individualModelReports {
+                let recall = report.confusionMatrix?.recall ?? 0.0
+                let precision = report.confusionMatrix?.precision ?? 0.0
+                let f1Score = report.confusionMatrix?.f1Score ?? 0.0
+                print("| \(report.positiveClassName.padding(toLength: 16, withPad: " ", startingAt: 0)) | \(String(format: "%14.1f%%", report.trainingAccuracyRate * 100.0)) | \(String(format: "%14.1f%%", report.validationAccuracyRate * 100.0)) | \(String(format: "%14.1f%%", recall * 100.0)) | \(String(format: "%14.1f%%", precision * 100.0)) | \(String(format: "%14.1f%%", f1Score * 100.0)) |")
+            }
+            print("+------------------+------------------+------------------+------------------+------------------+------------------+")
+
             // 最初のモデルファイルパスを返す（後方互換性のため）
             let modelFilePath = modelFilePaths[0]
 
@@ -271,15 +284,41 @@ public final class OvOClassifier: ClassifierProtocol {
 
         let featureExtractorDescription = String(describing: modelParameters.featureExtractor)
 
+        // 混同行列から再現率と適合率を計算
+        let confusionMatrix = CICBinaryConfusionMatrix(
+            dataTable: validationMetrics.confusion,
+            predictedColumn: "Predicted",
+            actualColumn: "True Label",
+            positiveClass: classLabelDirURLs[1].lastPathComponent
+        )
+
+        var metricsDescription = """
+        クラス: \(classLabelDirURLs.map(\.lastPathComponent).joined(separator: ", "))
+        訓練正解率: \(String(format: "%.1f%%", (1.0 - trainingMetrics.classificationError) * 100.0))
+        検証正解率: \(String(format: "%.1f%%", (1.0 - validationMetrics.classificationError) * 100.0))
+        """
+
+        if let confusionMatrix {
+            let recall = confusionMatrix.recall
+            let precision = confusionMatrix.precision
+            let f1Score = confusionMatrix.f1Score
+            metricsDescription += """
+            
+            再現率: \(String(format: "%.1f%%", recall * 100.0))
+            適合率: \(String(format: "%.1f%%", precision * 100.0))
+            F1スコア: \(String(format: "%.1f%%", f1Score * 100.0))
+            """
+        }
+
+        metricsDescription += """
+        
+        データ拡張: \(augmentationFinalDescription)
+        特徴抽出器: \(featureExtractorDescription)
+        """
+
         return MLModelMetadata(
             author: author,
-            shortDescription: """
-            クラス: \(classLabelDirURLs.map(\.lastPathComponent).joined(separator: ", "))
-            訓練正解率: \(String(format: "%.1f%%", (1.0 - trainingMetrics.classificationError) * 100.0))
-            検証正解率: \(String(format: "%.1f%%", (1.0 - validationMetrics.classificationError) * 100.0))
-            データ拡張: \(augmentationFinalDescription)
-            特徴抽出器: \(featureExtractorDescription)
-            """,
+            shortDescription: metricsDescription,
             version: version
         )
     }
@@ -340,12 +379,14 @@ public final class OvOClassifier: ClassifierProtocol {
         let class1Dir = sourceDir.appendingPathComponent(class1)
         let class2Dir = sourceDir.appendingPathComponent(class2)
         
+        let imageExtensions = Set(["jpg", "jpeg", "png"])
+        
         // 各クラスの画像ファイルを取得
         let class1Files = try FileManager.default.contentsOfDirectory(at: class1Dir, includingPropertiesForKeys: nil)
-            .filter { $0.pathExtension.lowercased() == "jpg" || $0.pathExtension.lowercased() == "jpeg" || $0.pathExtension.lowercased() == "png" }
+            .filter { imageExtensions.contains($0.pathExtension.lowercased()) }
         
         let class2Files = try FileManager.default.contentsOfDirectory(at: class2Dir, includingPropertiesForKeys: nil)
-            .filter { $0.pathExtension.lowercased() == "jpg" || $0.pathExtension.lowercased() == "jpeg" || $0.pathExtension.lowercased() == "png" }
+            .filter { imageExtensions.contains($0.pathExtension.lowercased()) }
         
         // 最小枚数を取得
         let minCount = min(class1Files.count, class2Files.count)
@@ -361,12 +402,14 @@ public final class OvOClassifier: ClassifierProtocol {
         let class1Dir = sourceDir.appendingPathComponent(class1)
         let class2Dir = sourceDir.appendingPathComponent(class2)
 
+        let imageExtensions = Set(["jpg", "jpeg", "png"])
+
         // 各クラスの画像ファイルを取得
         let class1Files = try FileManager.default.contentsOfDirectory(at: class1Dir, includingPropertiesForKeys: nil)
-            .filter { $0.pathExtension.lowercased() == "jpg" || $0.pathExtension.lowercased() == "jpeg" || $0.pathExtension.lowercased() == "png" }
+            .filter { imageExtensions.contains($0.pathExtension.lowercased()) }
 
         let class2Files = try FileManager.default.contentsOfDirectory(at: class2Dir, includingPropertiesForKeys: nil)
-            .filter { $0.pathExtension.lowercased() == "jpg" || $0.pathExtension.lowercased() == "jpeg" || $0.pathExtension.lowercased() == "png" }
+            .filter { imageExtensions.contains($0.pathExtension.lowercased()) }
 
         print("📊 サンプリング: [\(class1)]=\(class1Files.count)枚, [\(class2)]=\(class2Files.count)枚 → サンプル枚数: \(class1Count)枚ずつ")
 

@@ -206,15 +206,41 @@ public final class MultiClassClassifier: ClassifierProtocol {
 
         let featureExtractorDescription = String(describing: modelParameters.featureExtractor)
 
+        // 混同行列から再現率と適合率を計算
+        let confusionMatrix = CICMultiClassConfusionMatrix(
+            dataTable: validationMetrics.confusion,
+            predictedColumn: "Predicted",
+            actualColumn: "True Label"
+        )
+
+        var metricsDescription = """
+        クラス: \(classLabelDirURLs.map(\.lastPathComponent).joined(separator: ", "))
+        訓練正解率: \(String(format: "%.1f%%", (1.0 - trainingMetrics.classificationError) * 100.0))
+        検証正解率: \(String(format: "%.1f%%", (1.0 - validationMetrics.classificationError) * 100.0))
+        """
+
+        if let confusionMatrix {
+            let classMetrics = confusionMatrix.calculateMetrics()
+            let macroRecall = classMetrics.map(\.recall).reduce(0.0, +) / Double(classMetrics.count)
+            let macroPrecision = classMetrics.map(\.precision).reduce(0.0, +) / Double(classMetrics.count)
+            let macroF1Score = classMetrics.map(\.f1Score).reduce(0.0, +) / Double(classMetrics.count)
+            metricsDescription += """
+            
+            マクロ平均再現率: \(String(format: "%.1f%%", macroRecall * 100.0))
+            マクロ平均適合率: \(String(format: "%.1f%%", macroPrecision * 100.0))
+            マクロ平均F1スコア: \(String(format: "%.1f%%", macroF1Score * 100.0))
+            """
+        }
+
+        metricsDescription += """
+        
+        データ拡張: \(augmentationFinalDescription)
+        特徴抽出器: \(featureExtractorDescription)
+        """
+
         return MLModelMetadata(
             author: author,
-            shortDescription: """
-            クラス: \(classLabelDirURLs.map(\.lastPathComponent).joined(separator: ", "))
-            訓練正解率: \(String(format: "%.1f%%", (1.0 - trainingMetrics.classificationError) * 100.0))
-            検証正解率: \(String(format: "%.1f%%", (1.0 - validationMetrics.classificationError) * 100.0))
-            データ拡張: \(augmentationFinalDescription)
-            特徴抽出器: \(featureExtractorDescription)
-            """,
+            shortDescription: metricsDescription,
             version: version
         )
     }

@@ -126,6 +126,20 @@ public final class MultiLabelClassifier: ClassifierProtocol {
                 metadata: modelMetadata
             )
 
+            // モデルの性能を表示
+            print("\n📊 モデルの性能")
+            print("+------------------+------------------+------------------+------------------+------------------+")
+            print("| 訓練正解率       | 検証正解率       | 再現率           | 適合率           | F1スコア         |")
+            print("+------------------+------------------+------------------+------------------+------------------+")
+            
+            let classMetrics = confusionMatrix?.calculateMetrics() ?? []
+            let macroRecall = classMetrics.map(\.recall).reduce(0.0, +) / Double(max(1, classMetrics.count))
+            let macroPrecision = classMetrics.map(\.precision).reduce(0.0, +) / Double(max(1, classMetrics.count))
+            let macroF1Score = classMetrics.map(\.f1Score).reduce(0.0, +) / Double(max(1, classMetrics.count))
+            
+            print("| \(String(format: "%14.1f%%", (1.0 - trainingMetrics.classificationError) * 100.0)) | \(String(format: "%14.1f%%", (1.0 - validationMetrics.classificationError) * 100.0)) | \(String(format: "%14.1f%%", macroRecall * 100.0)) | \(String(format: "%14.1f%%", macroPrecision * 100.0)) | \(String(format: "%14.1f%%", macroF1Score * 100.0)) |")
+            print("+------------------+------------------+------------------+------------------+------------------+")
+
             return createTrainingResult(
                 modelName: modelName,
                 classLabelDirURLs: classLabelDirURLs,
@@ -174,8 +188,21 @@ public final class MultiLabelClassifier: ClassifierProtocol {
         return classLabelDirURLs
     }
 
-    public func prepareTrainingData(from _: [URL]) throws -> MLImageClassifier.DataSource {
+    public func prepareTrainingData(from classLabelDirURLs: [URL]) throws -> MLImageClassifier.DataSource {
         print("📁 トレーニングデータ親ディレクトリ: \(resourcesDirectoryPath)")
+        
+        let imageExtensions = Set(["jpg", "jpeg", "png"])
+        
+        // 各クラスの画像ファイルを取得
+        var allFiles: [URL] = []
+        for classDir in classLabelDirURLs {
+            let files = try FileManager.default.contentsOfDirectory(at: classDir, includingPropertiesForKeys: nil)
+                .filter { imageExtensions.contains($0.pathExtension.lowercased()) }
+            allFiles.append(contentsOf: files)
+        }
+        
+        print("📊 合計画像枚数: \(allFiles.count)枚")
+        
         return MLImageClassifier.DataSource.labeledDirectories(at: URL(fileURLWithPath: resourcesDirectoryPath))
     }
 
@@ -208,15 +235,41 @@ public final class MultiLabelClassifier: ClassifierProtocol {
 
         let featureExtractorDescription = String(describing: modelParameters.featureExtractor)
 
+        // 混同行列から再現率と適合率を計算
+        let confusionMatrix = CICMultiClassConfusionMatrix(
+            dataTable: validationMetrics.confusion,
+            predictedColumn: "Predicted",
+            actualColumn: "True Label"
+        )
+
+        var metricsDescription = """
+        クラス: \(classLabelDirURLs.map(\.lastPathComponent).joined(separator: ", "))
+        訓練正解率: \(String(format: "%.1f%%", (1.0 - trainingMetrics.classificationError) * 100.0))
+        検証正解率: \(String(format: "%.1f%%", (1.0 - validationMetrics.classificationError) * 100.0))
+        """
+
+        if let confusionMatrix {
+            let classMetrics = confusionMatrix.calculateMetrics()
+            let macroRecall = classMetrics.map(\.recall).reduce(0.0, +) / Double(classMetrics.count)
+            let macroPrecision = classMetrics.map(\.precision).reduce(0.0, +) / Double(classMetrics.count)
+            let macroF1Score = classMetrics.map(\.f1Score).reduce(0.0, +) / Double(classMetrics.count)
+            metricsDescription += """
+            
+            マクロ平均再現率: \(String(format: "%.1f%%", macroRecall * 100.0))
+            マクロ平均適合率: \(String(format: "%.1f%%", macroPrecision * 100.0))
+            マクロ平均F1スコア: \(String(format: "%.1f%%", macroF1Score * 100.0))
+            """
+        }
+
+        metricsDescription += """
+        
+        データ拡張: \(augmentationFinalDescription)
+        特徴抽出器: \(featureExtractorDescription)
+        """
+
         return MLModelMetadata(
             author: author,
-            shortDescription: """
-            クラス: \(classLabelDirURLs.map(\.lastPathComponent).joined(separator: ", "))
-            訓練正解率: \(String(format: "%.1f%%", (1.0 - trainingMetrics.classificationError) * 100.0))
-            検証正解率: \(String(format: "%.1f%%", (1.0 - validationMetrics.classificationError) * 100.0))
-            データ拡張: \(augmentationFinalDescription)
-            特徴抽出器: \(featureExtractorDescription)
-            """,
+            shortDescription: metricsDescription,
             version: version
         )
     }

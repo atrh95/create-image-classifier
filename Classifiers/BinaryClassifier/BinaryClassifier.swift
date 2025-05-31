@@ -127,6 +127,17 @@ public final class BinaryClassifier: ClassifierProtocol {
                 metadata: modelMetadata
             )
 
+            // モデルの性能を表示
+            print("\n📊 モデルの性能")
+            print("+------------------+------------------+------------------+------------------+------------------+")
+            print("| 訓練正解率       | 検証正解率       | 再現率           | 適合率           | F1スコア         |")
+            print("+------------------+------------------+------------------+------------------+------------------+")
+            let recall = confusionMatrix?.recall ?? 0.0
+            let precision = confusionMatrix?.precision ?? 0.0
+            let f1Score = confusionMatrix?.f1Score ?? 0.0
+            print("| \(String(format: "%14.1f%%", (1.0 - trainingMetrics.classificationError) * 100.0)) | \(String(format: "%14.1f%%", (1.0 - validationMetrics.classificationError) * 100.0)) | \(String(format: "%14.1f%%", recall * 100.0)) | \(String(format: "%14.1f%%", precision * 100.0)) | \(String(format: "%14.1f%%", f1Score * 100.0)) |")
+            print("+------------------+------------------+------------------+------------------+------------------+")
+
             return createTrainingResult(
                 modelName: modelName,
                 classLabelDirURLs: classLabelDirURLs,
@@ -209,15 +220,41 @@ public final class BinaryClassifier: ClassifierProtocol {
 
         let featureExtractorDescription = String(describing: modelParameters.featureExtractor)
 
+        // 混同行列から再現率と適合率を計算
+        let confusionMatrix = CICBinaryConfusionMatrix(
+            dataTable: validationMetrics.confusion,
+            predictedColumn: "Predicted",
+            actualColumn: "True Label",
+            positiveClass: classLabelDirURLs[1].lastPathComponent
+        )
+
+        var metricsDescription = """
+        クラス: \(classLabelDirURLs.map(\.lastPathComponent).joined(separator: ", "))
+        訓練正解率: \(String(format: "%.1f%%", (1.0 - trainingMetrics.classificationError) * 100.0))
+        検証正解率: \(String(format: "%.1f%%", (1.0 - validationMetrics.classificationError) * 100.0))
+        """
+
+        if let confusionMatrix {
+            let recall = confusionMatrix.recall
+            let precision = confusionMatrix.precision
+            let f1Score = confusionMatrix.f1Score
+            metricsDescription += """
+            
+            再現率: \(String(format: "%.1f%%", recall * 100.0))
+            適合率: \(String(format: "%.1f%%", precision * 100.0))
+            F1スコア: \(String(format: "%.1f%%", f1Score * 100.0))
+            """
+        }
+
+        metricsDescription += """
+        
+        データ拡張: \(augmentationFinalDescription)
+        特徴抽出器: \(featureExtractorDescription)
+        """
+
         return MLModelMetadata(
             author: author,
-            shortDescription: """
-            クラス: \(classLabelDirURLs.map(\.lastPathComponent).joined(separator: ", "))
-            訓練正解率: \(String(format: "%.1f%%", (1.0 - trainingMetrics.classificationError) * 100.0))
-            検証正解率: \(String(format: "%.1f%%", (1.0 - validationMetrics.classificationError) * 100.0))
-            データ拡張: \(augmentationFinalDescription)
-            特徴抽出器: \(featureExtractorDescription)
-            """,
+            shortDescription: metricsDescription,
             version: version
         )
     }

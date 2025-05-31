@@ -51,7 +51,7 @@ enum MLModelType: String {
             author: "akitora",
             modelParameters: MLImageClassifier.ModelParameters(
                 validation: .split(strategy: .automatic),
-                maxIterations: 15,
+                maxIterations: 20,
                 augmentation: [],
                 algorithm: .transferLearning(
                     featureExtractor: Self.scenePrintRevision.map { .scenePrint(revision: $0) } ?? .scenePrint(revision: 2),
