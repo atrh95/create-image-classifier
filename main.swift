@@ -45,13 +45,13 @@ enum MLModelType: String {
                 .binary: "v6",
                 .multiClass: "v3",
                 .multiLabel: "v1",
-                .ovr: "v23",
+                .ovr: "v25",
                 .ovo: "v1",
             ],
             author: "akitora",
             modelParameters: MLImageClassifier.ModelParameters(
                 validation: .split(strategy: .automatic),
-                maxIterations: 11,
+                maxIterations: 20,
                 augmentation: [],
                 algorithm: .transferLearning(
                     featureExtractor: Self.scenePrintRevision

@@ -223,14 +223,14 @@ public final class MultiClassClassifier: ClassifierProtocol {
 
         if let confusionMatrix {
             let classMetrics = confusionMatrix.calculateMetrics()
-            let macroRecall = classMetrics.map(\.recall).reduce(0.0, +) / Double(classMetrics.count)
-            let macroPrecision = classMetrics.map(\.precision).reduce(0.0, +) / Double(classMetrics.count)
-            let macroF1Score = classMetrics.map(\.f1Score).reduce(0.0, +) / Double(classMetrics.count)
             metricsDescription += """
 
-            マクロ平均再現率: \(String(format: "%.1f%%", macroRecall * 100.0))
-            マクロ平均適合率: \(String(format: "%.1f%%", macroPrecision * 100.0))
-            マクロ平均F1スコア: \(String(format: "%.1f%%", macroF1Score * 100.0))
+            クラス別性能指標:
+            | クラス | 再現率 | 適合率 | F1スコア |
+            |--------|--------|--------|----------|
+            \(classMetrics.map { metric in
+                "| \(metric.label) | \(String(format: "%.1f%%", metric.recall * 100.0)) | \(String(format: "%.1f%%", metric.precision * 100.0)) | \(String(format: "%.3f", metric.f1Score)) |"
+            }.joined(separator: "\n"))
             """
         }
 
@@ -313,7 +313,7 @@ public final class MultiClassClassifier: ClassifierProtocol {
 
     public func prepareTrainingData(
         classLabelDirURLs: [URL],
-        basePath: String
+        basePath _: String
     ) throws -> MLImageClassifier.DataSource {
         // 各クラスの画像ファイルを取得（ここで1回だけフィルタリング）
         var classFiles: [String: [URL]] = [:]
@@ -325,7 +325,7 @@ public final class MultiClassClassifier: ClassifierProtocol {
             .filter { Self.imageExtensions.contains($0.pathExtension.lowercased()) }
             classFiles[classDir.lastPathComponent] = files
         }
-        
+
         // 各クラスの画像枚数を表示
         for (className, files) in classFiles {
             print("📊 \(className): \(files.count)枚")

@@ -72,14 +72,10 @@ public struct MultiClassTrainingResult: TrainingResultProtocol {
         if let confusionMatrix {
             markdownText += """
             ## クラス別性能指標
+            | クラス | 再現率 | 適合率 | F1スコア |
+            |--------|--------|--------|----------|
             \(classMetrics.map { metric in
-                """
-
-                ### \(metric.label)
-                再現率: \(String(format: "%.1f%%", metric.recall * 100.0)), \
-                適合率: \(String(format: "%.1f%%", metric.precision * 100.0)), \
-                F1スコア: \(String(format: "%.1f%%", metric.f1Score * 100.0))
-                """
+                "| \(metric.label) | \(String(format: "%.1f%%", metric.recall * 100.0)) | \(String(format: "%.1f%%", metric.precision * 100.0)) | \(String(format: "%.3f", metric.f1Score)) |"
             }.joined(separator: "\n"))
             """
         }

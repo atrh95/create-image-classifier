@@ -39,7 +39,7 @@ public struct CICIndividualModelReport {
 
             - 再現率 (Recall)    : \(String(format: "%.1f%%", confusionMatrix.recall * 100.0))
             - 適合率 (Precision) : \(String(format: "%.1f%%", confusionMatrix.precision * 100.0))
-            - F1スコア          : \(String(format: "%.1f%%", confusionMatrix.f1Score * 100.0))
+            - F1スコア          : \(String(format: "%.3f", confusionMatrix.f1Score))
             """
         } else {
             report += "\n⚠️ 検証データが不十分なため、混同行列の計算をスキップしました\n"

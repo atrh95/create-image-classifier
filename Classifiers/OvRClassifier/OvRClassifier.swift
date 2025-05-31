@@ -9,7 +9,6 @@ import Foundation
 import TabularData
 
 public final class OvRClassifier: ClassifierProtocol {
-    
     public typealias TrainingResultType = OvRTrainingResult
 
     private let fileManager = CICFileManager()
@@ -136,13 +135,13 @@ public final class OvRClassifier: ClassifierProtocol {
                     dataTable: currentValidationMetrics.confusion,
                     predictedColumn: "Predicted",
                     actualColumn: "True Label",
-                    positiveClass: oneClassLabel  // 現在のクラスを正例として扱う
+                    positiveClass: oneClassLabel // 現在のクラスを正例として扱う
                 )
 
                 let individualReport = CICIndividualModelReport(
                     modelName: modelFileName,
                     positiveClassName: oneClassLabel,
-                    negativeClassName: "rest",  // Add 'rest' as negative class name
+                    negativeClassName: "rest", // Add 'rest' as negative class name
                     trainingAccuracyRate: 1.0 - currentTrainingMetrics.classificationError,
                     validationAccuracyRate: 1.0 - currentValidationMetrics.classificationError,
                     confusionMatrix: confusionMatrix
@@ -175,7 +174,7 @@ public final class OvRClassifier: ClassifierProtocol {
                 let precision = report.confusionMatrix?.precision ?? 0.0
                 let f1Score = report.confusionMatrix?.f1Score ?? 0.0
                 print(
-                    "| \(report.positiveClassName.padding(toLength: 16, withPad: " ", startingAt: 0)) | \(String(format: "%14.1f%%", report.trainingAccuracyRate * 100.0)) | \(String(format: "%14.1f%%", report.validationAccuracyRate * 100.0)) | \(String(format: "%14.1f%%", recall * 100.0)) | \(String(format: "%14.1f%%", precision * 100.0)) | \(String(format: "%14.1f%%", f1Score * 100.0)) |"
+                    "| \(report.positiveClassName.padding(toLength: 16, withPad: " ", startingAt: 0)) | \(String(format: "%14.1f%%", (1.0 - report.trainingAccuracyRate) * 100.0)) | \(String(format: "%14.1f%%", (1.0 - report.validationAccuracyRate) * 100.0)) | \(String(format: "%14.1f%%", recall * 100.0)) | \(String(format: "%14.1f%%", precision * 100.0)) | \(String(format: "%14.3f", f1Score)) |"
                 )
             }
             print(
@@ -307,7 +306,7 @@ public final class OvRClassifier: ClassifierProtocol {
         author: String,
         version: String,
         positiveClassLabel: String,
-        classLabelDirURLs: [URL],
+        classLabelDirURLs _: [URL],
         trainingMetrics: MLClassifierMetrics,
         validationMetrics: MLClassifierMetrics,
         modelParameters: CreateML.MLImageClassifier.ModelParameters
@@ -336,7 +335,7 @@ public final class OvRClassifier: ClassifierProtocol {
             includingPropertiesForKeys: [.isDirectoryKey]
         )
         .filter { $0.hasDirectoryPath && $0.lastPathComponent != currentClassLabel }
-        
+
         let samplesPerRestClass = Int(ceil(Double(currentClassCount) / Double(subdirectories?.count ?? 1)))
         let totalRestCount = samplesPerRestClass * (subdirectories?.count ?? 0)
 
@@ -356,18 +355,20 @@ public final class OvRClassifier: ClassifierProtocol {
         )
 
         if let confusionMatrix {
-            let metrics = [
-                ("再現率", confusionMatrix.recall),
-                ("適合率", confusionMatrix.precision),
-                ("F1スコア", confusionMatrix.f1Score),
-            ]
+            var metricsText = ""
+            
+            if confusionMatrix.recall.isFinite {
+                metricsText += "再現率: \(String(format: "%.1f%%", confusionMatrix.recall * 100.0))\n"
+            }
+            if confusionMatrix.precision.isFinite {
+                metricsText += "適合率: \(String(format: "%.1f%%", confusionMatrix.precision * 100.0))\n"
+            }
+            if confusionMatrix.f1Score.isFinite {
+                metricsText += "F1スコア: \(String(format: "%.3f", confusionMatrix.f1Score))"
+            }
 
-            let validMetrics = metrics
-                .filter(\.1.isFinite)
-                .map { "\($0.0): \(String(format: "%.1f%%", $0.1 * 100.0))" }
-
-            if !validMetrics.isEmpty {
-                metricsDescription += "\n" + validMetrics.joined(separator: "\n")
+            if !metricsText.isEmpty {
+                metricsDescription += "\n" + metricsText
             }
         }
 
@@ -478,14 +479,14 @@ public final class OvRClassifier: ClassifierProtocol {
     public func prepareTrainingData(positiveClass: String, basePath: String) throws -> MLImageClassifier.DataSource {
         let sourceDir = URL(fileURLWithPath: basePath)
         let positiveClassDir = sourceDir.appendingPathComponent(positiveClass)
-        
+
         // 正例クラスの画像ファイルを取得（ここで1回だけフィルタリング）
         let positiveClassFiles = try FileManager.default.contentsOfDirectory(
             at: positiveClassDir,
             includingPropertiesForKeys: nil
         )
         .filter { Self.imageExtensions.contains($0.pathExtension.lowercased()) }
-        
+
         // 負例クラスの画像ファイルを取得
         var negativeClassFiles: [URL] = []
         let subdirectories = try FileManager.default.contentsOfDirectory(
@@ -493,10 +494,10 @@ public final class OvRClassifier: ClassifierProtocol {
             includingPropertiesForKeys: [.isDirectoryKey]
         )
         .filter { $0.hasDirectoryPath && $0.lastPathComponent != positiveClass }
-        
+
         // 各restクラスから均等にサンプリング
         let samplesPerRestClass = Int(ceil(Double(positiveClassFiles.count) / Double(subdirectories.count)))
-        
+
         for subdir in subdirectories {
             let files = try FileManager.default.contentsOfDirectory(at: subdir, includingPropertiesForKeys: nil)
             let sampledFiles = files.shuffled().prefix(samplesPerRestClass)

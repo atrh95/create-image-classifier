@@ -181,7 +181,7 @@ public final class OvOClassifier: ClassifierProtocol {
                 let precision = report.confusionMatrix?.precision ?? 0.0
                 let f1Score = report.confusionMatrix?.f1Score ?? 0.0
                 print(
-                    "| \(String(format: "%2d", index + 1)) | \(String(format: "%14.1f%%", report.trainingAccuracyRate * 100.0)) | \(String(format: "%14.1f%%", report.validationAccuracyRate * 100.0)) | \(String(format: "%14.1f%%", recall * 100.0)) | \(String(format: "%14.1f%%", precision * 100.0)) | \(String(format: "%14.1f%%", f1Score * 100.0)) |"
+                    "| \(String(format: "%2d", index + 1)) | \(String(format: "%14.1f%%", report.trainingAccuracyRate * 100.0)) | \(String(format: "%14.1f%%", report.validationAccuracyRate * 100.0)) | \(String(format: "%14.1f%%", recall * 100.0)) | \(String(format: "%14.1f%%", precision * 100.0)) | \(String(format: "%14.3f", f1Score)) |"
                 )
             }
             print(
@@ -290,29 +290,29 @@ public final class OvOClassifier: ClassifierProtocol {
             dataTable: validationMetrics.confusion,
             predictedColumn: "Predicted",
             actualColumn: "True Label",
-            positiveClass: classLabels[0]  // 最初のクラスを正例として扱う
+            positiveClass: classLabels[0] // 最初のクラスを正例として扱う
         )
 
         // バランスを取った後の画像枚数を取得
         let sourceDir = URL(fileURLWithPath: resourcesDirectoryPath)
         let class1Dir = sourceDir.appendingPathComponent(classLabels[0])
         let class2Dir = sourceDir.appendingPathComponent(classLabels[1])
-        
+
         let imageExtensions = Set(["jpg", "jpeg", "png"])
-        
+
         // 各クラスの画像ファイルを取得
         let class1Files = try? FileManager.default.contentsOfDirectory(
             at: class1Dir,
             includingPropertiesForKeys: nil
         )
         .filter { imageExtensions.contains($0.pathExtension.lowercased()) }
-        
+
         let class2Files = try? FileManager.default.contentsOfDirectory(
             at: class2Dir,
             includingPropertiesForKeys: nil
         )
         .filter { imageExtensions.contains($0.pathExtension.lowercased()) }
-        
+
         // バランスを取った後の枚数を計算
         let class1Count = class1Files?.count ?? 0
         let class2Count = class2Files?.count ?? 0
@@ -326,18 +326,20 @@ public final class OvOClassifier: ClassifierProtocol {
         """
 
         if let confusionMatrix {
-            let metrics = [
-                ("再現率", confusionMatrix.recall),
-                ("適合率", confusionMatrix.precision),
-                ("F1スコア", confusionMatrix.f1Score),
-            ]
+            var metricsText = ""
+            
+            if confusionMatrix.recall.isFinite {
+                metricsText += "再現率: \(String(format: "%.1f%%", confusionMatrix.recall * 100.0))\n"
+            }
+            if confusionMatrix.precision.isFinite {
+                metricsText += "適合率: \(String(format: "%.1f%%", confusionMatrix.precision * 100.0))\n"
+            }
+            if confusionMatrix.f1Score.isFinite {
+                metricsText += "F1スコア: \(String(format: "%.3f", confusionMatrix.f1Score))"
+            }
 
-            let validMetrics = metrics
-                .filter(\.1.isFinite)
-                .map { "\($0.0): \(String(format: "%.1f%%", $0.1 * 100.0))" }
-
-            if !validMetrics.isEmpty {
-                metricsDescription += "\n" + validMetrics.joined(separator: "\n")
+            if !metricsText.isEmpty {
+                metricsDescription += "\n" + metricsText
             }
         }
 
@@ -437,27 +439,27 @@ public final class OvOClassifier: ClassifierProtocol {
         let sourceDir = URL(fileURLWithPath: basePath)
         let class1Dir = sourceDir.appendingPathComponent(class1)
         let class2Dir = sourceDir.appendingPathComponent(class2)
-        
+
         // 各クラスの画像ファイルを取得（ここで1回だけフィルタリング）
         let class1Files = try FileManager.default.contentsOfDirectory(
             at: class1Dir,
             includingPropertiesForKeys: nil
         )
         .filter { Self.imageExtensions.contains($0.pathExtension.lowercased()) }
-        
+
         let class2Files = try FileManager.default.contentsOfDirectory(
             at: class2Dir,
             includingPropertiesForKeys: nil
         )
         .filter { Self.imageExtensions.contains($0.pathExtension.lowercased()) }
-        
+
         // 最小枚数を取得
         let minCount = min(class1Files.count, class2Files.count)
-        
+
         // 各クラスから最小枚数分の画像をランダムに選択
         let selectedClass1Files = Array(class1Files.shuffled().prefix(minCount))
         let selectedClass2Files = Array(class2Files.shuffled().prefix(minCount))
-        
+
         print("📊 \(class1): \(selectedClass1Files.count)枚, \(class2): \(selectedClass2Files.count)枚")
 
         // 一時ディレクトリを準備

@@ -50,7 +50,7 @@ public struct OvOTrainingResult: TrainingResultProtocol {
         | No. | クラス組み合わせ |
         |-----|------------------|
         \(individualModelReports.enumerated().map { index, report in
-            return "| \(index + 1) | \(report.negativeClassName) vs \(report.positiveClassName) |"
+            "| \(index + 1) | \(report.negativeClassName) vs \(report.positiveClassName) |"
         }.joined(separator: "\n"))
 
         ## 個別モデルの性能指標
@@ -60,7 +60,7 @@ public struct OvOTrainingResult: TrainingResultProtocol {
             let recall = report.confusionMatrix?.recall ?? 0.0
             let precision = report.confusionMatrix?.precision ?? 0.0
             let f1Score = report.confusionMatrix?.f1Score ?? 0.0
-            return "| \(index + 1) | \(report.positiveClassName) | \(String(format: "%.1f%%", report.trainingAccuracyRate * 100.0)) | \(String(format: "%.1f%%", report.validationAccuracyRate * 100.0)) | \(String(format: "%.1f%%", recall * 100.0)) | \(String(format: "%.1f%%", precision * 100.0)) | \(String(format: "%.1f%%", f1Score * 100.0)) |"
+            return "| \(String(format: "%2d", index + 1)) | \(report.positiveClassName) | \(String(format: "%.1f%%", report.trainingAccuracyRate * 100.0)) | \(String(format: "%.1f%%", report.validationAccuracyRate * 100.0)) | \(String(format: "%.1f%%", recall * 100.0)) | \(String(format: "%.1f%%", precision * 100.0)) | \(String(format: "%.3f", f1Score)) |"
         }.joined(separator: "\n"))
 
         ## モデルメタデータ

@@ -138,7 +138,7 @@ public final class BinaryClassifier: ClassifierProtocol {
             let precision = confusionMatrix?.precision ?? 0.0
             let f1Score = confusionMatrix?.f1Score ?? 0.0
             print(
-                "| \(String(format: "%14.1f%%", (1.0 - trainingMetrics.classificationError) * 100.0)) | \(String(format: "%14.1f%%", (1.0 - validationMetrics.classificationError) * 100.0)) | \(String(format: "%14.1f%%", recall * 100.0)) | \(String(format: "%14.1f%%", precision * 100.0)) | \(String(format: "%14.1f%%", f1Score * 100.0)) |"
+                "| \(String(format: "%14.1f%%", (1.0 - trainingMetrics.classificationError) * 100.0)) | \(String(format: "%14.1f%%", (1.0 - validationMetrics.classificationError) * 100.0)) | \(String(format: "%14.1f%%", recall * 100.0)) | \(String(format: "%14.1f%%", precision * 100.0)) | \(String(format: "%14.3f", f1Score)) |"
             )
             print("+------------------+------------------+------------------+------------------+------------------+")
 
@@ -246,7 +246,7 @@ public final class BinaryClassifier: ClassifierProtocol {
 
             再現率: \(String(format: "%.1f%%", recall * 100.0))
             適合率: \(String(format: "%.1f%%", precision * 100.0))
-            F1スコア: \(String(format: "%.1f%%", f1Score * 100.0))
+            F1スコア: \(String(format: "%.3f", f1Score))
             """
         }
 
@@ -346,20 +346,20 @@ public final class BinaryClassifier: ClassifierProtocol {
         let sourceDir = URL(fileURLWithPath: basePath)
         let positiveClassDir = sourceDir.appendingPathComponent(positiveClass)
         let negativeClassDir = sourceDir.appendingPathComponent(negativeClass)
-        
+
         // 各クラスの画像ファイルを取得（ここで1回だけフィルタリング）
         let positiveClassFiles = try FileManager.default.contentsOfDirectory(
             at: positiveClassDir,
             includingPropertiesForKeys: nil
         )
         .filter { Self.imageExtensions.contains($0.pathExtension.lowercased()) }
-        
+
         let negativeClassFiles = try FileManager.default.contentsOfDirectory(
             at: negativeClassDir,
             includingPropertiesForKeys: nil
         )
         .filter { Self.imageExtensions.contains($0.pathExtension.lowercased()) }
-        
+
         print("📊 \(positiveClass): \(positiveClassFiles.count)枚, \(negativeClass): \(negativeClassFiles.count)枚")
 
         // 一時ディレクトリを準備

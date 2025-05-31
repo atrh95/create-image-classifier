@@ -137,7 +137,7 @@ public final class MultiLabelClassifier: ClassifierProtocol {
             let macroF1Score = classMetrics.map(\.f1Score).reduce(0.0, +) / Double(max(1, classMetrics.count))
 
             print(
-                "| \(String(format: "%14.1f%%", (1.0 - trainingMetrics.classificationError) * 100.0)) | \(String(format: "%14.1f%%", (1.0 - validationMetrics.classificationError) * 100.0)) | \(String(format: "%14.1f%%", macroRecall * 100.0)) | \(String(format: "%14.1f%%", macroPrecision * 100.0)) | \(String(format: "%14.1f%%", macroF1Score * 100.0)) |"
+                "| \(String(format: "%14.1f%%", (1.0 - trainingMetrics.classificationError) * 100.0)) | \(String(format: "%14.1f%%", (1.0 - validationMetrics.classificationError) * 100.0)) | \(String(format: "%14.1f%%", macroRecall * 100.0)) | \(String(format: "%14.1f%%", macroPrecision * 100.0)) | \(String(format: "%14.3f", macroF1Score)) |"
             )
             print("+------------------+------------------+------------------+------------------+------------------+")
 
@@ -258,7 +258,7 @@ public final class MultiLabelClassifier: ClassifierProtocol {
 
             マクロ平均再現率: \(String(format: "%.1f%%", macroRecall * 100.0))
             マクロ平均適合率: \(String(format: "%.1f%%", macroPrecision * 100.0))
-            マクロ平均F1スコア: \(String(format: "%.1f%%", macroF1Score * 100.0))
+            マクロ平均F1スコア: \(String(format: "%.3f", macroF1Score))
             """
         }
 

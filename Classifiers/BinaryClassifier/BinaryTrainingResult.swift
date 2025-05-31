@@ -71,7 +71,7 @@ public struct BinaryTrainingResult: TrainingResultProtocol {
             ## 性能指標
             - 再現率 (Recall)    : \(String(format: "%.1f%%", confusionMatrix.recall * 100.0))
             - 適合率 (Precision) : \(String(format: "%.1f%%", confusionMatrix.precision * 100.0))
-            - F1スコア          : \(String(format: "%.1f%%", confusionMatrix.f1Score * 100.0))
+            - F1スコア          : \(String(format: "%.3f", confusionMatrix.f1Score))
             """
         }
 
