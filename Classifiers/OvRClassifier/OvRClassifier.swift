@@ -183,9 +183,53 @@ public final class OvRClassifier: ClassifierProtocol {
         return classLabelDirURLs
     }
 
-    public func prepareTrainingData(from _: [URL]) throws -> MLImageClassifier.DataSource {
+    public func prepareTrainingData(from classLabelDirURLs: [URL]) throws -> MLImageClassifier.DataSource {
         print("📁 トレーニングデータ親ディレクトリ: \(resourcesDirectoryPath)")
-        return MLImageClassifier.DataSource.labeledDirectories(at: URL(fileURLWithPath: resourcesDirectoryPath))
+        
+        // 一時ディレクトリの作成
+        let tempDir = Foundation.FileManager.default.temporaryDirectory.appendingPathComponent(Self.tempBaseDirName)
+        if Foundation.FileManager.default.fileExists(atPath: tempDir.path) {
+            try Foundation.FileManager.default.removeItem(at: tempDir)
+        }
+        try Foundation.FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        
+        // Oneクラス（最初のクラス）のデータをコピー
+        let oneClassDir = tempDir.appendingPathComponent(classLabelDirURLs[0].lastPathComponent)
+        try Foundation.FileManager.default.createDirectory(at: oneClassDir, withIntermediateDirectories: true)
+        try copyDirectoryContents(from: classLabelDirURLs[0], to: oneClassDir)
+        
+        // Restクラスのデータをサンプリングしてコピー
+        let oneClassCount = try Foundation.FileManager.default.contentsOfDirectory(at: oneClassDir, includingPropertiesForKeys: nil).count
+        let restClassCount = oneClassCount / (classLabelDirURLs.count - 1)
+        
+        for i in 1..<classLabelDirURLs.count {
+            let restClassDir = tempDir.appendingPathComponent(classLabelDirURLs[i].lastPathComponent)
+            try Foundation.FileManager.default.createDirectory(at: restClassDir, withIntermediateDirectories: true)
+            
+            let sourceFiles = try Foundation.FileManager.default.contentsOfDirectory(
+                at: classLabelDirURLs[i],
+                includingPropertiesForKeys: nil
+            )
+            
+            // ランダムにサンプリング
+            let sampledFiles = Array(sourceFiles.shuffled().prefix(restClassCount))
+            for file in sampledFiles {
+                let destination = restClassDir.appendingPathComponent(file.lastPathComponent)
+                try Foundation.FileManager.default.copyItem(at: file, to: destination)
+            }
+        }
+        
+        return MLImageClassifier.DataSource.labeledDirectories(at: tempDir)
+    }
+    
+    private func copyDirectoryContents(from source: URL, to destination: URL) throws {
+        let fileManager = Foundation.FileManager.default
+        let contents = try fileManager.contentsOfDirectory(at: source, includingPropertiesForKeys: nil)
+        
+        for file in contents {
+            let destinationFile = destination.appendingPathComponent(file.lastPathComponent)
+            try fileManager.copyItem(at: file, to: destinationFile)
+        }
     }
 
     public func trainModel(

@@ -180,6 +180,13 @@ public final class OvOClassifier: ClassifierProtocol {
             // 最初のモデルファイルパスを返す（後方互換性のため）
             let modelFilePath = modelFilePaths[0]
 
+            // 一時ディレクトリの削除
+            let tempDir = Foundation.FileManager.default.temporaryDirectory.appendingPathComponent(Self.tempBaseDirName)
+            if Foundation.FileManager.default.fileExists(atPath: tempDir.path) {
+                try Foundation.FileManager.default.removeItem(at: tempDir)
+                print("🧹 一時ディレクトリを削除しました: \(tempDir.path)")
+            }
+
             return createTrainingResult(
                 modelName: modelName,
                 classLabelDirURLs: classLabelDirURLs,
