@@ -9,6 +9,7 @@ import Foundation
 import TabularData
 
 public final class OvRClassifier: ClassifierProtocol {
+    
     public typealias TrainingResultType = OvRTrainingResult
 
     private let fileManager = CICFileManager()
@@ -110,6 +111,7 @@ public final class OvRClassifier: ClassifierProtocol {
                 let modelMetadata = createModelMetadata(
                     author: author,
                     version: version,
+                    positiveClassLabel: oneClassLabel,
                     classLabelDirURLs: classLabelDirURLs,
                     trainingMetrics: currentTrainingMetrics,
                     validationMetrics: currentValidationMetrics,
@@ -305,6 +307,7 @@ public final class OvRClassifier: ClassifierProtocol {
     public func createModelMetadata(
         author: String,
         version: String,
+        positiveClassLabel: String,
         classLabelDirURLs: [URL],
         trainingMetrics: MLClassifierMetrics,
         validationMetrics: MLClassifierMetrics,
@@ -318,46 +321,40 @@ public final class OvRClassifier: ClassifierProtocol {
 
         let featureExtractorDescription = String(describing: modelParameters.featureExtractor)
 
-        // OneクラスとRestクラスの画像枚数を取得
-        let oneClassLabel = classLabelDirURLs[0].lastPathComponent
-
-        // 混同行列から再現率と適合率を計算
-        let confusionMatrix = CICBinaryConfusionMatrix(
-            dataTable: validationMetrics.confusion,
-            predictedColumn: "Predicted",
-            actualColumn: "True Label",
-            positiveClass: oneClassLabel  // 現在のクラスを正例として扱う
-        )
-
-        // OneクラスとRestクラスの画像枚数を取得
-        let oneClassDir = URL(fileURLWithPath: resourcesDirectoryPath).appendingPathComponent(oneClassLabel)
-        let oneClassFiles = try? FileManager.default.contentsOfDirectory(
-            at: oneClassDir,
+        // 現在のクラスの情報のみを取得
+        let currentClassLabel = positiveClassLabel
+        let currentClassDir = URL(fileURLWithPath: resourcesDirectoryPath).appendingPathComponent(currentClassLabel)
+        let currentClassFiles = try? FileManager.default.contentsOfDirectory(
+            at: currentClassDir,
             includingPropertiesForKeys: nil
         )
         .filter { Self.imageExtensions.contains($0.pathExtension.lowercased()) }
-        let oneClassCount = oneClassFiles?.count ?? 0
+        let currentClassCount = currentClassFiles?.count ?? 0
 
-        // Restクラスの画像枚数を計算（サンプリング後の枚数）
+        // Restクラスの画像枚数を計算
         let subdirectories = try? FileManager.default.contentsOfDirectory(
             at: URL(fileURLWithPath: resourcesDirectoryPath),
             includingPropertiesForKeys: [.isDirectoryKey]
         )
-        .filter { $0.hasDirectoryPath && $0.lastPathComponent != oneClassLabel }
+        .filter { $0.hasDirectoryPath && $0.lastPathComponent != currentClassLabel }
         
-        let samplesPerRestClass = Int(ceil(Double(oneClassCount) / Double(subdirectories?.count ?? 1)))
+        let samplesPerRestClass = Int(ceil(Double(currentClassCount) / Double(subdirectories?.count ?? 1)))
         let totalRestCount = samplesPerRestClass * (subdirectories?.count ?? 0)
 
-        // Restクラスのクラス名を取得
-        let restClassLabels = classLabelDirURLs.dropFirst().map(\.lastPathComponent)
-
         var metricsDescription = """
-        \(oneClassLabel): \(oneClassCount)枚
-        Restクラス: \(restClassLabels.joined(separator: ", "))
+        \(currentClassLabel): \(currentClassCount)枚
         Rest: \(totalRestCount)枚
         訓練正解率: \(String(format: "%.1f%%", (1.0 - trainingMetrics.classificationError) * 100.0))
         検証正解率: \(String(format: "%.1f%%", (1.0 - validationMetrics.classificationError) * 100.0))
         """
+
+        // 現在のクラスのメトリクスのみを計算
+        let confusionMatrix = CICBinaryConfusionMatrix(
+            dataTable: validationMetrics.confusion,
+            predictedColumn: "Predicted",
+            actualColumn: "True Label",
+            positiveClass: currentClassLabel
+        )
 
         if let confusionMatrix {
             let metrics = [
