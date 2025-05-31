@@ -13,6 +13,9 @@ public final class BinaryClassifier: ClassifierProtocol {
     public var outputDirectoryPathOverride: String?
     public var resourceDirPathOverride: String?
 
+    private static let imageExtensions = Set(["jpg", "jpeg", "png"])
+    private static let tempBaseDirName = "TempBinaryTrainingData"
+
     public var outputParentDirPath: String {
         if let override = outputDirectoryPathOverride {
             return override
@@ -315,6 +318,7 @@ public final class BinaryClassifier: ClassifierProtocol {
         let individualModelReport = CICIndividualModelReport(
             modelName: modelName,
             positiveClassName: classLabelDirURLs[1].lastPathComponent,
+            negativeClassName: classLabelDirURLs[0].lastPathComponent,
             trainingAccuracyRate: 1.0 - trainingMetrics.classificationError,
             validationAccuracyRate: 1.0 - validationMetrics.classificationError,
             confusionMatrix: confusionMatrix
@@ -333,5 +337,57 @@ public final class BinaryClassifier: ClassifierProtocol {
             confusionMatrix: confusionMatrix,
             individualModelReport: individualModelReport
         )
+    }
+
+    public func prepareTrainingData(
+        positiveClass: String,
+        negativeClass: String,
+        basePath: String
+    ) throws -> MLImageClassifier.DataSource {
+        let sourceDir = URL(fileURLWithPath: basePath)
+        let positiveClassDir = sourceDir.appendingPathComponent(positiveClass)
+        let negativeClassDir = sourceDir.appendingPathComponent(negativeClass)
+        
+        // 各クラスの画像ファイルを取得（ここで1回だけフィルタリング）
+        let positiveClassFiles = try FileManager.default.contentsOfDirectory(
+            at: positiveClassDir,
+            includingPropertiesForKeys: nil
+        )
+        .filter { Self.imageExtensions.contains($0.pathExtension.lowercased()) }
+        
+        let negativeClassFiles = try FileManager.default.contentsOfDirectory(
+            at: negativeClassDir,
+            includingPropertiesForKeys: nil
+        )
+        .filter { Self.imageExtensions.contains($0.pathExtension.lowercased()) }
+        
+        print("📊 \(positiveClass): \(positiveClassFiles.count)枚, \(negativeClass): \(negativeClassFiles.count)枚")
+
+        // 一時ディレクトリを準備
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(Self.tempBaseDirName)
+        let tempPositiveDir = tempDir.appendingPathComponent(positiveClass)
+        let tempNegativeDir = tempDir.appendingPathComponent(negativeClass)
+
+        // 既存の一時ディレクトリをクリーンにする
+        if FileManager.default.fileExists(atPath: tempDir.path) {
+            try FileManager.default.removeItem(at: tempDir)
+        }
+
+        try FileManager.default.createDirectory(at: tempPositiveDir, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: tempNegativeDir, withIntermediateDirectories: true)
+
+        // 各クラスの画像をコピー
+        for (index, file) in positiveClassFiles.enumerated() {
+            let destination = tempPositiveDir.appendingPathComponent("\(index).\(file.pathExtension)")
+            try FileManager.default.copyItem(at: file, to: destination)
+        }
+
+        for (index, file) in negativeClassFiles.enumerated() {
+            let destination = tempNegativeDir.appendingPathComponent("\(index).\(file.pathExtension)")
+            try FileManager.default.copyItem(at: file, to: destination)
+        }
+
+        // 一時ディレクトリからデータソースを作成
+        return MLImageClassifier.DataSource.labeledDirectories(at: tempDir)
     }
 }

@@ -13,6 +13,9 @@ public final class MultiClassClassifier: ClassifierProtocol {
     public var outputDirectoryPathOverride: String?
     public var resourceDirPathOverride: String?
 
+    private static let imageExtensions = Set(["jpg", "jpeg", "png"])
+    private static let tempBaseDirName = "TempMultiClassTrainingData"
+
     public var outputParentDirPath: String {
         if let override = outputDirectoryPathOverride {
             return override
@@ -307,5 +310,48 @@ public final class MultiClassClassifier: ClassifierProtocol {
             ),
             confusionMatrix: confusionMatrix
         )
+    }
+
+    public func prepareTrainingData(
+        classLabelDirURLs: [URL],
+        basePath: String
+    ) throws -> MLImageClassifier.DataSource {
+        // 各クラスの画像ファイルを取得（ここで1回だけフィルタリング）
+        var classFiles: [String: [URL]] = [:]
+        for classDir in classLabelDirURLs {
+            let files = try FileManager.default.contentsOfDirectory(
+                at: classDir,
+                includingPropertiesForKeys: nil
+            )
+            .filter { Self.imageExtensions.contains($0.pathExtension.lowercased()) }
+            classFiles[classDir.lastPathComponent] = files
+        }
+        
+        // 各クラスの画像枚数を表示
+        for (className, files) in classFiles {
+            print("📊 \(className): \(files.count)枚")
+        }
+
+        // 一時ディレクトリを準備
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(Self.tempBaseDirName)
+
+        // 既存の一時ディレクトリをクリーンにする
+        if FileManager.default.fileExists(atPath: tempDir.path) {
+            try FileManager.default.removeItem(at: tempDir)
+        }
+
+        // 各クラスのディレクトリを作成し、画像をコピー
+        for (className, files) in classFiles {
+            let tempClassDir = tempDir.appendingPathComponent(className)
+            try FileManager.default.createDirectory(at: tempClassDir, withIntermediateDirectories: true)
+
+            for (index, file) in files.enumerated() {
+                let destination = tempClassDir.appendingPathComponent("\(index).\(file.pathExtension)")
+                try FileManager.default.copyItem(at: file, to: destination)
+            }
+        }
+
+        // 一時ディレクトリからデータソースを作成
+        return MLImageClassifier.DataSource.labeledDirectories(at: tempDir)
     }
 }

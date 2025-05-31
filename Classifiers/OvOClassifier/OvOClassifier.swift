@@ -15,6 +15,8 @@ public final class OvOClassifier: ClassifierProtocol {
     public var outputDirectoryPathOverride: String?
     public var resourceDirPathOverride: String?
 
+    private static let imageExtensions = Set(["jpg", "jpeg", "png"])
+
     public var outputParentDirPath: String {
         if let override = outputDirectoryPathOverride {
             return override
@@ -150,6 +152,7 @@ public final class OvOClassifier: ClassifierProtocol {
                 let report = CICIndividualModelReport(
                     modelName: modelName,
                     positiveClassName: class2,
+                    negativeClassName: class1,
                     trainingAccuracyRate: 1.0 - currentTrainingMetrics.classificationError,
                     validationAccuracyRate: 1.0 - currentValidationMetrics.classificationError,
                     confusionMatrix: confusionMatrix
@@ -162,40 +165,28 @@ public final class OvOClassifier: ClassifierProtocol {
                 print("✅ クラス組み合わせ [\(class1) vs \(class2)] のモデル作成完了")
             }
 
-            // トレーニング結果の表示
-            print("\n📊 トレーニング結果サマリー")
-            if let firstModelTrainingMetrics {
-                print(String(
-                    format: "  訓練正解率: %.1f%%",
-                    (1.0 - firstModelTrainingMetrics.classificationError) * 100.0
-                ))
-            }
-            if let firstModelValidationMetrics {
-                print(String(
-                    format: "  検証正解率: %.1f%%",
-                    (1.0 - firstModelValidationMetrics.classificationError) * 100.0
-                ))
-            }
-
             // 全モデルの比較表を表示
             print("\n📊 全モデルの性能")
+            for (index, report) in individualModelReports.enumerated() {
+                print("\(index + 1). \(report.negativeClassName), \(report.positiveClassName)")
+            }
             print(
                 "+------------------+------------------+------------------+------------------+------------------+------------------+"
             )
-            print("| クラス           | 訓練正解率       | 検証正解率       | 再現率           | 適合率           | F1スコア         |")
+            print("| No. | 訓練正解率       | 検証正解率       | 再現率           | 適合率           | F1スコア         |")
             print(
-                "+------------------+------------------+------------------+------------------+------------------+------------------+"
+                "+-----+------------------+------------------+------------------+------------------+------------------+"
             )
-            for report in individualModelReports {
+            for (index, report) in individualModelReports.enumerated() {
                 let recall = report.confusionMatrix?.recall ?? 0.0
                 let precision = report.confusionMatrix?.precision ?? 0.0
                 let f1Score = report.confusionMatrix?.f1Score ?? 0.0
                 print(
-                    "| \(report.positiveClassName.padding(toLength: 16, withPad: " ", startingAt: 0)) | \(String(format: "%14.1f%%", report.trainingAccuracyRate * 100.0)) | \(String(format: "%14.1f%%", report.validationAccuracyRate * 100.0)) | \(String(format: "%14.1f%%", recall * 100.0)) | \(String(format: "%14.1f%%", precision * 100.0)) | \(String(format: "%14.1f%%", f1Score * 100.0)) |"
+                    "| \(String(format: "%2d", index + 1)) | \(String(format: "%14.1f%%", report.trainingAccuracyRate * 100.0)) | \(String(format: "%14.1f%%", report.validationAccuracyRate * 100.0)) | \(String(format: "%14.1f%%", recall * 100.0)) | \(String(format: "%14.1f%%", precision * 100.0)) | \(String(format: "%14.1f%%", f1Score * 100.0)) |"
                 )
             }
             print(
-                "+------------------+------------------+------------------+------------------+------------------+------------------+"
+                "+-----+------------------+------------------+------------------+------------------+------------------+"
             )
 
             // 最初のモデルファイルパスを返す（後方互換性のため）
@@ -444,50 +435,45 @@ public final class OvOClassifier: ClassifierProtocol {
         class2: String,
         basePath: String
     ) throws -> MLImageClassifier.DataSource {
-        // クラス間の画像枚数を取得
-        let (class1Count, class2Count) = try balanceClassImages(class1: class1, class2: class2, basePath: basePath)
-
         let sourceDir = URL(fileURLWithPath: basePath)
         let class1Dir = sourceDir.appendingPathComponent(class1)
         let class2Dir = sourceDir.appendingPathComponent(class2)
-
-        let imageExtensions = Set(["jpg", "jpeg", "png"])
-
-        // 各クラスの画像ファイルを取得
-        let class1Files = try FileManager.default.contentsOfDirectory(at: class1Dir, includingPropertiesForKeys: nil)
-            .filter { imageExtensions.contains($0.pathExtension.lowercased()) }
-
-        let class2Files = try FileManager.default.contentsOfDirectory(at: class2Dir, includingPropertiesForKeys: nil)
-            .filter { imageExtensions.contains($0.pathExtension.lowercased()) }
-
-        print(
-            "📊 サンプリング: [\(class1)]=\(class1Files.count)枚, [\(class2)]=\(class2Files.count)枚 → サンプル枚数: \(class1Count)枚ずつ"
+        
+        // 各クラスの画像ファイルを取得（ここで1回だけフィルタリング）
+        let class1Files = try FileManager.default.contentsOfDirectory(
+            at: class1Dir,
+            includingPropertiesForKeys: nil
         )
+        .filter { Self.imageExtensions.contains($0.pathExtension.lowercased()) }
+        
+        let class2Files = try FileManager.default.contentsOfDirectory(
+            at: class2Dir,
+            includingPropertiesForKeys: nil
+        )
+        .filter { Self.imageExtensions.contains($0.pathExtension.lowercased()) }
+        
+        print("📊 \(class1): \(class1Files.count)枚, \(class2): \(class2Files.count)枚")
 
-        // 一時ディレクトリを作成
+        // 一時ディレクトリを準備
         let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(Self.tempBaseDirName)
         let tempClass1Dir = tempDir.appendingPathComponent(class1)
         let tempClass2Dir = tempDir.appendingPathComponent(class2)
 
-        // 既存の一時ディレクトリを削除
+        // 既存の一時ディレクトリをクリーンにする
         if FileManager.default.fileExists(atPath: tempDir.path) {
             try FileManager.default.removeItem(at: tempDir)
         }
 
-        // 一時ディレクトリを作成
         try FileManager.default.createDirectory(at: tempClass1Dir, withIntermediateDirectories: true)
         try FileManager.default.createDirectory(at: tempClass2Dir, withIntermediateDirectories: true)
 
-        // ランダムに選択してコピー
-        let shuffledClass1Files = class1Files.shuffled().prefix(class1Count)
-        let shuffledClass2Files = class2Files.shuffled().prefix(class2Count)
-
-        for (index, file) in shuffledClass1Files.enumerated() {
+        // 各クラスの画像をコピー
+        for (index, file) in class1Files.enumerated() {
             let destination = tempClass1Dir.appendingPathComponent("\(index).\(file.pathExtension)")
             try FileManager.default.copyItem(at: file, to: destination)
         }
 
-        for (index, file) in shuffledClass2Files.enumerated() {
+        for (index, file) in class2Files.enumerated() {
             let destination = tempClass2Dir.appendingPathComponent("\(index).\(file.pathExtension)")
             try FileManager.default.copyItem(at: file, to: destination)
         }

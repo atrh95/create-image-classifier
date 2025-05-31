@@ -5,6 +5,7 @@ import Foundation
 public struct CICIndividualModelReport {
     public let modelName: String
     public let positiveClassName: String
+    public let negativeClassName: String
     public let trainingAccuracyRate: Double
     public let validationAccuracyRate: Double
     public let confusionMatrix: CICBinaryConfusionMatrix?
@@ -12,12 +13,14 @@ public struct CICIndividualModelReport {
     public init(
         modelName: String,
         positiveClassName: String,
+        negativeClassName: String,
         trainingAccuracyRate: Double,
         validationAccuracyRate: Double,
         confusionMatrix: CICBinaryConfusionMatrix?
     ) {
         self.modelName = modelName
         self.positiveClassName = positiveClassName
+        self.negativeClassName = negativeClassName
         self.trainingAccuracyRate = trainingAccuracyRate
         self.validationAccuracyRate = validationAccuracyRate
         self.confusionMatrix = confusionMatrix
