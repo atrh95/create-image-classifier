@@ -10,7 +10,7 @@ final class OvOClassifierTests: XCTestCase {
     var classifier: OvOClassifier!
     let fileManager = FileManager.default
     let authorName: String = "Test Author"
-    let testModelName: String = "TestModel_OvO_Run"
+    let testModelName: String = "TestModel"
     let testModelVersion: String = "v1"
 
     let algorithm = MLImageClassifier.ModelParameters.ModelAlgorithmType.transferLearning(
@@ -51,23 +51,22 @@ final class OvOClassifierTests: XCTestCase {
             attributes: nil
         )
 
-        classifier = OvOClassifier(
-            outputDirectoryPathOverride: temporaryOutputDirectoryURL.path
-        )
-
-        // テストリソースディレクトリのパスを設定
-        let currentFileURL = URL(fileURLWithPath: #filePath)
-        classifier.testResourcesDirectoryPath = currentFileURL
-            .deletingLastPathComponent() // OvOClassificationTests.swift
+        let resourceDirectoryPath = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent() // OvOClassifierTests
             .appendingPathComponent("TestResources")
             .appendingPathComponent("OvO")
             .path
 
+        classifier = OvOClassifier(
+            outputDirectoryPathOverride: temporaryOutputDirectoryURL.path,
+            resourceDirPathOverride: resourceDirectoryPath
+        )
+
         // モデルの作成
         trainingResult = await classifier.create(
-            author: "TestAuthor",
-            modelName: "TestModel",
-            version: "v1",
+            author: authorName,
+            modelName: testModelName,
+            version: testModelVersion,
             modelParameters: modelParameters,
             scenePrintRevision: nil
         )
@@ -88,14 +87,14 @@ final class OvOClassifierTests: XCTestCase {
         }
         compiledModelURL = nil
         trainingResult = nil
-        classifier.testResourcesDirectoryPath = nil
+        classifier.resourceDirPathOverride = nil
         classifier = nil
         try super.tearDownWithError()
     }
 
     func testClassifierDIConfiguration() throws {
         XCTAssertNotNil(classifier, "OvOClassifierの初期化失敗")
-        XCTAssertEqual(classifier.outputDirPath, temporaryOutputDirectoryURL.path, "分類器の出力パスが期待値と不一致")
+        XCTAssertEqual(classifier.outputParentDirPath, temporaryOutputDirectoryURL.path, "分類器の出力パスが期待値と不一致")
     }
 
     func testModelTrainingAndArtifactGeneration() throws {
@@ -131,20 +130,21 @@ final class OvOClassifierTests: XCTestCase {
         let modelFilePath = result.metadata.trainedModelFilePath
         let modelFileName = URL(fileURLWithPath: modelFilePath).lastPathComponent
         
-        // 2クラスの場合は_vs_形式、それ以外は_区切りの形式を期待
-        let expectedFileNamePattern1: String
-        let expectedFileNamePattern2: String
-        if expectedClassLabels.count == 2 {
-            expectedFileNamePattern1 = "\(testModelName)_OvO_\(expectedClassLabels[0])_vs_\(expectedClassLabels[1])_\(testModelVersion).mlmodel"
-            expectedFileNamePattern2 = "\(testModelName)_OvO_\(expectedClassLabels[1])_vs_\(expectedClassLabels[0])_\(testModelVersion).mlmodel"
-            XCTAssertTrue(
-                modelFileName == expectedFileNamePattern1 || modelFileName == expectedFileNamePattern2,
-                "モデルファイル名が期待される形式と一致しません。\n期待値1: \(expectedFileNamePattern1)\n期待値2: \(expectedFileNamePattern2)\n実際: \(modelFileName)"
-            )
-        } else {
-            expectedFileNamePattern1 = "\(testModelName)_OvO_\(expectedClassLabels.joined(separator: "_"))_\(testModelVersion).mlmodel"
-            XCTAssertEqual(modelFileName, expectedFileNamePattern1, "モデルファイル名が期待される形式と一致しません")
+        // 期待されるクラスラベルの組み合わせを生成
+        var expectedFileNamePatterns: [String] = []
+        for i in 0..<expectedClassLabels.count {
+            for j in (i+1)..<expectedClassLabels.count {
+                let pattern1 = "\(testModelName)_OvO_\(expectedClassLabels[i])_vs_\(expectedClassLabels[j])_\(testModelVersion).mlmodel"
+                let pattern2 = "\(testModelName)_OvO_\(expectedClassLabels[j])_vs_\(expectedClassLabels[i])_\(testModelVersion).mlmodel"
+                expectedFileNamePatterns.append(pattern1)
+                expectedFileNamePatterns.append(pattern2)
+            }
         }
+
+        XCTAssertTrue(
+            expectedFileNamePatterns.contains(modelFileName),
+            "モデルファイル名が期待される形式と一致しません。\n期待値: \(expectedFileNamePatterns.joined(separator: "\n"))\n実際: \(modelFileName)"
+        )
         
         result.saveLog(modelAuthor: authorName, modelName: testModelName, modelVersion: testModelVersion)
         let modelFileDir = URL(fileURLWithPath: result.metadata.trainedModelFilePath).deletingLastPathComponent()
@@ -153,7 +153,6 @@ final class OvOClassifierTests: XCTestCase {
         XCTAssertTrue(fileManager.fileExists(atPath: expectedLogFilePath), "ログファイル「\(expectedLogFilePath)」が生成されていません")
 
         XCTAssertEqual(result.metadata.modelName, testModelName)
-        XCTAssertFalse(result.metadata.sourceTrainingDataDirectoryPath.isEmpty, "訓練データパスが空です")
     }
 
     func testModelCanPerformPrediction() async throws {
@@ -257,5 +256,41 @@ final class OvOClassifierTests: XCTestCase {
         }
 
         return randomFile
+    }
+
+    // 出力ディレクトリの連番を検証
+    func testSequentialOutputDirectoryNumbering() async throws {
+        // 1回目のモデル作成（setUpで実行済み）
+        guard let firstResult = trainingResult else {
+            XCTFail("1回目の訓練結果がnilです")
+            throw TestError.trainingFailed
+        }
+
+        let firstModelFileDir = URL(fileURLWithPath: firstResult.metadata.trainedModelFilePath).deletingLastPathComponent()
+
+        // 2回目のモデル作成を実行
+        let secondResult = await classifier.create(
+            author: "TestAuthor",
+            modelName: testModelName,
+            version: "v1",
+            modelParameters: modelParameters,
+            scenePrintRevision: nil
+        )
+
+        guard let secondResult = secondResult else {
+            XCTFail("2回目の訓練結果がnilです")
+            throw TestError.trainingFailed
+        }
+
+        let secondModelFileDir = URL(fileURLWithPath: secondResult.metadata.trainedModelFilePath).deletingLastPathComponent()
+        
+        // 連番の検証
+        let firstResultNumber = Int(firstModelFileDir.lastPathComponent.replacingOccurrences(of: "OvO_Result_", with: "")) ?? 0
+        let secondResultNumber = Int(secondModelFileDir.lastPathComponent.replacingOccurrences(of: "OvO_Result_", with: "")) ?? 0
+        XCTAssertEqual(
+            secondResultNumber,
+            firstResultNumber + 1,
+            "2回目の出力ディレクトリの連番が期待値と一致しません。\n1回目: \(firstResultNumber)\n2回目: \(secondResultNumber)"
+        )
     }
 }

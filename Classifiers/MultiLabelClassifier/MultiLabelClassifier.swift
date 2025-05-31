@@ -45,7 +45,10 @@ public final class MultiLabelClassifier: ClassifierProtocol {
             .path
     }
 
-    public init(outputDirectoryPathOverride: String? = nil, resourceDirPathOverride: String? = nil) {
+    public init(
+        outputDirectoryPathOverride: String? = nil,
+        resourceDirPathOverride: String? = nil
+    ) {
         self.outputDirectoryPathOverride = outputDirectoryPathOverride
         self.resourceDirPathOverride = resourceDirPathOverride
     }
@@ -256,7 +259,6 @@ public final class MultiLabelClassifier: ClassifierProtocol {
             modelName: modelName,
             trainingDurationInSeconds: trainingDurationSeconds,
             trainedModelFilePath: modelFilePath,
-            sourceTrainingDataDirectoryPath: resourcesDirectoryPath,
             detectedClassLabelsList: classLabelDirURLs.map(\.lastPathComponent),
             maxIterations: modelParameters.maxIterations,
             dataAugmentationDescription: augmentationFinalDescription,

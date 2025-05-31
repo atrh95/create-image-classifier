@@ -10,7 +10,7 @@ final class MultiLabelClassifierTests: XCTestCase {
     var classifier: MultiLabelClassifier!
     let fileManager = FileManager.default
     let authorName: String = "Test Author"
-    let testModelName: String = "TestModel_MultiLabel_Run"
+    let testModelName: String = "TestModel"
     let testModelVersion: String = "v1"
 
     let algorithm = MLImageClassifier.ModelParameters.ModelAlgorithmType.transferLearning(
@@ -50,23 +50,22 @@ final class MultiLabelClassifierTests: XCTestCase {
             attributes: nil
         )
 
-        classifier = MultiLabelClassifier(
-            outputDirectoryPathOverride: temporaryOutputDirectoryURL.path
-        )
-
-        // テストリソースディレクトリのパスを設定
-        let currentFileURL = URL(fileURLWithPath: #filePath)
-        classifier.testResourcesDirectoryPath = currentFileURL
-            .deletingLastPathComponent() // MultiLabelClassificationTests.swift
+        let resourceDirectoryPath = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent() // MultiLabelClassifierTests
             .appendingPathComponent("TestResources")
             .appendingPathComponent("MultiLabel")
             .path
 
+        classifier = MultiLabelClassifier(
+            outputDirectoryPathOverride: temporaryOutputDirectoryURL.path,
+            resourceDirPathOverride: resourceDirectoryPath
+        )
+
         // モデルの作成
         trainingResult = await classifier.create(
-            author: "TestAuthor",
-            modelName: "TestModel",
-            version: "v1",
+            author: authorName,
+            modelName: testModelName,
+            version: testModelVersion,
             modelParameters: modelParameters,
             scenePrintRevision: nil
         )
@@ -105,14 +104,14 @@ final class MultiLabelClassifierTests: XCTestCase {
         }
         compiledModelURL = nil
         trainingResult = nil
-        classifier.testResourcesDirectoryPath = nil
+        classifier.resourceDirPathOverride = nil
         classifier = nil
         try super.tearDownWithError()
     }
 
     func testClassifierDIConfiguration() {
         XCTAssertNotNil(classifier, "MultiLabelClassifierの初期化失敗")
-        XCTAssertEqual(classifier.outputDirPath, temporaryOutputDirectoryURL.path, "分類器の出力パスが期待値と不一致")
+        XCTAssertEqual(classifier.outputParentDirPath, temporaryOutputDirectoryURL.path, "分類器の出力パスが期待値と不一致")
     }
 
     func testModelTrainingAndArtifactGeneration() throws {
@@ -141,7 +140,25 @@ final class MultiLabelClassifierTests: XCTestCase {
         XCTAssertTrue(fileManager.fileExists(atPath: expectedLogFilePath), "ログファイル「\(expectedLogFilePath)」が生成されていません")
 
         XCTAssertEqual(result.metadata.modelName, testModelName)
-        XCTAssertFalse(result.metadata.sourceTrainingDataDirectoryPath.isEmpty, "訓練データパスが空です")
+
+        // モデルファイル名の検証
+        let modelFilePath = result.metadata.trainedModelFilePath
+        let modelFileName = URL(fileURLWithPath: modelFilePath).lastPathComponent
+        let expectedFileNamePattern = "\(testModelName)_MultiLabel_\(testModelVersion).mlmodel"
+        XCTAssertEqual(
+            modelFileName,
+            expectedFileNamePattern,
+            "モデルファイル名が期待される形式と一致しません。\n期待値: \(expectedFileNamePattern)\n実際: \(modelFileName)"
+        )
+
+        XCTAssertTrue(
+            result.metadata.trainedModelFilePath.contains(testModelVersion),
+            "モデルファイルのパスにバージョン「\(testModelVersion)」が含まれていません"
+        )
+        XCTAssertTrue(
+            result.metadata.trainedModelFilePath.contains(classifier.classificationMethod),
+            "モデルファイルのパスに分類手法「\(classifier.classificationMethod)」が含まれていません"
+        )
     }
 
     func testModelCanPerformPrediction() throws {
@@ -188,5 +205,41 @@ final class MultiLabelClassifierTests: XCTestCase {
                 .map { "\($0.identifier) (信頼度: \(String(format: "%.2f", $0.confidence)))" }.joined(separator: ", ")
             print("ファイル「\(imageFile.lastPathComponent)」の全予測ラベル: [\(allPredictedLabelsWithConfidence)]")
         }
+    }
+
+    // 出力ディレクトリの連番を検証
+    func testSequentialOutputDirectoryNumbering() async throws {
+        // 1回目のモデル作成（setUpで実行済み）
+        guard let firstResult = trainingResult else {
+            XCTFail("1回目の訓練結果がnilです")
+            throw TestError.trainingFailed
+        }
+
+        let firstModelFileDir = URL(fileURLWithPath: firstResult.metadata.trainedModelFilePath).deletingLastPathComponent()
+
+        // 2回目のモデル作成を実行
+        let secondResult = await classifier.create(
+            author: "TestAuthor",
+            modelName: testModelName,
+            version: "v1",
+            modelParameters: modelParameters,
+            scenePrintRevision: nil
+        )
+
+        guard let secondResult = secondResult else {
+            XCTFail("2回目の訓練結果がnilです")
+            throw TestError.trainingFailed
+        }
+
+        let secondModelFileDir = URL(fileURLWithPath: secondResult.metadata.trainedModelFilePath).deletingLastPathComponent()
+        
+        // 連番の検証
+        let firstResultNumber = Int(firstModelFileDir.lastPathComponent.replacingOccurrences(of: "MultiLabel_Result_", with: "")) ?? 0
+        let secondResultNumber = Int(secondModelFileDir.lastPathComponent.replacingOccurrences(of: "MultiLabel_Result_", with: "")) ?? 0
+        XCTAssertEqual(
+            secondResultNumber,
+            firstResultNumber + 1,
+            "2回目の出力ディレクトリの連番が期待値と一致しません。\n1回目: \(firstResultNumber)\n2回目: \(secondResultNumber)"
+        )
     }
 }

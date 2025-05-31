@@ -9,7 +9,6 @@ public protocol ClassifierProtocol {
     var outputParentDirPath: String { get }
     var classificationMethod: String { get }
     var resourcesDirectoryPath: String { get }
-    var testResourcesDirectoryPath: String? { get set }
     var outputDirectoryPathOverride: String? { get set }
     var resourceDirPathOverride: String? { get set }
 

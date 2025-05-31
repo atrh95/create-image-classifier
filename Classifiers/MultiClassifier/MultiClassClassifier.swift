@@ -43,7 +43,10 @@ public final class MultiClassClassifier: ClassifierProtocol {
 
     public var classificationMethod: String { "MultiClass" }
 
-    public init(outputDirectoryPathOverride: String? = nil, resourceDirPathOverride: String? = nil) {
+    public init(
+        outputDirectoryPathOverride: String? = nil,
+        resourceDirPathOverride: String? = nil
+    ) {
         self.outputDirectoryPathOverride = outputDirectoryPathOverride
         self.resourceDirPathOverride = resourceDirPathOverride
     }
@@ -254,7 +257,6 @@ public final class MultiClassClassifier: ClassifierProtocol {
             modelName: modelName,
             trainingDurationInSeconds: trainingDurationSeconds,
             trainedModelFilePath: modelFilePath,
-            sourceTrainingDataDirectoryPath: resourcesDirectoryPath,
             detectedClassLabelsList: classLabelDirURLs.map(\.lastPathComponent),
             maxIterations: modelParameters.maxIterations,
             dataAugmentationDescription: augmentationFinalDescription,

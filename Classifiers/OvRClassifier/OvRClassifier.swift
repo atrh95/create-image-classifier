@@ -45,7 +45,10 @@ public final class OvRClassifier: ClassifierProtocol {
             .path
     }
 
-    public init(outputDirectoryPathOverride: String? = nil, resourceDirPathOverride: String? = nil) {
+    public init(
+        outputDirectoryPathOverride: String? = nil,
+        resourceDirPathOverride: String? = nil
+    ) {
         self.outputDirectoryPathOverride = outputDirectoryPathOverride
         self.resourceDirPathOverride = resourceDirPathOverride
     }
@@ -115,13 +118,6 @@ public final class OvRClassifier: ClassifierProtocol {
 
             // 出力ディレクトリの設定
             let outputDirectoryURL = try setupOutputDirectory(modelName: modelName, version: version)
-
-            // クラスラベルを取得してファイル名を生成
-            let classLabels = classLabelDirURLs.map { $0.lastPathComponent }
-
-            // OvRの場合は、Oneのクラス名のみを使用
-            let oneClassLabel = classLabels.first ?? ""
-            let modelFileName = "\(modelName)_\(classificationMethod)_\(oneClassLabel)_\(version).mlmodel"
 
             // クラスラベルを取得してファイル名を生成
             let classLabels = classLabelDirURLs.map { $0.lastPathComponent }
@@ -272,7 +268,6 @@ public final class OvRClassifier: ClassifierProtocol {
             modelName: modelName,
             trainingDurationInSeconds: trainingDurationSeconds,
             trainedModelFilePath: modelFilePath,
-            sourceTrainingDataDirectoryPath: resourcesDirectoryPath,
             detectedClassLabelsList: classLabelDirURLs.map(\.lastPathComponent),
             maxIterations: modelParameters.maxIterations,
             dataAugmentationDescription: augmentationFinalDescription,

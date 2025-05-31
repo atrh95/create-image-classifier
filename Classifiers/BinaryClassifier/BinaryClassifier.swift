@@ -98,7 +98,7 @@ public final class BinaryClassifier: ClassifierProtocol {
             if let confusionMatrix {
                 print(String(
                     format: "  検証正解率: %.1f%%",
-                    confusionMatrix.accuracy * 100.0
+                    (1.0 - validationMetrics.classificationError) * 100.0
                 ))
                 print(confusionMatrix.getMatrixGraph())
             } else {
@@ -175,10 +175,9 @@ public final class BinaryClassifier: ClassifierProtocol {
         return classLabelDirURLs
     }
 
-    public func prepareTrainingData(from classLabelDirURLs: [URL]) throws -> MLImageClassifier.DataSource {
-        let trainingDataParentDirURL = classLabelDirURLs[0].deletingLastPathComponent()
-        print("📁 トレーニングデータ親ディレクトリ: \(trainingDataParentDirURL.path)")
-        return MLImageClassifier.DataSource.labeledDirectories(at: trainingDataParentDirURL)
+    public func prepareTrainingData(from _: [URL]) throws -> MLImageClassifier.DataSource {
+        print("📁 トレーニングデータ親ディレクトリ: \(resourcesDirectoryPath)")
+        return MLImageClassifier.DataSource.labeledDirectories(at: URL(fileURLWithPath: resourcesDirectoryPath))
     }
 
     public func trainModel(
@@ -261,7 +260,6 @@ public final class BinaryClassifier: ClassifierProtocol {
             modelName: modelName,
             trainingDurationInSeconds: trainingDurationSeconds,
             trainedModelFilePath: modelFilePath,
-            sourceTrainingDataDirectoryPath: classLabelDirURLs[0].deletingLastPathComponent().path,
             detectedClassLabelsList: classLabelDirURLs.map(\.lastPathComponent),
             maxIterations: modelParameters.maxIterations,
             dataAugmentationDescription: augmentationFinalDescription,

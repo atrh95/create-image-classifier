@@ -10,7 +10,7 @@ final class OvRClassifierTests: XCTestCase {
     var classifier: OvRClassifier!
     let fileManager = FileManager.default
     let authorName: String = "Test Author"
-    let testModelName: String = "TestModel_OvR_Run"
+    let testModelName: String = "TestModel"
     let testModelVersion: String = "v1"
 
     let algorithm = MLImageClassifier.ModelParameters.ModelAlgorithmType.transferLearning(
@@ -51,23 +51,22 @@ final class OvRClassifierTests: XCTestCase {
             attributes: nil
         )
 
-        classifier = OvRClassifier(
-            outputDirectoryPathOverride: temporaryOutputDirectoryURL.path
-        )
-
-        // テストリソースディレクトリのパスを設定
-        let currentFileURL = URL(fileURLWithPath: #filePath)
-        classifier.testResourcesDirectoryPath = currentFileURL
-            .deletingLastPathComponent() // OvRClassificationTests.swift
+        let resourceDirectoryPath = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent() // OvRClassifierTests
             .appendingPathComponent("TestResources")
             .appendingPathComponent("OvR")
             .path
 
+        classifier = OvRClassifier(
+            outputDirectoryPathOverride: temporaryOutputDirectoryURL.path,
+            resourceDirPathOverride: resourceDirectoryPath
+        )
+
         // モデルの作成
         trainingResult = await classifier.create(
-            author: "TestAuthor",
-            modelName: "TestModel",
-            version: "v1",
+            author: authorName,
+            modelName: testModelName,
+            version: testModelVersion,
             modelParameters: modelParameters,
             scenePrintRevision: nil
         )
@@ -88,14 +87,14 @@ final class OvRClassifierTests: XCTestCase {
         }
         compiledModelURL = nil
         trainingResult = nil
-        classifier.testResourcesDirectoryPath = nil
+        classifier.resourceDirPathOverride = nil
         classifier = nil
         try super.tearDownWithError()
     }
 
     func testClassifierDIConfiguration() throws {
         XCTAssertNotNil(classifier, "OvRClassifierの初期化失敗")
-        XCTAssertEqual(classifier.outputDirPath, temporaryOutputDirectoryURL.path, "分類器の出力パスが期待値と不一致")
+        XCTAssertEqual(classifier.outputParentDirPath, temporaryOutputDirectoryURL.path, "分類器の出力パスが期待値と不一致")
     }
 
     func testModelTrainingAndArtifactGeneration() throws {
@@ -132,15 +131,23 @@ final class OvRClassifierTests: XCTestCase {
         let modelFilePath = result.metadata.trainedModelFilePath
         let modelFileName = URL(fileURLWithPath: modelFilePath).lastPathComponent
         
-        // クラスラベルを取得して期待されるファイル名パターンを生成
-        let sortedClassLabels = expectedClassLabels.sorted()
-        let expectedFileNamePatterns = sortedClassLabels.map { classLabel in
+        // OvR分類器では各クラスに対して1つの分類器を作成するため、各クラス名を含むパターンを期待
+        let expectedFileNamePatterns = expectedClassLabels.map { classLabel in
             "\(testModelName)_OvR_\(classLabel)_\(testModelVersion).mlmodel"
         }
         
         XCTAssertTrue(
             expectedFileNamePatterns.contains(modelFileName),
-            "モデルファイル名が期待される形式と一致しません。\n期待値: \(expectedFileNamePatterns.joined(separator: " または "))\n実際: \(modelFileName)"
+            "モデルファイル名が期待される形式と一致しません。\n期待値: \(expectedFileNamePatterns.joined(separator: "\n"))\n実際: \(modelFileName)"
+        )
+
+        XCTAssertTrue(
+            result.modelOutputPath.contains(testModelVersion),
+            "モデルファイルのパスにバージョン「\(testModelVersion)」が含まれていません"
+        )
+        XCTAssertTrue(
+            result.modelOutputPath.contains(classifier.classificationMethod),
+            "モデルファイルのパスに分類手法「\(classifier.classificationMethod)」が含まれていません"
         )
 
         result.saveLog(modelAuthor: authorName, modelName: testModelName, modelVersion: testModelVersion)
@@ -150,7 +157,6 @@ final class OvRClassifierTests: XCTestCase {
         XCTAssertTrue(fileManager.fileExists(atPath: expectedLogFilePath), "ログファイル「\(expectedLogFilePath)」が生成されていません")
 
         XCTAssertEqual(result.metadata.modelName, testModelName)
-        XCTAssertFalse(result.metadata.sourceTrainingDataDirectoryPath.isEmpty, "訓練データパスが空です")
     }
 
     func testModelCanPerformPrediction() async throws {
@@ -251,5 +257,41 @@ final class OvRClassifierTests: XCTestCase {
         }
 
         return randomFile
+    }
+
+    // 出力ディレクトリの連番を検証
+    func testSequentialOutputDirectoryNumbering() async throws {
+        // 1回目のモデル作成（setUpで実行済み）
+        guard let firstResult = trainingResult else {
+            XCTFail("1回目の訓練結果がnilです")
+            throw TestError.trainingFailed
+        }
+
+        let firstModelFileDir = URL(fileURLWithPath: firstResult.metadata.trainedModelFilePath).deletingLastPathComponent()
+
+        // 2回目のモデル作成を実行
+        let secondResult = await classifier.create(
+            author: "TestAuthor",
+            modelName: testModelName,
+            version: "v1",
+            modelParameters: modelParameters,
+            scenePrintRevision: nil
+        )
+
+        guard let secondResult = secondResult else {
+            XCTFail("2回目の訓練結果がnilです")
+            throw TestError.trainingFailed
+        }
+
+        let secondModelFileDir = URL(fileURLWithPath: secondResult.metadata.trainedModelFilePath).deletingLastPathComponent()
+        
+        // 連番の検証
+        let firstResultNumber = Int(firstModelFileDir.lastPathComponent.replacingOccurrences(of: "OvR_Result_", with: "")) ?? 0
+        let secondResultNumber = Int(secondModelFileDir.lastPathComponent.replacingOccurrences(of: "OvR_Result_", with: "")) ?? 0
+        XCTAssertEqual(
+            secondResultNumber,
+            firstResultNumber + 1,
+            "2回目の出力ディレクトリの連番が期待値と一致しません。\n1回目: \(firstResultNumber)\n2回目: \(secondResultNumber)"
+        )
     }
 }

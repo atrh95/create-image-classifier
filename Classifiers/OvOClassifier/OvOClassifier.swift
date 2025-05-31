@@ -45,7 +45,10 @@ public final class OvOClassifier: ClassifierProtocol {
             .path
     }
 
-    public init(outputDirectoryPathOverride: String? = nil, resourceDirPathOverride: String? = nil) {
+    public init(
+        outputDirectoryPathOverride: String? = nil,
+        resourceDirPathOverride: String? = nil
+    ) {
         self.outputDirectoryPathOverride = outputDirectoryPathOverride
         self.resourceDirPathOverride = resourceDirPathOverride
     }
@@ -66,80 +69,124 @@ public final class OvOClassifier: ClassifierProtocol {
             // クラスラベルディレクトリの取得
             let classLabelDirURLs = try getClassLabelDirectories()
 
-            // トレーニングデータの準備
-            let trainingDataSource = try prepareTrainingData(from: classLabelDirURLs)
-            print("📊 トレーニングデータソース作成完了")
-
-            // モデルのトレーニング
-            let (imageClassifier, trainingDurationSeconds) = try trainModel(
-                trainingDataSource: trainingDataSource,
-                modelParameters: modelParameters
-            )
-
-            let trainingMetrics = imageClassifier.trainingMetrics
-            let validationMetrics = imageClassifier.validationMetrics
-
-            // 混同行列の計算
-            let confusionMatrix = CICMultiClassConfusionMatrix(
-                dataTable: validationMetrics.confusion,
-                predictedColumn: "Predicted",
-                actualColumn: "True Label"
-            )
-
-            // トレーニング結果の表示
-            print("\n📊 トレーニング結果サマリー")
-            print(String(
-                format: "  訓練正解率: %.1f%%",
-                (1.0 - trainingMetrics.classificationError) * 100.0
-            ))
-
-            if let confusionMatrix {
-                print(String(
-                    format: "  検証正解率: %.1f%%",
-                    (1.0 - validationMetrics.classificationError) * 100.0
-                ))
-                print(confusionMatrix.getMatrixGraph())
-            } else {
-                print("⚠️ 警告: 検証データが不十分なため、混同行列の計算をスキップしました")
+            // クラスラベルを取得して組み合わせを生成
+            let classLabels = classLabelDirURLs.map { $0.lastPathComponent }
+            
+            // nC2の組み合わせを生成
+            var combinations: [(String, String)] = []
+            for i in 0..<classLabels.count {
+                for j in (i+1)..<classLabels.count {
+                    combinations.append((classLabels[i], classLabels[j]))
+                }
             }
-
-            // モデルのメタデータ作成
-            let modelMetadata = createModelMetadata(
-                author: author,
-                version: version,
-                classLabelDirURLs: classLabelDirURLs,
-                trainingMetrics: trainingMetrics,
-                validationMetrics: validationMetrics,
-                modelParameters: modelParameters
-            )
 
             // 出力ディレクトリの設定
             let outputDirectoryURL = try setupOutputDirectory(modelName: modelName, version: version)
 
-            // クラスラベルを取得してファイル名を生成
-            let classLabels = classLabelDirURLs.map { $0.lastPathComponent }
+            // 各組み合わせに対してモデルを生成
+            var modelFilePaths: [String] = []
+            var individualModelReports: [CICIndividualModelReport] = []
+            var totalTrainingDuration: TimeInterval = 0
+            var firstModelTrainingMetrics: MLClassifierMetrics?
+            var firstModelValidationMetrics: MLClassifierMetrics?
 
-            // OvOの場合は、クラス間の対戦を表す形式に変換
-            let classLabelsString = classLabels.joined(separator: "_vs_")
+            for (class1, class2) in combinations {
+                print("🔄 クラス組み合わせ [\(class1) vs \(class2)] のモデル作成開始...")
 
-            let modelFileName = "\(modelName)_\(classificationMethod)_\(classLabelsString)_\(version).mlmodel"
+                // 2クラスのデータセットを準備
+                let twoClassDataSource = try prepareTwoClassTrainingData(
+                    class1: class1,
+                    class2: class2,
+                    basePath: resourcesDirectoryPath
+                )
 
-            let modelFilePath = try saveMLModel(
-                imageClassifier: imageClassifier,
-                modelName: modelName,
-                modelFileName: modelFileName,
-                version: version,
-                outputDirectoryURL: outputDirectoryURL,
-                metadata: modelMetadata
-            )
+                // 2クラス用のモデルを訓練
+                let (imageClassifier, trainingDurationSeconds) = try trainModel(
+                    trainingDataSource: twoClassDataSource,
+                    modelParameters: modelParameters
+                )
+
+                let currentTrainingMetrics = imageClassifier.trainingMetrics
+                let currentValidationMetrics = imageClassifier.validationMetrics
+
+                // 最初のモデルのメトリクスを保存
+                if firstModelTrainingMetrics == nil {
+                    firstModelTrainingMetrics = currentTrainingMetrics
+                    firstModelValidationMetrics = currentValidationMetrics
+                }
+
+                // 2クラス用のメタデータを作成
+                let twoClassMetadata = createModelMetadata(
+                    author: author,
+                    version: version,
+                    classLabelDirURLs: [
+                        URL(fileURLWithPath: resourcesDirectoryPath).appendingPathComponent(class1),
+                        URL(fileURLWithPath: resourcesDirectoryPath).appendingPathComponent(class2)
+                    ],
+                    trainingMetrics: currentTrainingMetrics,
+                    validationMetrics: currentValidationMetrics,
+                    modelParameters: modelParameters
+                )
+
+                // モデルファイルを保存
+                let modelFileName = "\(modelName)_\(classificationMethod)_\(class1)_vs_\(class2)_\(version).mlmodel"
+                let modelFilePath = try saveMLModel(
+                    imageClassifier: imageClassifier,
+                    modelName: modelName,
+                    modelFileName: modelFileName,
+                    version: version,
+                    outputDirectoryURL: outputDirectoryURL,
+                    metadata: twoClassMetadata
+                )
+
+                // 個別モデルのレポートを作成
+                let confusionMatrix = CICBinaryConfusionMatrix(
+                    dataTable: currentValidationMetrics.confusion,
+                    predictedColumn: "Predicted",
+                    actualColumn: "True Label",
+                    positiveClass: class2
+                )
+
+                let report = CICIndividualModelReport(
+                    modelName: modelName,
+                    positiveClassName: class2,
+                    trainingAccuracyRate: 1.0 - currentTrainingMetrics.classificationError,
+                    validationAccuracyPercentage: 1.0 - currentValidationMetrics.classificationError,
+                    confusionMatrix: confusionMatrix
+                )
+
+                modelFilePaths.append(modelFilePath)
+                individualModelReports.append(report)
+                totalTrainingDuration += trainingDurationSeconds
+
+                print("✅ クラス組み合わせ [\(class1) vs \(class2)] のモデル作成完了")
+            }
+
+            // トレーニング結果の表示
+            print("\n📊 トレーニング結果サマリー")
+            if let firstModelTrainingMetrics {
+                print(String(
+                    format: "  訓練正解率: %.1f%%",
+                    (1.0 - firstModelTrainingMetrics.classificationError) * 100.0
+                ))
+            }
+            if let firstModelValidationMetrics {
+                print(String(
+                    format: "  検証正解率: %.1f%%",
+                    (1.0 - firstModelValidationMetrics.classificationError) * 100.0
+                ))
+            }
+
+            // 最初のモデルファイルパスを返す（後方互換性のため）
+            let modelFilePath = modelFilePaths[0]
 
             return createTrainingResult(
                 modelName: modelName,
                 classLabelDirURLs: classLabelDirURLs,
-                trainingMetrics: trainingMetrics,
-                validationMetrics: validationMetrics,
+                trainingMetrics: firstModelTrainingMetrics!,
+                validationMetrics: firstModelValidationMetrics!,
                 modelParameters: modelParameters,
-                trainingDurationSeconds: trainingDurationSeconds,
+                trainingDurationSeconds: totalTrainingDuration,
                 modelFilePath: modelFilePath
             )
 
@@ -181,9 +228,10 @@ public final class OvOClassifier: ClassifierProtocol {
         return classLabelDirURLs
     }
 
-    public func prepareTrainingData(from _: [URL]) throws -> MLImageClassifier.DataSource {
-        print("📁 トレーニングデータ親ディレクトリ: \(resourcesDirectoryPath)")
-        return MLImageClassifier.DataSource.labeledDirectories(at: URL(fileURLWithPath: resourcesDirectoryPath))
+    public func prepareTrainingData(from classLabelDirURLs: [URL]) throws -> MLImageClassifier.DataSource {
+        let trainingDataParentDirURL = classLabelDirURLs[0].deletingLastPathComponent()
+        print("📁 トレーニングデータ親ディレクトリ: \(trainingDataParentDirURL.path)")
+        return MLImageClassifier.DataSource.labeledDirectories(at: trainingDataParentDirURL)
     }
 
     public func trainModel(
@@ -236,7 +284,6 @@ public final class OvOClassifier: ClassifierProtocol {
         outputDirectoryURL: URL,
         metadata: MLModelMetadata
     ) throws -> String {
-        let modelFileName = "\(modelName)_\(classificationMethod)_\(version).mlmodel"
         let modelFilePath = outputDirectoryURL.appendingPathComponent(modelFileName).path
 
         print("💾 モデルファイル保存中: \(modelFilePath)")
@@ -267,7 +314,6 @@ public final class OvOClassifier: ClassifierProtocol {
             modelName: modelName,
             trainingDurationInSeconds: trainingDurationSeconds,
             trainedModelFilePath: modelFilePath,
-            sourceTrainingDataDirectoryPath: resourcesDirectoryPath,
             detectedClassLabelsList: classLabelDirURLs.map(\.lastPathComponent),
             maxIterations: modelParameters.maxIterations,
             dataAugmentationDescription: augmentationFinalDescription,
@@ -293,5 +339,10 @@ public final class OvOClassifier: ClassifierProtocol {
             confusionMatrix: confusionMatrix,
             individualModelReports: []
         )
+    }
+
+    private func prepareTwoClassTrainingData(class1: String, class2: String, basePath: String) throws -> MLImageClassifier.DataSource {
+        let sourceDir = URL(fileURLWithPath: basePath)
+        return MLImageClassifier.DataSource.labeledDirectories(at: sourceDir)
     }
 }
