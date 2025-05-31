@@ -16,7 +16,7 @@ public final class CICBinaryConfusionMatrix {
     ) -> Bool {
         // データの有効性チェック
         guard !dataTable.rows.isEmpty else {
-            print("❌ エラー: データテーブルが空です")
+            print("⚠️ データテーブルが空です")
             return false
         }
 
@@ -58,7 +58,6 @@ public final class CICBinaryConfusionMatrix {
 
         // ラベルの取得とソート
         let labelSet = Set(dataTable.rows.compactMap { $0[actualColumn]?.stringValue })
-        let sortedLabels = Array(labelSet).sorted()
 
         // 混同行列の初期化
         matrix = Array(repeating: Array(repeating: 0, count: 2), count: 2)
@@ -121,11 +120,11 @@ public final class CICBinaryConfusionMatrix {
         var result = ""
 
         // ヘッダー行
-        result += "Actual\\Predicted\tPositive\tNegative\n"
+        result += "Actual\\Predicted | Positive | Negative\n"
 
         // 各行（Positive->Negativeの順）
-        result += "Positive\t\(matrix[1][1])\t\(matrix[1][0])\n"
-        result += "Negative\t\(matrix[0][1])\t\(matrix[0][0])\n"
+        result += "Positive | \(matrix[1][1]) | \(matrix[1][0])\n"
+        result += "Negative | \(matrix[0][1]) | \(matrix[0][0])\n"
 
         return result
     }

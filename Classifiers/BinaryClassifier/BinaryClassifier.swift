@@ -11,9 +11,13 @@ public final class BinaryClassifier: ClassifierProtocol {
 
     private let fileManager: CICFileManager
     public var outputDirectoryPathOverride: String?
-    public var testResourcesDirectoryPath: String?
+    public var resourceDirPathOverride: String?
+    private var classImageCounts: [String: Int] = [:]
 
-    public var outputDirPath: String {
+    private static let imageExtensions = Set(["jpg", "jpeg", "png"])
+    private static let tempBaseDirName = "TempBinaryTrainingData"
+
+    public var outputParentDirPath: String {
         if let override = outputDirectoryPathOverride {
             return override
         }
@@ -21,14 +25,15 @@ public final class BinaryClassifier: ClassifierProtocol {
         return currentFileURL
             .deletingLastPathComponent() // BinaryClassifier
             .deletingLastPathComponent() // Classifiers
+            .deletingLastPathComponent() // Project root
             .appendingPathComponent("CICOutputModels")
             .appendingPathComponent("BinaryClassifier")
             .path
     }
 
     public var resourcesDirectoryPath: String {
-        if let testPath = testResourcesDirectoryPath {
-            return testPath
+        if let override = resourceDirPathOverride {
+            return override
         }
         let currentFileURL = URL(fileURLWithPath: #filePath)
         return currentFileURL
@@ -42,20 +47,24 @@ public final class BinaryClassifier: ClassifierProtocol {
 
     public var classificationMethod: String { "Binary" }
 
-    public init(outputDirectoryPathOverride: String? = nil, fileManager: CICFileManager = CICFileManager()) {
+    public init(
+        outputDirectoryPathOverride: String? = nil,
+        resourceDirPathOverride: String? = nil,
+        fileManager: CICFileManager = CICFileManager()
+    ) {
         self.outputDirectoryPathOverride = outputDirectoryPathOverride
+        self.resourceDirPathOverride = resourceDirPathOverride
         self.fileManager = fileManager
     }
 
-    public func train(
+    public func create(
         author: String,
         modelName: String,
         version: String,
-        modelParameters: CreateML.MLImageClassifier.ModelParameters,
-        scenePrintRevision: Int?
+        modelParameters: CreateML.MLImageClassifier.ModelParameters
     ) async -> BinaryTrainingResult? {
         print("📁 リソースディレクトリ: \(resourcesDirectoryPath)")
-        print("🚀 Binaryトレーニング開始 (バージョン: \(version))...")
+        print("🚀 Binaryモデル作成開始 (バージョン: \(version))...")
 
         do {
             // クラスラベルディレクトリの取得
@@ -92,7 +101,7 @@ public final class BinaryClassifier: ClassifierProtocol {
             if let confusionMatrix {
                 print(String(
                     format: "  検証正解率: %.1f%%",
-                    confusionMatrix.accuracy * 100.0
+                    (1.0 - validationMetrics.classificationError) * 100.0
                 ))
                 print(confusionMatrix.getMatrixGraph())
             } else {
@@ -106,20 +115,33 @@ public final class BinaryClassifier: ClassifierProtocol {
                 classLabelDirURLs: classLabelDirURLs,
                 trainingMetrics: trainingMetrics,
                 validationMetrics: validationMetrics,
-                modelParameters: modelParameters,
-                scenePrintRevision: scenePrintRevision
+                modelParameters: modelParameters
             )
 
             // 出力ディレクトリの設定
             let outputDirectoryURL = try setupOutputDirectory(modelName: modelName, version: version)
 
-            let modelFilePath = try saveModel(
+            let modelFilePath = try saveMLModel(
                 imageClassifier: imageClassifier,
                 modelName: modelName,
+                modelFileName: "\(modelName)_\(classificationMethod)_\(version).mlmodel",
                 version: version,
                 outputDirectoryURL: outputDirectoryURL,
                 metadata: modelMetadata
             )
+
+            // モデルの性能を表示
+            print("\n📊 モデルの性能")
+            print("+------------------+------------------+------------------+------------------+------------------+")
+            print("| 訓練正解率       | 検証正解率       | 再現率           | 適合率           | F1スコア         |")
+            print("+------------------+------------------+------------------+------------------+------------------+")
+            let recall = confusionMatrix?.recall ?? 0.0
+            let precision = confusionMatrix?.precision ?? 0.0
+            let f1Score = confusionMatrix?.f1Score ?? 0.0
+            print(
+                "| \(String(format: "%14.1f%%", (1.0 - trainingMetrics.classificationError) * 100.0)) | \(String(format: "%14.1f%%", (1.0 - validationMetrics.classificationError) * 100.0)) | \(String(format: "%14.1f%%", recall * 100.0)) | \(String(format: "%14.1f%%", precision * 100.0)) | \(String(format: "%14.3f", f1Score)) |"
+            )
+            print("+------------------+------------------+------------------+------------------+------------------+")
 
             return createTrainingResult(
                 modelName: modelName,
@@ -127,7 +149,6 @@ public final class BinaryClassifier: ClassifierProtocol {
                 trainingMetrics: trainingMetrics,
                 validationMetrics: validationMetrics,
                 modelParameters: modelParameters,
-                scenePrintRevision: scenePrintRevision,
                 trainingDurationSeconds: trainingDurationSeconds,
                 modelFilePath: modelFilePath
             )
@@ -151,7 +172,7 @@ public final class BinaryClassifier: ClassifierProtocol {
             modelName: modelName,
             version: version,
             classificationMethod: classificationMethod,
-            moduleOutputPath: outputDirPath
+            moduleOutputPath: outputParentDirPath
         )
         print("📁 出力ディレクトリ作成成功: \(outputDirectoryURL.path)")
         return outputDirectoryURL
@@ -173,6 +194,19 @@ public final class BinaryClassifier: ClassifierProtocol {
     public func prepareTrainingData(from classLabelDirURLs: [URL]) throws -> MLImageClassifier.DataSource {
         let trainingDataParentDirURL = classLabelDirURLs[0].deletingLastPathComponent()
         print("📁 トレーニングデータ親ディレクトリ: \(trainingDataParentDirURL.path)")
+        
+        // 各クラスの画像枚数を効率的にカウント
+        for classDir in classLabelDirURLs {
+            let className = classDir.lastPathComponent
+            let files = try FileManager.default.contentsOfDirectory(
+                at: classDir,
+                includingPropertiesForKeys: nil
+            )
+            let count = files.filter { Self.imageExtensions.contains($0.pathExtension.lowercased()) }.count
+            classImageCounts[className] = count
+            print("📊 \(className): \(count)枚")
+        }
+        
         return MLImageClassifier.DataSource.labeledDirectories(at: trainingDataParentDirURL)
     }
 
@@ -195,8 +229,7 @@ public final class BinaryClassifier: ClassifierProtocol {
         classLabelDirURLs: [URL],
         trainingMetrics: MLClassifierMetrics,
         validationMetrics: MLClassifierMetrics,
-        modelParameters: CreateML.MLImageClassifier.ModelParameters,
-        scenePrintRevision: Int?
+        modelParameters: CreateML.MLImageClassifier.ModelParameters
     ) -> MLModelMetadata {
         let augmentationFinalDescription = if !modelParameters.augmentationOptions.isEmpty {
             String(describing: modelParameters.augmentationOptions)
@@ -205,33 +238,54 @@ public final class BinaryClassifier: ClassifierProtocol {
         }
 
         let featureExtractorDescription = String(describing: modelParameters.featureExtractor)
-        let featureExtractorDesc: String = if let revision = scenePrintRevision {
-            "\(featureExtractorDescription)(revision: \(revision))"
-        } else {
-            featureExtractorDescription
+
+        // 混同行列から再現率と適合率を計算
+        let confusionMatrix = CICBinaryConfusionMatrix(
+            dataTable: validationMetrics.confusion,
+            predictedColumn: "Predicted",
+            actualColumn: "True Label",
+            positiveClass: classLabelDirURLs[1].lastPathComponent
+        )
+
+        var metricsDescription = """
+        \(classLabelDirURLs.map { "\($0.lastPathComponent): \(classImageCounts[$0.lastPathComponent] ?? 0)枚" }.joined(separator: ", "))
+        訓練正解率: \(String(format: "%.1f%%", (1.0 - trainingMetrics.classificationError) * 100.0))
+        検証正解率: \(String(format: "%.1f%%", (1.0 - validationMetrics.classificationError) * 100.0))
+        """
+
+        if let confusionMatrix {
+            let recall = confusionMatrix.recall
+            let precision = confusionMatrix.precision
+            let f1Score = confusionMatrix.f1Score
+            metricsDescription += """
+
+            再現率: \(String(format: "%.1f%%", recall * 100.0))
+            適合率: \(String(format: "%.1f%%", precision * 100.0))
+            F1スコア: \(String(format: "%.3f", f1Score))
+            """
         }
+
+        metricsDescription += """
+
+        データ拡張: \(augmentationFinalDescription)
+        特徴抽出器: \(featureExtractorDescription)
+        """
 
         return MLModelMetadata(
             author: author,
-            shortDescription: """
-            クラス: \(classLabelDirURLs.map(\.lastPathComponent).joined(separator: ", "))
-            訓練正解率: \(String(format: "%.1f%%", (1.0 - trainingMetrics.classificationError) * 100.0))
-            検証正解率: \(String(format: "%.1f%%", (1.0 - validationMetrics.classificationError) * 100.0))
-            データ拡張: \(augmentationFinalDescription)
-            特徴抽出器: \(featureExtractorDesc)
-            """,
+            shortDescription: metricsDescription,
             version: version
         )
     }
 
-    public func saveModel(
+    public func saveMLModel(
         imageClassifier: MLImageClassifier,
-        modelName: String,
-        version: String,
+        modelName _: String,
+        modelFileName: String,
+        version _: String,
         outputDirectoryURL: URL,
         metadata: MLModelMetadata
     ) throws -> String {
-        let modelFileName = "\(modelName)_\(classificationMethod)_\(version).mlmodel"
         let modelFilePath = outputDirectoryURL.appendingPathComponent(modelFileName).path
 
         print("💾 モデルファイル保存中: \(modelFilePath)")
@@ -247,7 +301,6 @@ public final class BinaryClassifier: ClassifierProtocol {
         trainingMetrics: MLClassifierMetrics,
         validationMetrics: MLClassifierMetrics,
         modelParameters: CreateML.MLImageClassifier.ModelParameters,
-        scenePrintRevision: Int?,
         trainingDurationSeconds: TimeInterval,
         modelFilePath: String
     ) -> BinaryTrainingResult {
@@ -258,21 +311,15 @@ public final class BinaryClassifier: ClassifierProtocol {
         }
 
         let featureExtractorDescription = String(describing: modelParameters.featureExtractor)
-        let featureExtractorDesc: String = if let revision = scenePrintRevision {
-            "\(featureExtractorDescription)(revision: \(revision))"
-        } else {
-            featureExtractorDescription
-        }
 
         let metadata = CICTrainingMetadata(
             modelName: modelName,
             trainingDurationInSeconds: trainingDurationSeconds,
             trainedModelFilePath: modelFilePath,
-            sourceTrainingDataDirectoryPath: classLabelDirURLs[0].deletingLastPathComponent().path,
             detectedClassLabelsList: classLabelDirURLs.map(\.lastPathComponent),
             maxIterations: modelParameters.maxIterations,
             dataAugmentationDescription: augmentationFinalDescription,
-            featureExtractorDescription: featureExtractorDesc
+            featureExtractorDescription: featureExtractorDescription
         )
 
         let confusionMatrix = CICBinaryConfusionMatrix(
@@ -285,8 +332,9 @@ public final class BinaryClassifier: ClassifierProtocol {
         let individualModelReport = CICIndividualModelReport(
             modelName: modelName,
             positiveClassName: classLabelDirURLs[1].lastPathComponent,
+            negativeClassName: classLabelDirURLs[0].lastPathComponent,
             trainingAccuracyRate: 1.0 - trainingMetrics.classificationError,
-            validationAccuracyPercentage: 1.0 - validationMetrics.classificationError,
+            validationAccuracyRate: 1.0 - validationMetrics.classificationError,
             confusionMatrix: confusionMatrix
         )
 
@@ -303,5 +351,57 @@ public final class BinaryClassifier: ClassifierProtocol {
             confusionMatrix: confusionMatrix,
             individualModelReport: individualModelReport
         )
+    }
+
+    public func prepareTrainingData(
+        positiveClass: String,
+        negativeClass: String,
+        basePath: String
+    ) throws -> MLImageClassifier.DataSource {
+        let sourceDir = URL(fileURLWithPath: basePath)
+        let positiveClassDir = sourceDir.appendingPathComponent(positiveClass)
+        let negativeClassDir = sourceDir.appendingPathComponent(negativeClass)
+
+        // 各クラスの画像ファイルを取得（ここで1回だけフィルタリング）
+        let positiveClassFiles = try FileManager.default.contentsOfDirectory(
+            at: positiveClassDir,
+            includingPropertiesForKeys: nil
+        )
+        .filter { Self.imageExtensions.contains($0.pathExtension.lowercased()) }
+
+        let negativeClassFiles = try FileManager.default.contentsOfDirectory(
+            at: negativeClassDir,
+            includingPropertiesForKeys: nil
+        )
+        .filter { Self.imageExtensions.contains($0.pathExtension.lowercased()) }
+
+        print("📊 \(positiveClass): \(positiveClassFiles.count)枚, \(negativeClass): \(negativeClassFiles.count)枚")
+
+        // 一時ディレクトリを準備
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(Self.tempBaseDirName)
+        let tempPositiveDir = tempDir.appendingPathComponent(positiveClass)
+        let tempNegativeDir = tempDir.appendingPathComponent(negativeClass)
+
+        // 既存の一時ディレクトリをクリーンにする
+        if FileManager.default.fileExists(atPath: tempDir.path) {
+            try FileManager.default.removeItem(at: tempDir)
+        }
+
+        try FileManager.default.createDirectory(at: tempPositiveDir, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: tempNegativeDir, withIntermediateDirectories: true)
+
+        // 各クラスの画像をコピー
+        for (index, file) in positiveClassFiles.enumerated() {
+            let destination = tempPositiveDir.appendingPathComponent("\(index).\(file.pathExtension)")
+            try FileManager.default.copyItem(at: file, to: destination)
+        }
+
+        for (index, file) in negativeClassFiles.enumerated() {
+            let destination = tempNegativeDir.appendingPathComponent("\(index).\(file.pathExtension)")
+            try FileManager.default.copyItem(at: file, to: destination)
+        }
+
+        // 一時ディレクトリからデータソースを作成
+        return MLImageClassifier.DataSource.labeledDirectories(at: tempDir)
     }
 }
