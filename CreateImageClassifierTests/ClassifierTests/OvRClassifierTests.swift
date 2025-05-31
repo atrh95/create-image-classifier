@@ -225,38 +225,72 @@ final class OvRClassifierTests: XCTestCase {
         try handler.perform([request])
     }
 
-    private func getRandomImageURL(forClassLabel classLabel: String) throws -> URL {
+    /// 各クラスにおいて、一時ディレクトリ内の正例クラスと負例クラスの画像枚数が一致していることを検証する
+    func testClassImageBalance() throws {
         let resourceURL = URL(fileURLWithPath: classifier.resourcesDirectoryPath)
-        let classLabelURL = resourceURL.appendingPathComponent(classLabel)
-
-        var isDirectory: ObjCBool = false
-        guard fileManager.fileExists(atPath: classLabelURL.path, isDirectory: &isDirectory),
-              isDirectory.boolValue
-        else {
-            let message = "サブディレクトリ '\(classLabel)' が見つからないか、ディレクトリではありません: \(classLabelURL.path)"
-            XCTFail(message)
-            throw TestError.testResourceMissing
+        let classLabels = try FileManager.default.contentsOfDirectory(at: resourceURL, includingPropertiesForKeys: [.isDirectoryKey])
+            .filter { $0.hasDirectoryPath }
+            .map { $0.lastPathComponent }
+        
+        // 各クラスで画像枚数のバランスを確認
+        for positiveClass in classLabels {
+            // トレーニングデータを準備
+            _ = try classifier.prepareTrainingData(positiveClass: positiveClass, basePath: resourceURL.path)
+            
+            // クラス間の画像枚数を取得
+            let (positiveCount, negativeCount) = try classifier.balanceClassImages(positiveClass: positiveClass, basePath: resourceURL.path)
+            
+            // 一時ディレクトリのパスを取得
+            let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(OvRClassifier.tempBaseDirName)
+            let tempPositiveDir = tempDir.appendingPathComponent(positiveClass)
+            let tempNegativeDir = tempDir.appendingPathComponent("negative")
+            
+            // 一時ディレクトリ内の画像枚数を確認
+            let tempPositiveFiles = try FileManager.default.contentsOfDirectory(at: tempPositiveDir, includingPropertiesForKeys: nil)
+                .filter { $0.pathExtension.lowercased() == "jpg" || $0.pathExtension.lowercased() == "jpeg" || $0.pathExtension.lowercased() == "png" }
+            
+            let tempNegativeFiles = try FileManager.default.contentsOfDirectory(at: tempNegativeDir, includingPropertiesForKeys: nil)
+                .filter { $0.pathExtension.lowercased() == "jpg" || $0.pathExtension.lowercased() == "jpeg" || $0.pathExtension.lowercased() == "png" }
+            
+            // 画像枚数が一致することを確認
+            XCTAssertEqual(tempPositiveFiles.count, positiveCount, "正例クラス [\(positiveClass)] の画像枚数が一致しません。期待値: \(positiveCount), 実際: \(tempPositiveFiles.count)")
+            XCTAssertEqual(tempNegativeFiles.count, negativeCount, "負例クラスの画像枚数が一致しません。期待値: \(negativeCount), 実際: \(tempNegativeFiles.count)")
+            XCTAssertEqual(tempPositiveFiles.count, tempNegativeFiles.count, "正例クラス [\(positiveClass)] と負例クラスの画像枚数が一致しません。")
         }
+    }
 
-        let validExtensions = ["jpg", "jpeg", "png"]
-        let allFiles = try fileManager.contentsOfDirectory(
-            at: classLabelURL,
-            includingPropertiesForKeys: nil,
-            options: [.skipsHiddenFiles]
-        ).filter { url in
-            validExtensions.contains(url.pathExtension.lowercased())
+    /// 各クラスにおいて、一時ディレクトリ内の正例クラスと負例クラスの画像枚数が一致していることを検証する
+    func testBinaryClassImageBalance() throws {
+        let resourceURL = URL(fileURLWithPath: classifier.resourcesDirectoryPath)
+        let classLabels = try FileManager.default.contentsOfDirectory(at: resourceURL, includingPropertiesForKeys: [.isDirectoryKey])
+            .filter { $0.hasDirectoryPath }
+            .map { $0.lastPathComponent }
+        
+        // 各クラスで画像枚数のバランスを確認
+        for positiveClass in classLabels {
+            // トレーニングデータを準備
+            _ = try classifier.prepareTrainingData(positiveClass: positiveClass, basePath: resourceURL.path)
+            
+            // クラス間の画像枚数を取得
+            let (positiveCount, negativeCount) = try classifier.balanceClassImages(positiveClass: positiveClass, basePath: resourceURL.path)
+            
+            // 一時ディレクトリのパスを取得
+            let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(OvRClassifier.tempBaseDirName)
+            let tempPositiveDir = tempDir.appendingPathComponent(positiveClass)
+            let tempNegativeDir = tempDir.appendingPathComponent("negative")
+            
+            // 一時ディレクトリ内の画像枚数を確認
+            let tempPositiveFiles = try FileManager.default.contentsOfDirectory(at: tempPositiveDir, includingPropertiesForKeys: nil)
+                .filter { $0.pathExtension.lowercased() == "jpg" || $0.pathExtension.lowercased() == "jpeg" || $0.pathExtension.lowercased() == "png" }
+            
+            let tempNegativeFiles = try FileManager.default.contentsOfDirectory(at: tempNegativeDir, includingPropertiesForKeys: nil)
+                .filter { $0.pathExtension.lowercased() == "jpg" || $0.pathExtension.lowercased() == "jpeg" || $0.pathExtension.lowercased() == "png" }
+            
+            // 画像枚数が一致することを確認
+            XCTAssertEqual(tempPositiveFiles.count, positiveCount, "正例クラス [\(positiveClass)] の画像枚数が一致しません。期待値: \(positiveCount), 実際: \(tempPositiveFiles.count)")
+            XCTAssertEqual(tempNegativeFiles.count, negativeCount, "負例クラスの画像枚数が一致しません。期待値: \(negativeCount), 実際: \(tempNegativeFiles.count)")
+            XCTAssertEqual(tempPositiveFiles.count, tempNegativeFiles.count, "正例クラス [\(positiveClass)] と負例クラスの画像枚数が一致しません。")
         }
-
-        guard !allFiles.isEmpty else {
-            throw TestError.testResourceMissing
-        }
-
-        guard let randomFile = allFiles.randomElement() else {
-            XCTFail("利用可能な画像ファイルが見つかりません")
-            throw TestError.testResourceMissing
-        }
-
-        return randomFile
     }
 
     // 出力ディレクトリの連番を検証
@@ -293,5 +327,39 @@ final class OvRClassifierTests: XCTestCase {
             firstResultNumber + 1,
             "2回目の出力ディレクトリの連番が期待値と一致しません。\n1回目: \(firstResultNumber)\n2回目: \(secondResultNumber)"
         )
+    }
+
+    private func getRandomImageURL(forClassLabel classLabel: String) throws -> URL {
+        let resourceURL = URL(fileURLWithPath: classifier.resourcesDirectoryPath)
+        let classLabelURL = resourceURL.appendingPathComponent(classLabel)
+
+        var isDirectory: ObjCBool = false
+        guard fileManager.fileExists(atPath: classLabelURL.path, isDirectory: &isDirectory),
+              isDirectory.boolValue
+        else {
+            let message = "サブディレクトリ '\(classLabel)' が見つからないか、ディレクトリではありません: \(classLabelURL.path)"
+            XCTFail(message)
+            throw TestError.testResourceMissing
+        }
+
+        let validExtensions = ["jpg", "jpeg", "png"]
+        let allFiles = try fileManager.contentsOfDirectory(
+            at: classLabelURL,
+            includingPropertiesForKeys: nil,
+            options: [.skipsHiddenFiles]
+        ).filter { url in
+            validExtensions.contains(url.pathExtension.lowercased())
+        }
+
+        guard !allFiles.isEmpty else {
+            throw TestError.testResourceMissing
+        }
+
+        guard let randomFile = allFiles.randomElement() else {
+            XCTFail("利用可能な画像ファイルが見つかりません")
+            throw TestError.testResourceMissing
+        }
+
+        return randomFile
     }
 }

@@ -348,8 +348,72 @@ public final class OvOClassifier: ClassifierProtocol {
         )
     }
 
-    private func prepareTwoClassTrainingData(class1: String, class2: String, basePath: String) throws -> MLImageClassifier.DataSource {
+    public func balanceClassImages(class1: String, class2: String, basePath: String) throws -> (class1Count: Int, class2Count: Int) {
         let sourceDir = URL(fileURLWithPath: basePath)
-        return MLImageClassifier.DataSource.labeledDirectories(at: sourceDir)
+        let class1Dir = sourceDir.appendingPathComponent(class1)
+        let class2Dir = sourceDir.appendingPathComponent(class2)
+        
+        // 各クラスの画像ファイルを取得
+        let class1Files = try FileManager.default.contentsOfDirectory(at: class1Dir, includingPropertiesForKeys: nil)
+            .filter { $0.pathExtension.lowercased() == "jpg" || $0.pathExtension.lowercased() == "jpeg" || $0.pathExtension.lowercased() == "png" }
+        
+        let class2Files = try FileManager.default.contentsOfDirectory(at: class2Dir, includingPropertiesForKeys: nil)
+            .filter { $0.pathExtension.lowercased() == "jpg" || $0.pathExtension.lowercased() == "jpeg" || $0.pathExtension.lowercased() == "png" }
+        
+        // 最小枚数を取得
+        let minCount = min(class1Files.count, class2Files.count)
+        
+        return (minCount, minCount)
+    }
+
+    public func prepareTwoClassTrainingData(class1: String, class2: String, basePath: String) throws -> MLImageClassifier.DataSource {
+        // クラス間の画像枚数を取得
+        let (class1Count, class2Count) = try balanceClassImages(class1: class1, class2: class2, basePath: basePath)
+        
+        let sourceDir = URL(fileURLWithPath: basePath)
+        let class1Dir = sourceDir.appendingPathComponent(class1)
+        let class2Dir = sourceDir.appendingPathComponent(class2)
+        
+        // 各クラスの画像ファイルを取得
+        let class1Files = try FileManager.default.contentsOfDirectory(at: class1Dir, includingPropertiesForKeys: nil)
+            .filter { $0.pathExtension.lowercased() == "jpg" || $0.pathExtension.lowercased() == "jpeg" || $0.pathExtension.lowercased() == "png" }
+        
+        let class2Files = try FileManager.default.contentsOfDirectory(at: class2Dir, includingPropertiesForKeys: nil)
+            .filter { $0.pathExtension.lowercased() == "jpg" || $0.pathExtension.lowercased() == "jpeg" || $0.pathExtension.lowercased() == "png" }
+        
+        print("📊 クラス [\(class1)] の画像枚数: \(class1Files.count)")
+        print("📊 クラス [\(class2)] の画像枚数: \(class2Files.count)")
+        print("📊 最小枚数に合わせて \(class1Count) 枚に統一します")
+        
+        // 一時ディレクトリを作成
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(Self.tempBaseDirName)
+        let tempClass1Dir = tempDir.appendingPathComponent(class1)
+        let tempClass2Dir = tempDir.appendingPathComponent(class2)
+        
+        // 既存の一時ディレクトリを削除
+        if FileManager.default.fileExists(atPath: tempDir.path) {
+            try FileManager.default.removeItem(at: tempDir)
+        }
+        
+        // 一時ディレクトリを作成
+        try FileManager.default.createDirectory(at: tempClass1Dir, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: tempClass2Dir, withIntermediateDirectories: true)
+        
+        // ランダムに選択してコピー
+        let shuffledClass1Files = class1Files.shuffled().prefix(class1Count)
+        let shuffledClass2Files = class2Files.shuffled().prefix(class2Count)
+        
+        for (index, file) in shuffledClass1Files.enumerated() {
+            let destination = tempClass1Dir.appendingPathComponent("\(index).\(file.pathExtension)")
+            try FileManager.default.copyItem(at: file, to: destination)
+        }
+        
+        for (index, file) in shuffledClass2Files.enumerated() {
+            let destination = tempClass2Dir.appendingPathComponent("\(index).\(file.pathExtension)")
+            try FileManager.default.copyItem(at: file, to: destination)
+        }
+        
+        // 一時ディレクトリからデータソースを作成
+        return MLImageClassifier.DataSource.labeledDirectories(at: tempDir)
     }
 }

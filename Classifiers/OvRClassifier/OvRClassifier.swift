@@ -338,4 +338,87 @@ public final class OvRClassifier: ClassifierProtocol {
             individualModelReports: []
         )
     }
+
+    public func balanceClassImages(positiveClass: String, basePath: String) throws -> (positiveCount: Int, negativeCount: Int) {
+        let sourceDir = URL(fileURLWithPath: basePath)
+        let positiveDir = sourceDir.appendingPathComponent(positiveClass)
+        
+        // 正例クラスの画像ファイルを取得
+        let positiveFiles = try FileManager.default.contentsOfDirectory(at: positiveDir, includingPropertiesForKeys: nil)
+            .filter { $0.pathExtension.lowercased() == "jpg" || $0.pathExtension.lowercased() == "jpeg" || $0.pathExtension.lowercased() == "png" }
+        
+        // 負例クラスの画像ファイルを取得
+        var negativeFiles: [URL] = []
+        let classDirs = try FileManager.default.contentsOfDirectory(at: sourceDir, includingPropertiesForKeys: [.isDirectoryKey])
+            .filter { $0.lastPathComponent != positiveClass }
+        
+        for classDir in classDirs {
+            let files = try FileManager.default.contentsOfDirectory(at: classDir, includingPropertiesForKeys: nil)
+                .filter { $0.pathExtension.lowercased() == "jpg" || $0.pathExtension.lowercased() == "jpeg" || $0.pathExtension.lowercased() == "png" }
+            negativeFiles.append(contentsOf: files)
+        }
+        
+        // 正例と負例の最小枚数を取得
+        let minCount = min(positiveFiles.count, negativeFiles.count)
+        
+        return (minCount, minCount)
+    }
+
+    public func prepareTrainingData(positiveClass: String, basePath: String) throws -> MLImageClassifier.DataSource {
+        let sourceDir = URL(fileURLWithPath: basePath)
+        let positiveClassDir = sourceDir.appendingPathComponent(positiveClass)
+        
+        // 正例クラスの画像ファイルを取得
+        let positiveClassFiles = try FileManager.default.contentsOfDirectory(at: positiveClassDir, includingPropertiesForKeys: nil)
+            .filter { $0.pathExtension.lowercased() == "jpg" || $0.pathExtension.lowercased() == "jpeg" || $0.pathExtension.lowercased() == "png" }
+        
+        // 負例クラスの画像ファイルを取得
+        var negativeClassFiles: [URL] = []
+        let subdirectories = try FileManager.default.contentsOfDirectory(at: sourceDir, includingPropertiesForKeys: [.isDirectoryKey])
+            .filter { $0.hasDirectoryPath && $0.lastPathComponent != positiveClass }
+        
+        for subdir in subdirectories {
+            let files = try FileManager.default.contentsOfDirectory(at: subdir, includingPropertiesForKeys: nil)
+                .filter { $0.pathExtension.lowercased() == "jpg" || $0.pathExtension.lowercased() == "jpeg" || $0.pathExtension.lowercased() == "png" }
+            negativeClassFiles.append(contentsOf: files)
+        }
+        
+        // 最小枚数を取得
+        let minCount = min(positiveClassFiles.count, negativeClassFiles.count)
+        
+        print("📊 正例クラス [\(positiveClass)] の画像枚数: \(positiveClassFiles.count)")
+        print("📊 負例クラスの画像枚数: \(negativeClassFiles.count)")
+        print("📊 最小枚数に合わせて \(minCount) 枚に統一します")
+        
+        // 一時ディレクトリを作成
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(Self.tempBaseDirName)
+        let tempPositiveDir = tempDir.appendingPathComponent(positiveClass)
+        let tempNegativeDir = tempDir.appendingPathComponent("negative")
+        
+        // 既存の一時ディレクトリを削除
+        if FileManager.default.fileExists(atPath: tempDir.path) {
+            try FileManager.default.removeItem(at: tempDir)
+        }
+        
+        // 一時ディレクトリを作成
+        try FileManager.default.createDirectory(at: tempPositiveDir, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: tempNegativeDir, withIntermediateDirectories: true)
+        
+        // ランダムに選択してコピー
+        let shuffledPositiveFiles = positiveClassFiles.shuffled().prefix(minCount)
+        let shuffledNegativeFiles = negativeClassFiles.shuffled().prefix(minCount)
+        
+        for (index, file) in shuffledPositiveFiles.enumerated() {
+            let destination = tempPositiveDir.appendingPathComponent("\(index).\(file.pathExtension)")
+            try FileManager.default.copyItem(at: file, to: destination)
+        }
+        
+        for (index, file) in shuffledNegativeFiles.enumerated() {
+            let destination = tempNegativeDir.appendingPathComponent("\(index).\(file.pathExtension)")
+            try FileManager.default.copyItem(at: file, to: destination)
+        }
+        
+        // 一時ディレクトリからデータソースを作成
+        return MLImageClassifier.DataSource.labeledDirectories(at: tempDir)
+    }
 }

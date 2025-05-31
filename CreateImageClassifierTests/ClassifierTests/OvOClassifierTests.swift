@@ -224,6 +224,45 @@ final class OvOClassifierTests: XCTestCase {
         try handler.perform([request])
     }
 
+    /// 各クラス組み合わせにおいて、一時ディレクトリ内の画像枚数が最小枚数に統一されていることを検証する
+    func testClassImageBalance() throws {
+        let resourceURL = URL(fileURLWithPath: classifier.resourcesDirectoryPath)
+        let classLabels = try FileManager.default.contentsOfDirectory(at: resourceURL, includingPropertiesForKeys: [.isDirectoryKey])
+            .filter { $0.hasDirectoryPath }
+            .map { $0.lastPathComponent }
+        
+        // 各クラスの組み合わせで画像枚数のバランスを確認
+        for i in 0..<classLabels.count {
+            for j in (i+1)..<classLabels.count {
+                let class1 = classLabels[i]
+                let class2 = classLabels[j]
+                
+                // トレーニングデータを準備
+                _ = try classifier.prepareTwoClassTrainingData(class1: class1, class2: class2, basePath: resourceURL.path)
+                
+                // クラス間の画像枚数を取得
+                let (class1Count, class2Count) = try classifier.balanceClassImages(class1: class1, class2: class2, basePath: resourceURL.path)
+                
+                // 一時ディレクトリのパスを取得
+                let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(OvOClassifier.tempBaseDirName)
+                let tempClass1Dir = tempDir.appendingPathComponent(class1)
+                let tempClass2Dir = tempDir.appendingPathComponent(class2)
+                
+                // 一時ディレクトリ内の画像枚数を確認
+                let tempClass1Files = try FileManager.default.contentsOfDirectory(at: tempClass1Dir, includingPropertiesForKeys: nil)
+                    .filter { $0.pathExtension.lowercased() == "jpg" || $0.pathExtension.lowercased() == "jpeg" || $0.pathExtension.lowercased() == "png" }
+                
+                let tempClass2Files = try FileManager.default.contentsOfDirectory(at: tempClass2Dir, includingPropertiesForKeys: nil)
+                    .filter { $0.pathExtension.lowercased() == "jpg" || $0.pathExtension.lowercased() == "jpeg" || $0.pathExtension.lowercased() == "png" }
+                
+                // 画像枚数が一致することを確認
+                XCTAssertEqual(tempClass1Files.count, class1Count, "クラス [\(class1)] の画像枚数が一致しません。期待値: \(class1Count), 実際: \(tempClass1Files.count)")
+                XCTAssertEqual(tempClass2Files.count, class2Count, "クラス [\(class2)] の画像枚数が一致しません。期待値: \(class2Count), 実際: \(tempClass2Files.count)")
+                XCTAssertEqual(tempClass1Files.count, tempClass2Files.count, "クラス [\(class1)] と [\(class2)] の画像枚数が一致しません。")
+            }
+        }
+    }
+
     private func getRandomImageURL(forClassLabel classLabel: String) throws -> URL {
         let resourceURL = URL(fileURLWithPath: classifier.resourcesDirectoryPath)
         let classLabelURL = resourceURL.appendingPathComponent(classLabel)
