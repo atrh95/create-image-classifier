@@ -151,7 +151,7 @@ public final class OvOClassifier: ClassifierProtocol {
                     modelName: modelName,
                     positiveClassName: class2,
                     trainingAccuracyRate: 1.0 - currentTrainingMetrics.classificationError,
-                    validationAccuracyPercentage: 1.0 - currentValidationMetrics.classificationError,
+                    validationAccuracyRate: 1.0 - currentValidationMetrics.classificationError,
                     confusionMatrix: confusionMatrix
                 )
 
@@ -329,23 +329,8 @@ public final class OvOClassifier: ClassifierProtocol {
             featureExtractorDescription: featureExtractorDescription
         )
 
-        let confusionMatrix = CICMultiClassConfusionMatrix(
-            dataTable: validationMetrics.confusion,
-            predictedColumn: "Predicted",
-            actualColumn: "True Label"
-        )
-
         return OvOTrainingResult(
             metadata: metadata,
-            trainingMetrics: (
-                accuracy: 1.0 - trainingMetrics.classificationError,
-                errorRate: trainingMetrics.classificationError
-            ),
-            validationMetrics: (
-                accuracy: 1.0 - validationMetrics.classificationError,
-                errorRate: validationMetrics.classificationError
-            ),
-            confusionMatrix: confusionMatrix,
             individualModelReports: individualModelReports
         )
     }
@@ -371,48 +356,48 @@ public final class OvOClassifier: ClassifierProtocol {
     public func prepareTwoClassTrainingData(class1: String, class2: String, basePath: String) throws -> MLImageClassifier.DataSource {
         // クラス間の画像枚数を取得
         let (class1Count, class2Count) = try balanceClassImages(class1: class1, class2: class2, basePath: basePath)
-        
+
         let sourceDir = URL(fileURLWithPath: basePath)
         let class1Dir = sourceDir.appendingPathComponent(class1)
         let class2Dir = sourceDir.appendingPathComponent(class2)
-        
+
         // 各クラスの画像ファイルを取得
         let class1Files = try FileManager.default.contentsOfDirectory(at: class1Dir, includingPropertiesForKeys: nil)
             .filter { $0.pathExtension.lowercased() == "jpg" || $0.pathExtension.lowercased() == "jpeg" || $0.pathExtension.lowercased() == "png" }
-        
+
         let class2Files = try FileManager.default.contentsOfDirectory(at: class2Dir, includingPropertiesForKeys: nil)
             .filter { $0.pathExtension.lowercased() == "jpg" || $0.pathExtension.lowercased() == "jpeg" || $0.pathExtension.lowercased() == "png" }
-        
-        print("📊 クラス [\(class1)]: \(class1Files.count)枚, クラス [\(class2)]: \(class2Files.count)枚, 最小枚数: \(class1Count)枚")
-        
+
+        print("📊 サンプリング: [\(class1)]=\(class1Files.count)枚, [\(class2)]=\(class2Files.count)枚 → サンプル枚数: \(class1Count)枚ずつ")
+
         // 一時ディレクトリを作成
         let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(Self.tempBaseDirName)
         let tempClass1Dir = tempDir.appendingPathComponent(class1)
         let tempClass2Dir = tempDir.appendingPathComponent(class2)
-        
+
         // 既存の一時ディレクトリを削除
         if FileManager.default.fileExists(atPath: tempDir.path) {
             try FileManager.default.removeItem(at: tempDir)
         }
-        
+
         // 一時ディレクトリを作成
         try FileManager.default.createDirectory(at: tempClass1Dir, withIntermediateDirectories: true)
         try FileManager.default.createDirectory(at: tempClass2Dir, withIntermediateDirectories: true)
-        
+
         // ランダムに選択してコピー
         let shuffledClass1Files = class1Files.shuffled().prefix(class1Count)
         let shuffledClass2Files = class2Files.shuffled().prefix(class2Count)
-        
+
         for (index, file) in shuffledClass1Files.enumerated() {
             let destination = tempClass1Dir.appendingPathComponent("\(index).\(file.pathExtension)")
             try FileManager.default.copyItem(at: file, to: destination)
         }
-        
+
         for (index, file) in shuffledClass2Files.enumerated() {
             let destination = tempClass2Dir.appendingPathComponent("\(index).\(file.pathExtension)")
             try FileManager.default.copyItem(at: file, to: destination)
         }
-        
+
         // 一時ディレクトリからデータソースを作成
         return MLImageClassifier.DataSource.labeledDirectories(at: tempDir)
     }

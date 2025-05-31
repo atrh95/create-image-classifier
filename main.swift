@@ -75,7 +75,7 @@ let semaphore = DispatchSemaphore(value: 0)
 Task {
     let selectedModel: MLModelType = .scaryCatScreeningML
     let selectedClassifier: ClassifierType = .ovr
-    let trainingCount = 5
+    let trainingCount = 1
 
     guard trainingCount > 0 else {
         print("トレーニングの回数は1以上を指定してください")

@@ -5,10 +5,6 @@ import Foundation
 
 public struct OvRTrainingResult: TrainingResultProtocol {
     public let metadata: CICTrainingMetadata
-    public let trainingMetrics: (accuracy: Double, errorRate: Double)
-    public let validationMetrics: (accuracy: Double, errorRate: Double)
-    public let confusionMatrix: CICMultiClassConfusionMatrix?
-    public let classMetrics: [ClassMetrics]
     public let individualModelReports: [CICIndividualModelReport]
 
     public var modelOutputPath: String {
@@ -17,16 +13,9 @@ public struct OvRTrainingResult: TrainingResultProtocol {
 
     public init(
         metadata: CICTrainingMetadata,
-        trainingMetrics: (accuracy: Double, errorRate: Double),
-        validationMetrics: (accuracy: Double, errorRate: Double),
-        confusionMatrix: CICMultiClassConfusionMatrix?,
         individualModelReports: [CICIndividualModelReport]
     ) {
         self.metadata = metadata
-        self.trainingMetrics = trainingMetrics
-        self.validationMetrics = validationMetrics
-        self.confusionMatrix = confusionMatrix
-        classMetrics = confusionMatrix?.calculateMetrics() ?? []
         self.individualModelReports = individualModelReports
     }
 
@@ -39,12 +28,6 @@ public struct OvRTrainingResult: TrainingResultProtocol {
         dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss Z"
         dateFormatter.timeZone = TimeZone(identifier: "Asia/Tokyo")
         let generatedDateString = dateFormatter.string(from: Date())
-
-        let trainingAccStr = String(format: "%.2f", trainingMetrics.accuracy)
-        let validationAccStr = String(format: "%.2f", validationMetrics.accuracy)
-        let trainingErrStr = String(format: "%.2f", trainingMetrics.errorRate * 100)
-        let validationErrStr = String(format: "%.2f", validationMetrics.errorRate * 100)
-        let durationStr = String(format: "%.2f", metadata.trainingDurationInSeconds)
 
         var markdownText = """
         # モデルトレーニング情報: \(modelName)
@@ -59,31 +42,7 @@ public struct OvRTrainingResult: TrainingResultProtocol {
         ## トレーニング設定
         使用されたクラスラベル : \(metadata.detectedClassLabelsList.joined(separator: ", "))
 
-        ## パフォーマンス指標 (全体)
-        トレーニング所要時間: \(durationStr) 秒
-        トレーニング誤分類率 (学習時) : \(trainingErrStr)%
-        訓練データ正解率 (学習時) : \(trainingAccStr)%
-        検証データ正解率 (学習時自動検証) : \(validationAccStr)%
-        検証誤分類率 (学習時自動検証) : \(validationErrStr)%
         """
-
-        if let confusionMatrix {
-            markdownText += """
-            ## クラス別性能指標
-            \(classMetrics.map { metric in
-                """
-
-                ### \(metric.label)
-                再現率: \(String(format: "%.1f%%", metric.recall * 100.0)), \
-                適合率: \(String(format: "%.1f%%", metric.precision * 100.0)), \
-                F1スコア: \(String(format: "%.1f%%", metric.f1Score * 100.0))
-                """
-            }.joined(separator: "\n"))
-
-            ## 混同行列
-            \(confusionMatrix.getMatrixGraph())
-            """
-        }
 
         markdownText += """
 

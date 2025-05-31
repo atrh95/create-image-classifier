@@ -6,20 +6,20 @@ public struct CICIndividualModelReport {
     public let modelName: String
     public let positiveClassName: String
     public let trainingAccuracyRate: Double
-    public let validationAccuracyPercentage: Double
+    public let validationAccuracyRate: Double
     public let confusionMatrix: CICBinaryConfusionMatrix?
 
     public init(
         modelName: String,
         positiveClassName: String,
         trainingAccuracyRate: Double,
-        validationAccuracyPercentage: Double,
+        validationAccuracyRate: Double,
         confusionMatrix: CICBinaryConfusionMatrix?
     ) {
         self.modelName = modelName
         self.positiveClassName = positiveClassName
         self.trainingAccuracyRate = trainingAccuracyRate
-        self.validationAccuracyPercentage = validationAccuracyPercentage
+        self.validationAccuracyRate = validationAccuracyRate
         self.confusionMatrix = confusionMatrix
     }
 
@@ -27,8 +27,8 @@ public struct CICIndividualModelReport {
     public func generateMarkdownReport() -> String {
         var report = """
         ## \(positiveClassName)
-        - 訓練正解率: \(String(format: "%.1f%%", trainingAccuracyRate))
-        - 検証正解率: \(String(format: "%.1f%%", validationAccuracyPercentage))
+        - 訓練正解率: \(String(format: "%.1f%%", trainingAccuracyRate * 100.0))
+        - 検証正解率: \(String(format: "%.1f%%", validationAccuracyRate * 100.0))
         """
 
         if let confusionMatrix {

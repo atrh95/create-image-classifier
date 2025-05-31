@@ -86,7 +86,6 @@ public final class OvRClassifier: ClassifierProtocol {
 
                 // トレーニングデータの準備
                 let trainingDataSource = try prepareTrainingData(positiveClass: oneClassLabel, basePath: resourcesDirectoryPath)
-                print("📊 トレーニングデータソース作成完了")
 
                 // モデルのトレーニング
                 let (imageClassifier, trainingDurationSeconds) = try trainModel(
@@ -139,7 +138,7 @@ public final class OvRClassifier: ClassifierProtocol {
                     modelName: modelFileName,
                     positiveClassName: oneClassLabel,
                     trainingAccuracyRate: 1.0 - currentTrainingMetrics.classificationError,
-                    validationAccuracyPercentage: 1.0 - currentValidationMetrics.classificationError,
+                    validationAccuracyRate: 1.0 - currentValidationMetrics.classificationError,
                     confusionMatrix: confusionMatrix
                 )
                 individualModelReports.append(individualReport)
@@ -337,23 +336,8 @@ public final class OvRClassifier: ClassifierProtocol {
             featureExtractorDescription: featureExtractorDescription
         )
 
-        let confusionMatrix = CICMultiClassConfusionMatrix(
-            dataTable: validationMetrics.confusion,
-            predictedColumn: "Predicted",
-            actualColumn: "True Label"
-        )
-
         return OvRTrainingResult(
             metadata: metadata,
-            trainingMetrics: (
-                accuracy: 1.0 - trainingMetrics.classificationError,
-                errorRate: trainingMetrics.classificationError
-            ),
-            validationMetrics: (
-                accuracy: 1.0 - validationMetrics.classificationError,
-                errorRate: validationMetrics.classificationError
-            ),
-            confusionMatrix: confusionMatrix,
             individualModelReports: individualModelReports
         )
     }
@@ -398,17 +382,13 @@ public final class OvRClassifier: ClassifierProtocol {
         
         // 各restクラスから均等にサンプリング
         let samplesPerRestClass = Int(ceil(Double(positiveClassFiles.count) / Double(subdirectories.count)))
-        print("📊 各restクラスから \(samplesPerRestClass) 枚ずつサンプリングします")
-        
         for subdir in subdirectories {
             let files = try FileManager.default.contentsOfDirectory(at: subdir, includingPropertiesForKeys: nil)
                 .filter { $0.pathExtension.lowercased() == "jpg" || $0.pathExtension.lowercased() == "jpeg" || $0.pathExtension.lowercased() == "png" }
             let sampledFiles = files.shuffled().prefix(samplesPerRestClass)
             negativeClassFiles.append(contentsOf: sampledFiles)
         }
-        
-        print("📊 正例クラス [\(positiveClass)] の画像枚数: \(positiveClassFiles.count)")
-        print("📊 収集した負例画像枚数: \(negativeClassFiles.count)")
+        print("📊 サンプリング: 正例[\(positiveClass)]=\(positiveClassFiles.count)枚, rest=\(subdirectories.count)クラス×\(samplesPerRestClass)枚 → 合計\(negativeClassFiles.count)枚")
 
         // 一時ディレクトリを準備
         let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(Self.tempBaseDirName)

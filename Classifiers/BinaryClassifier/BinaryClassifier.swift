@@ -277,7 +277,7 @@ public final class BinaryClassifier: ClassifierProtocol {
             modelName: modelName,
             positiveClassName: classLabelDirURLs[1].lastPathComponent,
             trainingAccuracyRate: 1.0 - trainingMetrics.classificationError,
-            validationAccuracyPercentage: 1.0 - validationMetrics.classificationError,
+            validationAccuracyRate: 1.0 - validationMetrics.classificationError,
             confusionMatrix: confusionMatrix
         )
 
