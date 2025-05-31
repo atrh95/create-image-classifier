@@ -68,13 +68,6 @@ enum MLModelType: String {
         }
         return config
     }
-
-    var name: String { config.name }
-    var supportedClassifierTypes: [ClassifierType] { Array(config.supportedClassifierVersions.keys) }
-    func version(for classifier: ClassifierType) -> String? { config.supportedClassifierVersions[classifier] }
-    var author: String { config.author }
-    var modelParameters: CreateML.MLImageClassifier.ModelParameters { config.modelParameters }
-    var scenePrintRevision: Int? { config.scenePrintRevision }
 }
 
 let semaphore = DispatchSemaphore(value: 0)
@@ -90,8 +83,8 @@ Task {
         return
     }
 
-    guard selectedModel.supportedClassifierTypes.contains(selectedClassifier),
-          let version = selectedModel.version(for: selectedClassifier)
+    guard selectedModel.config.supportedClassifierVersions.keys.contains(selectedClassifier),
+          let version = selectedModel.config.supportedClassifierVersions[selectedClassifier]
     else {
         print("❌ エラー: 選択されたモデルは指定された分類器タイプをサポートしていません")
         exit(1)
@@ -106,23 +99,23 @@ Task {
         // モデルの作成
         print("\n🚀 モデル作成開始...")
         guard let result = await classifier.create(
-            author: selectedModel.author,
-            modelName: selectedModel.name,
+            author: selectedModel.config.author,
+            modelName: selectedModel.config.name,
             version: version,
-            modelParameters: selectedModel.modelParameters,
-            scenePrintRevision: selectedModel.scenePrintRevision
+            modelParameters: selectedModel.config.modelParameters,
+            scenePrintRevision: selectedModel.config.scenePrintRevision
         ) else {
             print("❌ モデル作成失敗")
             continue
         }
 
         result.saveLog(
-            modelAuthor: selectedModel.author,
-            modelName: selectedModel.name,
+            modelAuthor: selectedModel.config.author,
+            modelName: selectedModel.config.name,
             modelVersion: version
         )
 
-        print("トレーニング完了: \(selectedModel.name) [\(selectedClassifier.rawValue)] - \(i)/\(trainingCount)")
+        print("トレーニング完了: \(selectedModel.config.name) [\(selectedClassifier.rawValue)] - \(i)/\(trainingCount)")
     }
 
     semaphore.signal()
