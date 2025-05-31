@@ -56,7 +56,7 @@ public final class MultiClassClassifier: ClassifierProtocol {
         modelName: String,
         version: String,
         modelParameters: CreateML.MLImageClassifier.ModelParameters,
-        scenePrintRevision: Int?
+        scenePrintRevision _: Int?
     ) async -> MultiClassTrainingResult? {
         print("📁 リソースディレクトリ: \(resourcesDirectoryPath)")
         print("🚀 MultiClassモデル作成開始 (バージョン: \(version))...")
@@ -225,7 +225,7 @@ public final class MultiClassClassifier: ClassifierProtocol {
             let macroPrecision = classMetrics.map(\.precision).reduce(0.0, +) / Double(classMetrics.count)
             let macroF1Score = classMetrics.map(\.f1Score).reduce(0.0, +) / Double(classMetrics.count)
             metricsDescription += """
-            
+
             マクロ平均再現率: \(String(format: "%.1f%%", macroRecall * 100.0))
             マクロ平均適合率: \(String(format: "%.1f%%", macroPrecision * 100.0))
             マクロ平均F1スコア: \(String(format: "%.1f%%", macroF1Score * 100.0))
@@ -233,7 +233,7 @@ public final class MultiClassClassifier: ClassifierProtocol {
         }
 
         metricsDescription += """
-        
+
         データ拡張: \(augmentationFinalDescription)
         特徴抽出器: \(featureExtractorDescription)
         """
@@ -247,9 +247,9 @@ public final class MultiClassClassifier: ClassifierProtocol {
 
     public func saveMLModel(
         imageClassifier: MLImageClassifier,
-        modelName: String,
+        modelName _: String,
         modelFileName: String,
-        version: String,
+        version _: String,
         outputDirectoryURL: URL,
         metadata: MLModelMetadata
     ) throws -> String {

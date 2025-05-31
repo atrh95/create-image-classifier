@@ -58,7 +58,7 @@ public final class BinaryClassifier: ClassifierProtocol {
         modelName: String,
         version: String,
         modelParameters: CreateML.MLImageClassifier.ModelParameters,
-        scenePrintRevision: Int?
+        scenePrintRevision _: Int?
     ) async -> BinaryTrainingResult? {
         print("📁 リソースディレクトリ: \(resourcesDirectoryPath)")
         print("🚀 Binaryモデル作成開始 (バージョン: \(version))...")
@@ -135,7 +135,9 @@ public final class BinaryClassifier: ClassifierProtocol {
             let recall = confusionMatrix?.recall ?? 0.0
             let precision = confusionMatrix?.precision ?? 0.0
             let f1Score = confusionMatrix?.f1Score ?? 0.0
-            print("| \(String(format: "%14.1f%%", (1.0 - trainingMetrics.classificationError) * 100.0)) | \(String(format: "%14.1f%%", (1.0 - validationMetrics.classificationError) * 100.0)) | \(String(format: "%14.1f%%", recall * 100.0)) | \(String(format: "%14.1f%%", precision * 100.0)) | \(String(format: "%14.1f%%", f1Score * 100.0)) |")
+            print(
+                "| \(String(format: "%14.1f%%", (1.0 - trainingMetrics.classificationError) * 100.0)) | \(String(format: "%14.1f%%", (1.0 - validationMetrics.classificationError) * 100.0)) | \(String(format: "%14.1f%%", recall * 100.0)) | \(String(format: "%14.1f%%", precision * 100.0)) | \(String(format: "%14.1f%%", f1Score * 100.0)) |"
+            )
             print("+------------------+------------------+------------------+------------------+------------------+")
 
             return createTrainingResult(
@@ -239,7 +241,7 @@ public final class BinaryClassifier: ClassifierProtocol {
             let precision = confusionMatrix.precision
             let f1Score = confusionMatrix.f1Score
             metricsDescription += """
-            
+
             再現率: \(String(format: "%.1f%%", recall * 100.0))
             適合率: \(String(format: "%.1f%%", precision * 100.0))
             F1スコア: \(String(format: "%.1f%%", f1Score * 100.0))
@@ -247,7 +249,7 @@ public final class BinaryClassifier: ClassifierProtocol {
         }
 
         metricsDescription += """
-        
+
         データ拡張: \(augmentationFinalDescription)
         特徴抽出器: \(featureExtractorDescription)
         """
@@ -261,9 +263,9 @@ public final class BinaryClassifier: ClassifierProtocol {
 
     public func saveMLModel(
         imageClassifier: MLImageClassifier,
-        modelName: String,
+        modelName _: String,
         modelFileName: String,
-        version: String,
+        version _: String,
         outputDirectoryURL: URL,
         metadata: MLModelMetadata
     ) throws -> String {

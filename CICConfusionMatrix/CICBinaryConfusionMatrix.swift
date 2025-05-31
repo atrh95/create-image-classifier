@@ -58,7 +58,6 @@ public final class CICBinaryConfusionMatrix {
 
         // ラベルの取得とソート
         let labelSet = Set(dataTable.rows.compactMap { $0[actualColumn]?.stringValue })
-        let sortedLabels = Array(labelSet).sorted()
 
         // 混同行列の初期化
         matrix = Array(repeating: Array(repeating: 0, count: 2), count: 2)

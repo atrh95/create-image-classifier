@@ -94,12 +94,12 @@ public struct MultiLabelTrainingResult: TrainingResultProtocol {
 
         \(confusionMatrix.map { matrix in
             """
-            
+
             ## 混同行列
             ```
             \(matrix.getMatrixGraph())
             ```
-            
+
             ## クラス別性能指標
             | クラス | 再現率 | 適合率 | F1スコア |
             |--------|--------|--------|----------|

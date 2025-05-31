@@ -45,16 +45,17 @@ enum MLModelType: String {
                 .binary: "v6",
                 .multiClass: "v3",
                 .multiLabel: "v1",
-                .ovr: "v25",
+                .ovr: "v23",
                 .ovo: "v1",
             ],
             author: "akitora",
             modelParameters: MLImageClassifier.ModelParameters(
                 validation: .split(strategy: .automatic),
-                maxIterations: 20,
+                maxIterations: 11,
                 augmentation: [],
                 algorithm: .transferLearning(
-                    featureExtractor: Self.scenePrintRevision.map { .scenePrint(revision: $0) } ?? .scenePrint(revision: 2),
+                    featureExtractor: Self.scenePrintRevision
+                        .map { .scenePrint(revision: $0) } ?? .scenePrint(revision: 2),
                     classifier: .logisticRegressor
                 )
             ),
@@ -75,7 +76,7 @@ let semaphore = DispatchSemaphore(value: 0)
 Task {
     let selectedModel: MLModelType = .scaryCatScreeningML
     let selectedClassifier: ClassifierType = .ovr
-    let trainingCount = 5
+    let trainingCount = 1
 
     guard trainingCount > 0 else {
         print("トレーニングの回数は1以上を指定してください")

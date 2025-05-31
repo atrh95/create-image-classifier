@@ -185,12 +185,14 @@ final class MultiClassClassifierTests: XCTestCase {
         let modelFilePath = result.metadata.trainedModelFilePath
         let modelFileName = URL(fileURLWithPath: modelFilePath).lastPathComponent
         let regex = #"^TestModel_MultiClass_v\d+\.mlmodel$"#
-        XCTAssertTrue(modelFileName.range(of: regex, options: .regularExpression) != nil,
-                     """
-                     モデルファイル名が期待パターンに一致しません。
-                     期待パターン: \(regex)
-                     実際: \(modelFileName)
-                     """)
+        XCTAssertTrue(
+            modelFileName.range(of: regex, options: .regularExpression) != nil,
+            """
+            モデルファイル名が期待パターンに一致しません。
+            期待パターン: \(regex)
+            実際: \(modelFileName)
+            """
+        )
 
         XCTAssertTrue(
             result.metadata.trainedModelFilePath.contains(testModelVersion),
@@ -285,7 +287,8 @@ final class MultiClassClassifierTests: XCTestCase {
             throw TestError.trainingFailed
         }
 
-        let firstModelFileDir = URL(fileURLWithPath: firstResult.metadata.trainedModelFilePath).deletingLastPathComponent()
+        let firstModelFileDir = URL(fileURLWithPath: firstResult.metadata.trainedModelFilePath)
+            .deletingLastPathComponent()
 
         // 2回目のモデル作成を実行
         let secondResult = await classifier.create(
@@ -296,16 +299,23 @@ final class MultiClassClassifierTests: XCTestCase {
             scenePrintRevision: nil
         )
 
-        guard let secondResult = secondResult else {
+        guard let secondResult else {
             XCTFail("2回目の訓練結果がnilです")
             throw TestError.trainingFailed
         }
 
-        let secondModelFileDir = URL(fileURLWithPath: secondResult.metadata.trainedModelFilePath).deletingLastPathComponent()
-        
+        let secondModelFileDir = URL(fileURLWithPath: secondResult.metadata.trainedModelFilePath)
+            .deletingLastPathComponent()
+
         // 連番の検証
-        let firstResultNumber = Int(firstModelFileDir.lastPathComponent.replacingOccurrences(of: "MultiClass_Result_", with: "")) ?? 0
-        let secondResultNumber = Int(secondModelFileDir.lastPathComponent.replacingOccurrences(of: "MultiClass_Result_", with: "")) ?? 0
+        let firstResultNumber = Int(firstModelFileDir.lastPathComponent.replacingOccurrences(
+            of: "MultiClass_Result_",
+            with: ""
+        )) ?? 0
+        let secondResultNumber = Int(secondModelFileDir.lastPathComponent.replacingOccurrences(
+            of: "MultiClass_Result_",
+            with: ""
+        )) ?? 0
         XCTAssertEqual(
             secondResultNumber,
             firstResultNumber + 1,

@@ -129,16 +129,18 @@ final class OvOClassifierTests: XCTestCase {
         // モデルファイル名の検証
         let modelFilePath = result.metadata.trainedModelFilePath
         let modelFileName = URL(fileURLWithPath: modelFilePath).lastPathComponent
-        
+
         // OvO分類器では各クラスの組み合わせに対して1つの分類器を作成するため、各クラス名を含むパターンを期待
         let regex = #"^TestModel_OvO_[a-z_]+_vs_[a-z_]+_v\d+\.mlmodel$"#
-        XCTAssertTrue(modelFileName.range(of: regex, options: .regularExpression) != nil,
-                     """
-                     モデルファイル名が期待パターンに一致しません。
-                     期待パターン: \(regex)
-                     実際: \(modelFileName)
-                     """)
-        
+        XCTAssertTrue(
+            modelFileName.range(of: regex, options: .regularExpression) != nil,
+            """
+            モデルファイル名が期待パターンに一致しません。
+            期待パターン: \(regex)
+            実際: \(modelFileName)
+            """
+        )
+
         result.saveLog(modelAuthor: authorName, modelName: testModelName, modelVersion: testModelVersion)
         let modelFileDir = URL(fileURLWithPath: result.metadata.trainedModelFilePath).deletingLastPathComponent()
         let expectedLogFileName = "OvO_Run_Report_\(testModelVersion).md"
@@ -220,38 +222,74 @@ final class OvOClassifierTests: XCTestCase {
     /// 各クラス組み合わせにおいて、一時ディレクトリ内の画像枚数が最小枚数に統一されていることを検証する
     func testClassImageBalance() throws {
         let resourceURL = URL(fileURLWithPath: classifier.resourcesDirectoryPath)
-        let classLabels = try FileManager.default.contentsOfDirectory(at: resourceURL, includingPropertiesForKeys: [.isDirectoryKey])
-            .filter { $0.hasDirectoryPath }
-            .map { $0.lastPathComponent }
-        
+        let classLabels = try FileManager.default.contentsOfDirectory(
+            at: resourceURL,
+            includingPropertiesForKeys: [.isDirectoryKey]
+        )
+        .filter(\.hasDirectoryPath)
+        .map(\.lastPathComponent)
+
         // 各クラスの組み合わせで画像枚数のバランスを確認
-        for i in 0..<classLabels.count {
-            for j in (i+1)..<classLabels.count {
+        for i in 0 ..< classLabels.count {
+            for j in (i + 1) ..< classLabels.count {
                 let class1 = classLabels[i]
                 let class2 = classLabels[j]
-                
+
                 // トレーニングデータを準備
-                _ = try classifier.prepareTwoClassTrainingData(class1: class1, class2: class2, basePath: resourceURL.path)
-                
+                _ = try classifier.prepareTwoClassTrainingData(
+                    class1: class1,
+                    class2: class2,
+                    basePath: resourceURL.path
+                )
+
                 // クラス間の画像枚数を取得
-                let (class1Count, class2Count) = try classifier.balanceClassImages(class1: class1, class2: class2, basePath: resourceURL.path)
-                
+                let (class1Count, class2Count) = try classifier.balanceClassImages(
+                    class1: class1,
+                    class2: class2,
+                    basePath: resourceURL.path
+                )
+
                 // 一時ディレクトリのパスを取得
-                let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(OvOClassifier.tempBaseDirName)
+                let tempDir = FileManager.default.temporaryDirectory
+                    .appendingPathComponent(OvOClassifier.tempBaseDirName)
                 let tempClass1Dir = tempDir.appendingPathComponent(class1)
                 let tempClass2Dir = tempDir.appendingPathComponent(class2)
-                
+
                 // 一時ディレクトリ内の画像枚数を確認
-                let tempClass1Files = try FileManager.default.contentsOfDirectory(at: tempClass1Dir, includingPropertiesForKeys: nil)
-                    .filter { $0.pathExtension.lowercased() == "jpg" || $0.pathExtension.lowercased() == "jpeg" || $0.pathExtension.lowercased() == "png" }
-                
-                let tempClass2Files = try FileManager.default.contentsOfDirectory(at: tempClass2Dir, includingPropertiesForKeys: nil)
-                    .filter { $0.pathExtension.lowercased() == "jpg" || $0.pathExtension.lowercased() == "jpeg" || $0.pathExtension.lowercased() == "png" }
-                
+                let tempClass1Files = try FileManager.default.contentsOfDirectory(
+                    at: tempClass1Dir,
+                    includingPropertiesForKeys: nil
+                )
+                .filter {
+                    $0.pathExtension.lowercased() == "jpg" || $0.pathExtension.lowercased() == "jpeg" || $0
+                        .pathExtension.lowercased() == "png"
+                }
+
+                let tempClass2Files = try FileManager.default.contentsOfDirectory(
+                    at: tempClass2Dir,
+                    includingPropertiesForKeys: nil
+                )
+                .filter {
+                    $0.pathExtension.lowercased() == "jpg" || $0.pathExtension.lowercased() == "jpeg" || $0
+                        .pathExtension.lowercased() == "png"
+                }
+
                 // 画像枚数が一致することを確認
-                XCTAssertEqual(tempClass1Files.count, class1Count, "クラス [\(class1)] の画像枚数が一致しません。期待値: \(class1Count), 実際: \(tempClass1Files.count)")
-                XCTAssertEqual(tempClass2Files.count, class2Count, "クラス [\(class2)] の画像枚数が一致しません。期待値: \(class2Count), 実際: \(tempClass2Files.count)")
-                XCTAssertEqual(tempClass1Files.count, tempClass2Files.count, "クラス [\(class1)] と [\(class2)] の画像枚数が一致しません。")
+                XCTAssertEqual(
+                    tempClass1Files.count,
+                    class1Count,
+                    "クラス [\(class1)] の画像枚数が一致しません。期待値: \(class1Count), 実際: \(tempClass1Files.count)"
+                )
+                XCTAssertEqual(
+                    tempClass2Files.count,
+                    class2Count,
+                    "クラス [\(class2)] の画像枚数が一致しません。期待値: \(class2Count), 実際: \(tempClass2Files.count)"
+                )
+                XCTAssertEqual(
+                    tempClass1Files.count,
+                    tempClass2Files.count,
+                    "クラス [\(class1)] と [\(class2)] の画像枚数が一致しません。"
+                )
             }
         }
     }
@@ -265,21 +303,24 @@ final class OvOClassifierTests: XCTestCase {
 
         // リソースディレクトリからクラスラベルの一覧を取得
         let resourceURL = URL(fileURLWithPath: classifier.resourcesDirectoryPath)
-        let classLabels = try FileManager.default.contentsOfDirectory(at: resourceURL, includingPropertiesForKeys: [.isDirectoryKey])
-            .filter { $0.hasDirectoryPath }
-            .map { $0.lastPathComponent }
-            .sorted()
+        let classLabels = try FileManager.default.contentsOfDirectory(
+            at: resourceURL,
+            includingPropertiesForKeys: [.isDirectoryKey]
+        )
+        .filter(\.hasDirectoryPath)
+        .map(\.lastPathComponent)
+        .sorted()
 
         // クラスの組み合わせの数を計算（nC2 = n * (n-1) / 2）
         let expectedCombinationCount = (classLabels.count * (classLabels.count - 1)) / 2
 
         // モデルファイルのディレクトリを取得
         let modelFileDir = URL(fileURLWithPath: result.metadata.trainedModelFilePath).deletingLastPathComponent()
-        
+
         // 生成されたmlmodelファイルの数を取得
         let modelFiles = try FileManager.default.contentsOfDirectory(at: modelFileDir, includingPropertiesForKeys: nil)
             .filter { $0.pathExtension.lowercased() == "mlmodel" }
-        
+
         // クラスの組み合わせの数とmlmodelファイルの数が一致することを確認
         XCTAssertEqual(
             modelFiles.count,
@@ -299,19 +340,20 @@ final class OvOClassifierTests: XCTestCase {
             // ファイル名からクラス名を抽出（例: "TestModel_OvO_class1_vs_class2_v1.mlmodel"）
             let components = fileName.components(separatedBy: "_")
             guard components.count >= 5,
-                  let vsIndex = components.firstIndex(of: "vs") else {
+                  let vsIndex = components.firstIndex(of: "vs")
+            else {
                 XCTFail("モデルファイル名の形式が不正です: \(fileName)")
                 continue
             }
-            
+
             // クラス1の名前を抽出（vsの前の部分）
-            let class1Components = components[2..<vsIndex]
+            let class1Components = components[2 ..< vsIndex]
             let class1 = class1Components.joined(separator: "_")
-            
+
             // クラス2の名前を抽出（vsの後の部分、バージョン番号の前まで）
-            let class2Components = components[(vsIndex + 1)..<(components.count - 1)]
+            let class2Components = components[(vsIndex + 1) ..< (components.count - 1)]
             let class2 = class2Components.joined(separator: "_")
-            
+
             // 抽出したクラス名が実際のクラスラベルのリストに含まれていることを確認
             XCTAssertTrue(
                 classLabels.contains(class1) && classLabels.contains(class2),
@@ -368,7 +410,8 @@ final class OvOClassifierTests: XCTestCase {
             throw TestError.trainingFailed
         }
 
-        let firstModelFileDir = URL(fileURLWithPath: firstResult.metadata.trainedModelFilePath).deletingLastPathComponent()
+        let firstModelFileDir = URL(fileURLWithPath: firstResult.metadata.trainedModelFilePath)
+            .deletingLastPathComponent()
 
         // 2回目のモデル作成を実行
         let secondResult = await classifier.create(
@@ -379,16 +422,23 @@ final class OvOClassifierTests: XCTestCase {
             scenePrintRevision: nil
         )
 
-        guard let secondResult = secondResult else {
+        guard let secondResult else {
             XCTFail("2回目の訓練結果がnilです")
             throw TestError.trainingFailed
         }
 
-        let secondModelFileDir = URL(fileURLWithPath: secondResult.metadata.trainedModelFilePath).deletingLastPathComponent()
-        
+        let secondModelFileDir = URL(fileURLWithPath: secondResult.metadata.trainedModelFilePath)
+            .deletingLastPathComponent()
+
         // 連番の検証
-        let firstResultNumber = Int(firstModelFileDir.lastPathComponent.replacingOccurrences(of: "OvO_Result_", with: "")) ?? 0
-        let secondResultNumber = Int(secondModelFileDir.lastPathComponent.replacingOccurrences(of: "OvO_Result_", with: "")) ?? 0
+        let firstResultNumber = Int(firstModelFileDir.lastPathComponent.replacingOccurrences(
+            of: "OvO_Result_",
+            with: ""
+        )) ?? 0
+        let secondResultNumber = Int(secondModelFileDir.lastPathComponent.replacingOccurrences(
+            of: "OvO_Result_",
+            with: ""
+        )) ?? 0
         XCTAssertEqual(
             secondResultNumber,
             firstResultNumber + 1,
