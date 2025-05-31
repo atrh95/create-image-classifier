@@ -256,6 +256,76 @@ final class OvOClassifierTests: XCTestCase {
         }
     }
 
+    /// 生成されるmlmodelファイルの数がクラスの組み合わせの数と一致することを確認する
+    func testModelFileCountMatchesClassCombinations() throws {
+        guard let result = trainingResult else {
+            XCTFail("訓練結果がnilです")
+            throw TestError.trainingFailed
+        }
+
+        // リソースディレクトリからクラスラベルの一覧を取得
+        let resourceURL = URL(fileURLWithPath: classifier.resourcesDirectoryPath)
+        let classLabels = try FileManager.default.contentsOfDirectory(at: resourceURL, includingPropertiesForKeys: [.isDirectoryKey])
+            .filter { $0.hasDirectoryPath }
+            .map { $0.lastPathComponent }
+            .sorted()
+
+        // クラスの組み合わせの数を計算（nC2 = n * (n-1) / 2）
+        let expectedCombinationCount = (classLabels.count * (classLabels.count - 1)) / 2
+
+        // モデルファイルのディレクトリを取得
+        let modelFileDir = URL(fileURLWithPath: result.metadata.trainedModelFilePath).deletingLastPathComponent()
+        
+        // 生成されたmlmodelファイルの数を取得
+        let modelFiles = try FileManager.default.contentsOfDirectory(at: modelFileDir, includingPropertiesForKeys: nil)
+            .filter { $0.pathExtension.lowercased() == "mlmodel" }
+        
+        // クラスの組み合わせの数とmlmodelファイルの数が一致することを確認
+        XCTAssertEqual(
+            modelFiles.count,
+            expectedCombinationCount,
+            """
+            生成されたmlmodelファイルの数がクラスの組み合わせの数と一致しません。
+            クラス数: \(classLabels.count)
+            期待される組み合わせ数: \(expectedCombinationCount)
+            生成されたmlmodelファイル数: \(modelFiles.count)
+            クラスラベル: \(classLabels.joined(separator: ", "))
+            """
+        )
+
+        // 各モデルファイル名が正しいクラスの組み合わせを含むことを確認
+        for modelFile in modelFiles {
+            let fileName = modelFile.lastPathComponent
+            // ファイル名からクラス名を抽出（例: "TestModel_OvO_class1_vs_class2_v1.mlmodel"）
+            let components = fileName.components(separatedBy: "_")
+            guard components.count >= 5,
+                  let vsIndex = components.firstIndex(of: "vs") else {
+                XCTFail("モデルファイル名の形式が不正です: \(fileName)")
+                continue
+            }
+            
+            // クラス1の名前を抽出（vsの前の部分）
+            let class1Components = components[2..<vsIndex]
+            let class1 = class1Components.joined(separator: "_")
+            
+            // クラス2の名前を抽出（vsの後の部分、バージョン番号の前まで）
+            let class2Components = components[(vsIndex + 1)..<(components.count - 1)]
+            let class2 = class2Components.joined(separator: "_")
+            
+            // 抽出したクラス名が実際のクラスラベルのリストに含まれていることを確認
+            XCTAssertTrue(
+                classLabels.contains(class1) && classLabels.contains(class2),
+                """
+                モデルファイル名に含まれるクラス名が実際のクラスラベルのリストに存在しません。
+                ファイル名: \(fileName)
+                抽出されたクラス1: \(class1)
+                抽出されたクラス2: \(class2)
+                実際のクラスラベル: \(classLabels.joined(separator: ", "))
+                """
+            )
+        }
+    }
+
     private func getRandomImageURL(forClassLabel classLabel: String) throws -> URL {
         let resourceURL = URL(fileURLWithPath: classifier.resourcesDirectoryPath)
         let classLabelURL = resourceURL.appendingPathComponent(classLabel)

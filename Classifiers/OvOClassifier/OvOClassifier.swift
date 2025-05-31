@@ -194,7 +194,8 @@ public final class OvOClassifier: ClassifierProtocol {
                 validationMetrics: firstModelValidationMetrics!,
                 modelParameters: modelParameters,
                 trainingDurationSeconds: totalTrainingDuration,
-                modelFilePath: modelFilePath
+                oneOfModelFilePath: modelFilePath,
+                individualModelReports: individualModelReports
             )
 
         } catch let createMLError as CreateML.MLCreateError {
@@ -307,7 +308,8 @@ public final class OvOClassifier: ClassifierProtocol {
         validationMetrics: MLClassifierMetrics,
         modelParameters: CreateML.MLImageClassifier.ModelParameters,
         trainingDurationSeconds: TimeInterval,
-        modelFilePath: String
+        oneOfModelFilePath: String,
+        individualModelReports: [CICIndividualModelReport]
     ) -> OvOTrainingResult {
         let augmentationFinalDescription = if !modelParameters.augmentationOptions.isEmpty {
             String(describing: modelParameters.augmentationOptions)
@@ -320,7 +322,7 @@ public final class OvOClassifier: ClassifierProtocol {
         let metadata = CICTrainingMetadata(
             modelName: modelName,
             trainingDurationInSeconds: trainingDurationSeconds,
-            trainedModelFilePath: modelFilePath,
+            trainedModelFilePath: oneOfModelFilePath,
             detectedClassLabelsList: classLabelDirURLs.map(\.lastPathComponent),
             maxIterations: modelParameters.maxIterations,
             dataAugmentationDescription: augmentationFinalDescription,
@@ -344,7 +346,7 @@ public final class OvOClassifier: ClassifierProtocol {
                 errorRate: validationMetrics.classificationError
             ),
             confusionMatrix: confusionMatrix,
-            individualModelReports: []
+            individualModelReports: individualModelReports
         )
     }
 

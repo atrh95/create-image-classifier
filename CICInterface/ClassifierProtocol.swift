@@ -55,15 +55,4 @@ public protocol ClassifierProtocol {
         outputDirectoryURL: URL,
         metadata: MLModelMetadata
     ) throws -> String
-
-    /// トレーニングの結果を作成
-    func createTrainingResult(
-        modelName: String,
-        classLabelDirURLs: [URL],
-        trainingMetrics: MLClassifierMetrics,
-        validationMetrics: MLClassifierMetrics,
-        modelParameters: CreateML.MLImageClassifier.ModelParameters,
-        trainingDurationSeconds: TimeInterval,
-        modelFilePath: String
-    ) -> TrainingResultType
 }

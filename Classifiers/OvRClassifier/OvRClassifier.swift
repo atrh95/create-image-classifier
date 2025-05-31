@@ -9,6 +9,7 @@ import Foundation
 import TabularData
 
 public final class OvRClassifier: ClassifierProtocol {
+    
     public typealias TrainingResultType = OvRTrainingResult
 
     private let fileManager = CICFileManager()
@@ -68,93 +69,101 @@ public final class OvRClassifier: ClassifierProtocol {
         do {
             // クラスラベルディレクトリの取得
             let classLabelDirURLs = try getClassLabelDirectories()
+            print("📁 検出されたクラスラベルディレクトリ: \(classLabelDirURLs.map(\.lastPathComponent).joined(separator: ", "))")
 
-            // トレーニングデータの準備
-            let trainingDataSource = try prepareTrainingData(from: classLabelDirURLs)
-            print("📊 トレーニングデータソース作成完了")
+            var individualModelReports: [CICIndividualModelReport] = []
+            var firstModelTrainingMetrics: MLClassifierMetrics?
+            var firstModelValidationMetrics: MLClassifierMetrics?
+            var modelFilePaths: [String] = []
 
-            // モデルのトレーニング
-            let (imageClassifier, trainingDurationSeconds) = try trainModel(
-                trainingDataSource: trainingDataSource,
-                modelParameters: modelParameters
-            )
-
-            let trainingMetrics = imageClassifier.trainingMetrics
-            let validationMetrics = imageClassifier.validationMetrics
-
-            // 混同行列の計算
-            let confusionMatrix = CICMultiClassConfusionMatrix(
-                dataTable: validationMetrics.confusion,
-                predictedColumn: "Predicted",
-                actualColumn: "True Label"
-            )
-
-            // トレーニング結果の表示
-            print("\n📊 トレーニング結果サマリー")
-            print(String(
-                format: "  訓練正解率: %.1f%%",
-                (1.0 - trainingMetrics.classificationError) * 100.0
-            ))
-
-            if let confusionMatrix {
-                print(String(
-                    format: "  検証正解率: %.1f%%",
-                    (1.0 - validationMetrics.classificationError) * 100.0
-                ))
-                print(confusionMatrix.getMatrixGraph())
-            } else {
-                print("⚠️ 警告: 検証データが不十分なため、混同行列の計算をスキップしました")
-            }
-
-            // モデルのメタデータ作成
-            let modelMetadata = createModelMetadata(
-                author: author,
-                version: version,
-                classLabelDirURLs: classLabelDirURLs,
-                trainingMetrics: trainingMetrics,
-                validationMetrics: validationMetrics,
-                modelParameters: modelParameters
-            )
-
-            // 出力ディレクトリの設定
+            // 出力ディレクトリの設定（最初に1回だけ作成）
             let outputDirectoryURL = try setupOutputDirectory(modelName: modelName, version: version)
 
-            // クラスラベルを取得してファイル名を生成
-            let classLabels = classLabelDirURLs.map { $0.lastPathComponent }
+            // 各クラスに対して1つのモデルを作成
+            for (index, oneClassDir) in classLabelDirURLs.enumerated() {
+                let oneClassLabel = oneClassDir.lastPathComponent
+                print("🔄 クラス [\(oneClassLabel)] のモデル作成開始...")
 
-            // OvRの場合は、Oneのクラス名のみを使用
-            let oneClassLabel = classLabels.first ?? ""
-            let modelFileName = "\(modelName)_\(classificationMethod)_\(oneClassLabel)_\(version).mlmodel"
+                // トレーニングデータの準備
+                let trainingDataSource = try prepareTrainingData(positiveClass: oneClassLabel, basePath: resourcesDirectoryPath)
+                print("📊 トレーニングデータソース作成完了")
 
-            let modelFilePath = try saveMLModel(
-                imageClassifier: imageClassifier,
-                modelName: modelName,
-                modelFileName: modelFileName,
-                version: version,
-                outputDirectoryURL: outputDirectoryURL,
-                metadata: modelMetadata
-            )
+                // モデルのトレーニング
+                let (imageClassifier, trainingDurationSeconds) = try trainModel(
+                    trainingDataSource: trainingDataSource,
+                    modelParameters: modelParameters
+                )
+
+                let currentTrainingMetrics = imageClassifier.trainingMetrics
+                let currentValidationMetrics = imageClassifier.validationMetrics
+
+                // 最初のモデルのメトリクスを保存
+                if firstModelTrainingMetrics == nil {
+                    firstModelTrainingMetrics = currentTrainingMetrics
+                    firstModelValidationMetrics = currentValidationMetrics
+                }
+
+                // モデルのメタデータ作成
+                let modelMetadata = createModelMetadata(
+                    author: author,
+                    version: version,
+                    classLabelDirURLs: [oneClassDir],
+                    trainingMetrics: currentTrainingMetrics,
+                    validationMetrics: currentValidationMetrics,
+                    modelParameters: modelParameters
+                )
+
+                // モデルファイル名を生成
+                let modelFileName = "\(modelName)_\(classificationMethod)_\(oneClassLabel)_\(version).mlmodel"
+
+                // モデルファイルを保存
+                let modelFilePath = try saveMLModel(
+                    imageClassifier: imageClassifier,
+                    modelName: modelName,
+                    modelFileName: modelFileName,
+                    version: version,
+                    outputDirectoryURL: outputDirectoryURL,
+                    metadata: modelMetadata
+                )
+                modelFilePaths.append(modelFilePath)
+
+                // 個別モデルのレポートを作成
+                let confusionMatrix = CICBinaryConfusionMatrix(
+                    dataTable: currentValidationMetrics.confusion,
+                    predictedColumn: "Predicted",
+                    actualColumn: "True Label",
+                    positiveClass: oneClassLabel
+                )
+
+                let individualReport = CICIndividualModelReport(
+                    modelName: modelFileName,
+                    positiveClassName: oneClassLabel,
+                    trainingAccuracyRate: 1.0 - currentTrainingMetrics.classificationError,
+                    validationAccuracyPercentage: 1.0 - currentValidationMetrics.classificationError,
+                    confusionMatrix: confusionMatrix
+                )
+                individualModelReports.append(individualReport)
+            }
+
+            // 最初のモデルのメトリクスを使用してトレーニング結果を作成
+            guard let firstModelTrainingMetrics = firstModelTrainingMetrics,
+                  let firstModelValidationMetrics = firstModelValidationMetrics else {
+                throw NSError(domain: "OvRClassifier", code: -1, userInfo: [NSLocalizedDescriptionKey: "Training failed"])
+            }
 
             return createTrainingResult(
                 modelName: modelName,
                 classLabelDirURLs: classLabelDirURLs,
-                trainingMetrics: trainingMetrics,
-                validationMetrics: validationMetrics,
+                trainingMetrics: firstModelTrainingMetrics,
+                validationMetrics: firstModelValidationMetrics,
                 modelParameters: modelParameters,
-                trainingDurationSeconds: trainingDurationSeconds,
-                modelFilePath: modelFilePath
+                trainingDurationSeconds: 0,
+                oneOfModelFilePath: modelFilePaths[0],
+                individualModelReports: individualModelReports
             )
 
-        } catch let createMLError as CreateML.MLCreateError {
-            print("🛑 エラー: モデル [\(modelName)] のトレーニングまたは保存失敗 (CreateML): \(createMLError.localizedDescription)")
-            print("詳細なエラー情報:")
-            print("- エラーコード: \(createMLError.errorCode)")
-            print("- エラーの種類: \(type(of: createMLError))")
-            return nil
         } catch {
-            print("🛑 エラー: トレーニングプロセス中に予期しないエラー: \(error.localizedDescription)")
-            print("エラーの詳細:")
-            print(error)
+            print("❌ モデル作成失敗: \(error.localizedDescription)")
             return nil
         }
     }
@@ -307,7 +316,8 @@ public final class OvRClassifier: ClassifierProtocol {
         validationMetrics: MLClassifierMetrics,
         modelParameters: CreateML.MLImageClassifier.ModelParameters,
         trainingDurationSeconds: TimeInterval,
-        modelFilePath: String
+        oneOfModelFilePath: String,
+        individualModelReports: [CICIndividualModelReport]
     ) -> OvRTrainingResult {
         let augmentationFinalDescription = if !modelParameters.augmentationOptions.isEmpty {
             String(describing: modelParameters.augmentationOptions)
@@ -320,7 +330,7 @@ public final class OvRClassifier: ClassifierProtocol {
         let metadata = CICTrainingMetadata(
             modelName: modelName,
             trainingDurationInSeconds: trainingDurationSeconds,
-            trainedModelFilePath: modelFilePath,
+            trainedModelFilePath: oneOfModelFilePath,
             detectedClassLabelsList: classLabelDirURLs.map(\.lastPathComponent),
             maxIterations: modelParameters.maxIterations,
             dataAugmentationDescription: augmentationFinalDescription,
@@ -344,7 +354,7 @@ public final class OvRClassifier: ClassifierProtocol {
                 errorRate: validationMetrics.classificationError
             ),
             confusionMatrix: confusionMatrix,
-            individualModelReports: []
+            individualModelReports: individualModelReports
         )
     }
 
@@ -386,47 +396,45 @@ public final class OvRClassifier: ClassifierProtocol {
         let subdirectories = try FileManager.default.contentsOfDirectory(at: sourceDir, includingPropertiesForKeys: [.isDirectoryKey])
             .filter { $0.hasDirectoryPath && $0.lastPathComponent != positiveClass }
         
+        // 各restクラスから均等にサンプリング
+        let samplesPerRestClass = Int(ceil(Double(positiveClassFiles.count) / Double(subdirectories.count)))
+        print("📊 各restクラスから \(samplesPerRestClass) 枚ずつサンプリングします")
+        
         for subdir in subdirectories {
             let files = try FileManager.default.contentsOfDirectory(at: subdir, includingPropertiesForKeys: nil)
                 .filter { $0.pathExtension.lowercased() == "jpg" || $0.pathExtension.lowercased() == "jpeg" || $0.pathExtension.lowercased() == "png" }
-            negativeClassFiles.append(contentsOf: files)
+            let sampledFiles = files.shuffled().prefix(samplesPerRestClass)
+            negativeClassFiles.append(contentsOf: sampledFiles)
         }
         
-        // 最小枚数を取得
-        let minCount = min(positiveClassFiles.count, negativeClassFiles.count)
-        
         print("📊 正例クラス [\(positiveClass)] の画像枚数: \(positiveClassFiles.count)")
-        print("📊 負例クラスの画像枚数: \(negativeClassFiles.count)")
-        print("📊 最小枚数に合わせて \(minCount) 枚に統一します")
-        
-        // 一時ディレクトリを作成
+        print("📊 収集した負例画像枚数: \(negativeClassFiles.count)")
+
+        // 一時ディレクトリを準備
         let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(Self.tempBaseDirName)
         let tempPositiveDir = tempDir.appendingPathComponent(positiveClass)
-        let tempNegativeDir = tempDir.appendingPathComponent("negative")
-        
-        // 既存の一時ディレクトリを削除
+        let tempRestDir = tempDir.appendingPathComponent("rest")
+
+        // 既存の一時ディレクトリをクリーンにする
         if FileManager.default.fileExists(atPath: tempDir.path) {
             try FileManager.default.removeItem(at: tempDir)
         }
-        
-        // 一時ディレクトリを作成
+
         try FileManager.default.createDirectory(at: tempPositiveDir, withIntermediateDirectories: true)
-        try FileManager.default.createDirectory(at: tempNegativeDir, withIntermediateDirectories: true)
-        
-        // ランダムに選択してコピー
-        let shuffledPositiveFiles = positiveClassFiles.shuffled().prefix(minCount)
-        let shuffledNegativeFiles = negativeClassFiles.shuffled().prefix(minCount)
-        
-        for (index, file) in shuffledPositiveFiles.enumerated() {
+        try FileManager.default.createDirectory(at: tempRestDir, withIntermediateDirectories: true)
+
+        // 正例は全画像をコピー
+        for (index, file) in positiveClassFiles.enumerated() {
             let destination = tempPositiveDir.appendingPathComponent("\(index).\(file.pathExtension)")
             try FileManager.default.copyItem(at: file, to: destination)
         }
-        
-        for (index, file) in shuffledNegativeFiles.enumerated() {
-            let destination = tempNegativeDir.appendingPathComponent("\(index).\(file.pathExtension)")
+
+        // 負例はサンプリング済みの画像をすべてコピー
+        for (index, file) in negativeClassFiles.enumerated() {
+            let destination = tempRestDir.appendingPathComponent("\(index).\(file.pathExtension)")
             try FileManager.default.copyItem(at: file, to: destination)
         }
-        
+
         // 一時ディレクトリからデータソースを作成
         return MLImageClassifier.DataSource.labeledDirectories(at: tempDir)
     }

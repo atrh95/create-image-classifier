@@ -1,3 +1,33 @@
+// テスト用リソースサンドボックスユーティリティ
+final class TestResourceSandboxFactory {
+    static func createSandboxedResources(from original: URL, modify: (URL, [String]) throws -> Void) throws -> URL {
+        let fileManager = FileManager.default
+        let tempDir = fileManager.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try fileManager.copyItem(at: original, to: tempDir)
+
+        let classDirs = try fileManager.contentsOfDirectory(at: tempDir, includingPropertiesForKeys: [.isDirectoryKey])
+            .filter { $0.hasDirectoryPath }
+            .map { $0.lastPathComponent }
+
+        try modify(tempDir, classDirs)
+        return tempDir
+    }
+
+    static func reduceRestClassSamples(to remaining: Int, for positiveClass: String, in sandboxURL: URL, classLabels: [String]) throws {
+        let fileManager = FileManager.default
+        for restClass in classLabels where restClass != positiveClass {
+            let restDir = sandboxURL.appendingPathComponent(restClass)
+            var files = try fileManager.contentsOfDirectory(at: restDir, includingPropertiesForKeys: nil)
+                .filter { ["jpg", "jpeg", "png"].contains($0.pathExtension.lowercased()) }
+            files.shuffle()
+            let filesToDelete = files.dropFirst(remaining)
+            for file in filesToDelete {
+                try fileManager.removeItem(at: file)
+            }
+        }
+    }
+}
+
 import CICFileManager
 import CoreML
 import CreateML
@@ -242,18 +272,18 @@ final class OvRClassifierTests: XCTestCase {
             .filter { $0.hasDirectoryPath }
         
         // 正例クラスとrestクラスのディレクトリを取得
-        let positiveClassDir = classDirs.first { $0.lastPathComponent != "rest" }
-        let restDir = classDirs.first { $0.lastPathComponent == "rest" }
-        
-        XCTAssertNotNil(positiveClassDir, "正例クラスのディレクトリが見つかりません")
-        XCTAssertNotNil(restDir, "restクラスのディレクトリが見つかりません")
+        guard let positiveClassDir = classDirs.first(where: { $0.lastPathComponent != "rest" }),
+              let restDir = classDirs.first(where: { $0.lastPathComponent == "rest" }) else {
+            XCTFail("正例クラスまたはrestクラスのディレクトリが見つかりません")
+            throw TestError.setupFailed
+        }
         
         // 正例クラスの画像枚数を確認
-        let positiveFiles = try FileManager.default.contentsOfDirectory(at: positiveClassDir!, includingPropertiesForKeys: nil)
+        let positiveFiles = try FileManager.default.contentsOfDirectory(at: positiveClassDir, includingPropertiesForKeys: nil)
             .filter { $0.pathExtension.lowercased() == "jpg" || $0.pathExtension.lowercased() == "jpeg" || $0.pathExtension.lowercased() == "png" }
         
         // restクラスの画像枚数を確認
-        let restFiles = try FileManager.default.contentsOfDirectory(at: restDir!, includingPropertiesForKeys: nil)
+        let restFiles = try FileManager.default.contentsOfDirectory(at: restDir, includingPropertiesForKeys: nil)
             .filter { $0.pathExtension.lowercased() == "jpg" || $0.pathExtension.lowercased() == "jpeg" || $0.pathExtension.lowercased() == "png" }
         
         // 正例クラスの枚数を取得
@@ -267,15 +297,27 @@ final class OvRClassifierTests: XCTestCase {
         // 各restクラスから取得されるべき枚数（切り上げ除算）
         let expectedSamplesPerRestClass = Int(ceil(Double(positiveCount) / Double(restClassCount)))
         
+        // 各restクラスの実際の画像枚数を取得
+        let resourceURL = URL(fileURLWithPath: classifier.resourcesDirectoryPath)
+        let restClassDirs = try FileManager.default.contentsOfDirectory(at: resourceURL, includingPropertiesForKeys: [.isDirectoryKey])
+            .filter { $0.hasDirectoryPath && $0.lastPathComponent != positiveClassDir.lastPathComponent }
+        
+        var totalAvailableRestImages = 0
+        for restClassDir in restClassDirs {
+            let files = try FileManager.default.contentsOfDirectory(at: restClassDir, includingPropertiesForKeys: nil)
+                .filter { $0.pathExtension.lowercased() == "jpg" || $0.pathExtension.lowercased() == "jpeg" || $0.pathExtension.lowercased() == "png" }
+            totalAvailableRestImages += min(files.count, expectedSamplesPerRestClass)
+        }
+        
         // restの合計枚数が期待値と一致することを確認
-        let expectedTotalRestCount = expectedSamplesPerRestClass * restClassCount
+        let expectedTotalRestCount = totalAvailableRestImages
         XCTAssertEqual(restFiles.count, expectedTotalRestCount,
                       """
                       restクラスの合計枚数が期待値と一致しません。
-                      正例クラス [\(positiveClassDir!.lastPathComponent)]: \(positiveCount)枚
+                      正例クラス [\(positiveClassDir.lastPathComponent)]: \(positiveCount)枚
                       restクラス数: \(restClassCount)
                       期待される各restクラスの枚数: \(expectedSamplesPerRestClass)
-                      期待される合計rest枚数: \(expectedTotalRestCount)
+                      実際に利用可能なrest画像の合計: \(totalAvailableRestImages)
                       実際のrest枚数: \(restFiles.count)
                       """)
         
@@ -286,37 +328,102 @@ final class OvRClassifierTests: XCTestCase {
         XCTAssertGreaterThan(restFiles.count, 0, "restクラスの枚数が0です")
     }
 
-    /// 各クラスにおいて、一時ディレクトリ内の正例クラスと負例クラスの画像枚数が一致していることを検証する
+    /// 各クラスにおいて、一時ディレクトリ内の正例クラス・restクラスの画像バランスを検証する
     func testBinaryClassImageBalance() throws {
         let resourceURL = URL(fileURLWithPath: classifier.resourcesDirectoryPath)
         let classLabels = try FileManager.default.contentsOfDirectory(at: resourceURL, includingPropertiesForKeys: [.isDirectoryKey])
             .filter { $0.hasDirectoryPath }
             .map { $0.lastPathComponent }
-        
-        // 各クラスで画像枚数のバランスを確認
+
         for positiveClass in classLabels {
-            // トレーニングデータを準備
-            _ = try classifier.prepareTrainingData(positiveClass: positiveClass, basePath: resourceURL.path)
-            
-            // クラス間の画像枚数を取得
-            let (positiveCount, negativeCount) = try classifier.balanceClassImages(positiveClass: positiveClass, basePath: resourceURL.path)
-            
-            // 一時ディレクトリのパスを取得
+            let sandboxURL = resourceURL
+            let testClassifier = OvRClassifier(
+                outputDirectoryPathOverride: classifier.outputParentDirPath,
+                resourceDirPathOverride: sandboxURL.path
+            )
+
+            _ = try testClassifier.prepareTrainingData(positiveClass: positiveClass, basePath: sandboxURL.path)
+
+            let positiveClassURL = sandboxURL.appendingPathComponent(positiveClass)
+            let positiveCount = try FileManager.default.contentsOfDirectory(at: positiveClassURL, includingPropertiesForKeys: nil)
+                .filter { ["jpg", "jpeg", "png"].contains($0.pathExtension.lowercased()) }
+                .count
+
+            let restClassCount = classLabels.count - 1
+            let expectedPerRest = Int(ceil(Double(positiveCount) / Double(restClassCount)))
+
+            var totalAvailableRest = 0
+            for restLabel in classLabels where restLabel != positiveClass {
+                let restURL = sandboxURL.appendingPathComponent(restLabel)
+                let count = try FileManager.default.contentsOfDirectory(at: restURL, includingPropertiesForKeys: nil)
+                    .filter { ["jpg", "jpeg", "png"].contains($0.pathExtension.lowercased()) }
+                    .count
+                totalAvailableRest += min(count, expectedPerRest)
+            }
+
             let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(OvRClassifier.tempBaseDirName)
             let tempPositiveDir = tempDir.appendingPathComponent(positiveClass)
-            let tempNegativeDir = tempDir.appendingPathComponent("negative")
-            
-            // 一時ディレクトリ内の画像枚数を確認
+            let tempRestDir = tempDir.appendingPathComponent("rest")
+
             let tempPositiveFiles = try FileManager.default.contentsOfDirectory(at: tempPositiveDir, includingPropertiesForKeys: nil)
-                .filter { $0.pathExtension.lowercased() == "jpg" || $0.pathExtension.lowercased() == "jpeg" || $0.pathExtension.lowercased() == "png" }
-            
-            let tempNegativeFiles = try FileManager.default.contentsOfDirectory(at: tempNegativeDir, includingPropertiesForKeys: nil)
-                .filter { $0.pathExtension.lowercased() == "jpg" || $0.pathExtension.lowercased() == "jpeg" || $0.pathExtension.lowercased() == "png" }
-            
-            // 画像枚数が一致することを確認
+                .filter { ["jpg", "jpeg", "png"].contains($0.pathExtension.lowercased()) }
+
+            let tempRestFiles = try FileManager.default.contentsOfDirectory(at: tempRestDir, includingPropertiesForKeys: nil)
+                .filter { ["jpg", "jpeg", "png"].contains($0.pathExtension.lowercased()) }
+
             XCTAssertEqual(tempPositiveFiles.count, positiveCount, "正例クラス [\(positiveClass)] の画像枚数が一致しません。期待値: \(positiveCount), 実際: \(tempPositiveFiles.count)")
-            XCTAssertEqual(tempNegativeFiles.count, negativeCount, "負例クラスの画像枚数が一致しません。期待値: \(negativeCount), 実際: \(tempNegativeFiles.count)")
-            XCTAssertEqual(tempPositiveFiles.count, tempNegativeFiles.count, "正例クラス [\(positiveClass)] と負例クラスの画像枚数が一致しません。")
+            XCTAssertEqual(tempRestFiles.count, totalAvailableRest, "rest クラスの画像枚数が一致しません。期待値: \(totalAvailableRest), 実際: \(tempRestFiles.count)")
+        }
+    }
+
+    /// restクラスの画像が不足している場合のエッジケースを検証する
+    func testRestClassWithInsufficientImages() throws {
+        let resourceURL = URL(fileURLWithPath: classifier.resourcesDirectoryPath)
+        let classLabels = try FileManager.default.contentsOfDirectory(at: resourceURL, includingPropertiesForKeys: [.isDirectoryKey])
+            .filter { $0.hasDirectoryPath }
+            .map { $0.lastPathComponent }
+
+        for positiveClass in classLabels {
+            let sandboxed = try TestResourceSandboxFactory.createSandboxedResources(from: resourceURL) { sandboxURL, labels in
+                try TestResourceSandboxFactory.reduceRestClassSamples(to: 2, for: positiveClass, in: sandboxURL, classLabels: labels)
+            }
+
+            let testClassifier = OvRClassifier(
+                outputDirectoryPathOverride: classifier.outputParentDirPath,
+                resourceDirPathOverride: sandboxed.path
+            )
+
+            _ = try testClassifier.prepareTrainingData(positiveClass: positiveClass, basePath: sandboxed.path)
+
+            let positiveClassURL = sandboxed.appendingPathComponent(positiveClass)
+            let positiveCount = try FileManager.default.contentsOfDirectory(at: positiveClassURL, includingPropertiesForKeys: nil)
+                .filter { ["jpg", "jpeg", "png"].contains($0.pathExtension.lowercased()) }
+                .count
+
+            let restClassCount = classLabels.count - 1
+            let expectedPerRest = Int(ceil(Double(positiveCount) / Double(restClassCount)))
+
+            var totalAvailableRest = 0
+            for restLabel in classLabels where restLabel != positiveClass {
+                let restURL = sandboxed.appendingPathComponent(restLabel)
+                let count = try FileManager.default.contentsOfDirectory(at: restURL, includingPropertiesForKeys: nil)
+                    .filter { ["jpg", "jpeg", "png"].contains($0.pathExtension.lowercased()) }
+                    .count
+                totalAvailableRest += min(count, expectedPerRest)
+            }
+
+            let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(OvRClassifier.tempBaseDirName)
+            let tempPositiveDir = tempDir.appendingPathComponent(positiveClass)
+            let tempRestDir = tempDir.appendingPathComponent("rest")
+
+            let tempPositiveFiles = try FileManager.default.contentsOfDirectory(at: tempPositiveDir, includingPropertiesForKeys: nil)
+                .filter { ["jpg", "jpeg", "png"].contains($0.pathExtension.lowercased()) }
+
+            let tempRestFiles = try FileManager.default.contentsOfDirectory(at: tempRestDir, includingPropertiesForKeys: nil)
+                .filter { ["jpg", "jpeg", "png"].contains($0.pathExtension.lowercased()) }
+
+            XCTAssertEqual(tempPositiveFiles.count, positiveCount)
+            XCTAssertEqual(tempRestFiles.count, totalAvailableRest)
         }
     }
 
@@ -353,6 +460,40 @@ final class OvRClassifierTests: XCTestCase {
             secondResultNumber,
             firstResultNumber + 1,
             "2回目の出力ディレクトリの連番が期待値と一致しません。\n1回目: \(firstResultNumber)\n2回目: \(secondResultNumber)"
+        )
+    }
+
+    /// 生成されるmlmodelファイルの数がクラスラベルの数と一致することを確認する
+    func testModelFileCountMatchesClassLabels() throws {
+        guard let result = trainingResult else {
+            XCTFail("訓練結果がnilです")
+            throw TestError.trainingFailed
+        }
+
+        // リソースディレクトリからクラスラベルの数を取得
+        let resourceURL = URL(fileURLWithPath: classifier.resourcesDirectoryPath)
+        let classLabels = try FileManager.default.contentsOfDirectory(at: resourceURL, includingPropertiesForKeys: [.isDirectoryKey])
+            .filter { $0.hasDirectoryPath }
+            .map { $0.lastPathComponent }
+            .sorted()
+
+        // モデルファイルのディレクトリを取得
+        let modelFileDir = URL(fileURLWithPath: result.metadata.trainedModelFilePath).deletingLastPathComponent()
+        
+        // 生成されたmlmodelファイルの数を取得
+        let modelFiles = try FileManager.default.contentsOfDirectory(at: modelFileDir, includingPropertiesForKeys: nil)
+            .filter { $0.pathExtension.lowercased() == "mlmodel" }
+        
+        // クラスラベルの数とmlmodelファイルの数が一致することを確認
+        XCTAssertEqual(
+            modelFiles.count,
+            classLabels.count,
+            """
+            生成されたmlmodelファイルの数がクラスラベルの数と一致しません。
+            クラスラベル数: \(classLabels.count)
+            生成されたmlmodelファイル数: \(modelFiles.count)
+            クラスラベル: \(classLabels.joined(separator: ", "))
+            """
         )
     }
 
