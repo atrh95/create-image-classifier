@@ -175,7 +175,17 @@ public final class MultiClassClassifier: ClassifierProtocol {
     }
 
     public func prepareTrainingData(from classLabelDirURLs: [URL]) throws -> MLImageClassifier.DataSource {
-        print("📁 トレーニングデータ親ディレクトリ: \(resourcesDirectoryPath)")
+        // 前回値をクリア
+        classImageCounts.removeAll()
+        
+        // 親ディレクトリを取得（最初のディレクトリの親を使用）
+        guard let firstDir = classLabelDirURLs.first else {
+            throw NSError(domain: "MultiClassClassifier", code: -1, userInfo: [
+                NSLocalizedDescriptionKey: "クラスラベルディレクトリが空です。"
+            ])
+        }
+        let parentDir = firstDir.deletingLastPathComponent()
+        print("📁 トレーニングデータ親ディレクトリ: \(parentDir.path)")
         
         // 各クラスの画像枚数を効率的にカウント
         for classDir in classLabelDirURLs {
@@ -189,7 +199,7 @@ public final class MultiClassClassifier: ClassifierProtocol {
             print("📊 \(className): \(count)枚")
         }
         
-        return MLImageClassifier.DataSource.labeledDirectories(at: URL(fileURLWithPath: resourcesDirectoryPath))
+        return MLImageClassifier.DataSource.labeledDirectories(at: parentDir)
     }
 
     public func trainModel(
@@ -322,48 +332,5 @@ public final class MultiClassClassifier: ClassifierProtocol {
             ),
             confusionMatrix: confusionMatrix
         )
-    }
-
-    public func prepareTrainingData(
-        classLabelDirURLs: [URL],
-        basePath _: String
-    ) throws -> MLImageClassifier.DataSource {
-        // 各クラスの画像ファイルを取得（ここで1回だけフィルタリング）
-        var classFiles: [String: [URL]] = [:]
-        for classDir in classLabelDirURLs {
-            let files = try FileManager.default.contentsOfDirectory(
-                at: classDir,
-                includingPropertiesForKeys: nil
-            )
-            .filter { Self.imageExtensions.contains($0.pathExtension.lowercased()) }
-            classFiles[classDir.lastPathComponent] = files
-        }
-
-        // 各クラスの画像枚数を表示
-        for (className, files) in classFiles {
-            print("📊 \(className): \(files.count)枚")
-        }
-
-        // 一時ディレクトリを準備
-        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(Self.tempBaseDirName)
-
-        // 既存の一時ディレクトリをクリーンにする
-        if FileManager.default.fileExists(atPath: tempDir.path) {
-            try FileManager.default.removeItem(at: tempDir)
-        }
-
-        // 各クラスのディレクトリを作成し、画像をコピー
-        for (className, files) in classFiles {
-            let tempClassDir = tempDir.appendingPathComponent(className)
-            try FileManager.default.createDirectory(at: tempClassDir, withIntermediateDirectories: true)
-
-            for (index, file) in files.enumerated() {
-                let destination = tempClassDir.appendingPathComponent("\(index).\(file.pathExtension)")
-                try FileManager.default.copyItem(at: file, to: destination)
-            }
-        }
-
-        // 一時ディレクトリからデータソースを作成
-        return MLImageClassifier.DataSource.labeledDirectories(at: tempDir)
     }
 }
