@@ -206,12 +206,11 @@ public final class MultiClassClassifier: ClassifierProtocol {
         trainingDataSource: MLImageClassifier.DataSource,
         modelParameters: CreateML.MLImageClassifier.ModelParameters
     ) throws -> (MLImageClassifier, TimeInterval) {
-        print("🔄 モデルトレーニング開始...")
         let trainingStartTime = Date()
         let imageClassifier = try MLImageClassifier(trainingData: trainingDataSource, parameters: modelParameters)
         let trainingEndTime = Date()
         let trainingDurationSeconds = trainingEndTime.timeIntervalSince(trainingStartTime)
-        print("✅ モデルトレーニング完了 (所要時間: \(String(format: "%.1f", trainingDurationSeconds))秒)")
+        print("✅ モデルの作成が完了 (所要時間: \(String(format: "%.1f", trainingDurationSeconds))秒)")
         return (imageClassifier, trainingDurationSeconds)
     }
 

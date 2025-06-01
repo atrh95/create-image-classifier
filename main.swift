@@ -41,13 +41,13 @@ enum MLModelType: String {
                 .binary: "v6",
                 .multiClass: "v3",
                 .multiLabel: "v1",
-                .ovr: "v23",
+                .ovr: "v27",
                 .ovo: "v1",
             ],
             author: "akitora",
             modelParameters: MLImageClassifier.ModelParameters(
                 validation: .split(strategy: .automatic),
-                maxIterations: 11,
+                maxIterations: 20,
                 augmentation: [],
                 algorithm: .transferLearning(
                     featureExtractor: .scenePrint(revision: 2),
@@ -86,7 +86,6 @@ Task {
         print("トレーニング開始: \(i)/\(trainingCount)")
 
         // モデルの作成
-        print("\n🚀 モデル作成開始...")
         guard let result = await classifier.create(
             author: selectedModel.config.author,
             modelName: selectedModel.config.name,
@@ -103,7 +102,7 @@ Task {
             modelVersion: version
         )
 
-        print("トレーニング完了: \(selectedModel.config.name) [\(selectedClassifier.rawValue)] - \(i)/\(trainingCount)")
+        print("トレーニング完了: \(selectedModel.config.name) [\(selectedClassifier.rawValue)] \(version) - \(i)/\(trainingCount)")
     }
 
     semaphore.signal()

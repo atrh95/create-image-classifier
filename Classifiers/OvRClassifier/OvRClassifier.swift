@@ -174,7 +174,7 @@ public final class OvRClassifier: ClassifierProtocol {
                 let precision = report.confusionMatrix?.precision ?? 0.0
                 let f1Score = report.confusionMatrix?.f1Score ?? 0.0
                 print(
-                    "| \(report.positiveClassName.padding(toLength: 16, withPad: " ", startingAt: 0)) | \(String(format: "%14.1f%%", (1.0 - report.trainingAccuracyRate) * 100.0)) | \(String(format: "%14.1f%%", (1.0 - report.validationAccuracyRate) * 100.0)) | \(String(format: "%14.1f%%", recall * 100.0)) | \(String(format: "%14.1f%%", precision * 100.0)) | \(String(format: "%14.3f", f1Score)) |"
+                    "| \(report.positiveClassName.padding(toLength: 16, withPad: " ", startingAt: 0)) | \(String(format: "%14.1f%%", report.trainingAccuracyRate * 100.0)) | \(String(format: "%14.1f%%", report.validationAccuracyRate * 100.0)) | \(String(format: "%14.1f%%", recall * 100.0)) | \(String(format: "%14.1f%%", precision * 100.0)) | \(String(format: "%14.3f", f1Score)) |"
                 )
             }
             print(
@@ -293,12 +293,11 @@ public final class OvRClassifier: ClassifierProtocol {
         trainingDataSource: MLImageClassifier.DataSource,
         modelParameters: CreateML.MLImageClassifier.ModelParameters
     ) throws -> (MLImageClassifier, TimeInterval) {
-        print("🔄 モデルトレーニング開始...")
         let trainingStartTime = Date()
         let imageClassifier = try MLImageClassifier(trainingData: trainingDataSource, parameters: modelParameters)
         let trainingEndTime = Date()
         let trainingDurationSeconds = trainingEndTime.timeIntervalSince(trainingStartTime)
-        print("✅ モデルトレーニング完了 (所要時間: \(String(format: "%.1f", trainingDurationSeconds))秒)")
+        print("✅ モデルの作成が完了 (所要時間: \(String(format: "%.1f", trainingDurationSeconds))秒)")
         return (imageClassifier, trainingDurationSeconds)
     }
 
