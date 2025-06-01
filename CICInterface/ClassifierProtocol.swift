@@ -18,5 +18,5 @@ public protocol ClassifierProtocol {
         modelName: String,
         version: String,
         modelParameters: CreateML.MLImageClassifier.ModelParameters
-    ) async -> TrainingResultType?
+    ) async throws
 }

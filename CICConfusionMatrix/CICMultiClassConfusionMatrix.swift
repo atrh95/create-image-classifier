@@ -39,23 +39,19 @@ public final class CICMultiClassConfusionMatrix {
             return false
         }
 
-        // 予測値と実際の値のラベルセットを取得
+        // ラベルが存在することを確認
         let predictedLabels = Set(dataTable.rows.compactMap { $0[predictedColumn]?.stringValue })
         let actualLabels = Set(dataTable.rows.compactMap { $0[actualColumn]?.stringValue })
 
-        // ラベルが存在することを確認
         guard !predictedLabels.isEmpty, !actualLabels.isEmpty else {
             print("⚠️ ラベルが存在しません")
-            print("   予測ラベル: \(predictedLabels.joined(separator: ", "))")
-            print("   実際のラベル: \(actualLabels.joined(separator: ", "))")
             return false
         }
 
-        // 予測値と実際の値のラベルセットが一致することを確認
-        guard predictedLabels == actualLabels else {
-            print("⚠️ 予測ラベルと実際のラベルが一致しません")
-            print("   予測ラベル: \(predictedLabels.joined(separator: ", "))")
-            print("   実際のラベル: \(actualLabels.joined(separator: ", "))")
+        // 予測値と実際の値のラベルが一致することを確認
+        let mismatchedLabels = actualLabels.subtracting(predictedLabels)
+        if !mismatchedLabels.isEmpty {
+            print("❌ エラー: 実際の値に存在するが予測値に存在しないラベルがあります: \(mismatchedLabels.joined(separator: ", "))")
             return false
         }
 

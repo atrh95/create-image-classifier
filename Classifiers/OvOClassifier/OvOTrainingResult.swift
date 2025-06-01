@@ -7,10 +7,6 @@ public struct OvOTrainingResult: TrainingResultProtocol {
     public let metadata: CICTrainingMetadata
     public let individualModelReports: [CICIndividualModelReport]
 
-    public var modelOutputPath: String {
-        URL(fileURLWithPath: metadata.trainedModelFilePath).deletingLastPathComponent().path
-    }
-
     public init(
         metadata: CICTrainingMetadata,
         individualModelReports: [CICIndividualModelReport]
@@ -22,7 +18,8 @@ public struct OvOTrainingResult: TrainingResultProtocol {
     public func saveLog(
         modelAuthor: String,
         modelName: String,
-        modelVersion: String
+        modelVersion: String,
+        outputDirPath: String
     ) {
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss Z"
@@ -40,27 +37,23 @@ public struct OvOTrainingResult: TrainingResultProtocol {
         特徴抽出器       : \(metadata.featureExtractorDescription)
 
         ## トレーニング設定
-        使用されたクラスラベル : \(metadata.detectedClassLabelsList.joined(separator: ", "))
+        使用されたクラスラベル : \(metadata.classLabelCounts.map { "\($0.key) (\($0.value)枚)" }.joined(separator: ", "))
 
+        ## パフォーマンス指標 (全体)
         """
 
         markdownText += """
 
-        ## クラス組み合わせ
-        | No. | クラス組み合わせ |
-        |-----|------------------|
-        \(individualModelReports.enumerated().map { index, report in
-            "| \(index + 1) | \(report.negativeClassName) vs \(report.positiveClassName) |"
-        }.joined(separator: "\n"))
-
         ## 個別モデルの性能指標
-        | No. | クラス | 訓練正解率 | 検証正解率 | 再現率 | 適合率 | F1スコア |
-        |-----|--------|------------|------------|--------|--------|----------|
-        \(individualModelReports.enumerated().map { index, report in
-            let recall = report.confusionMatrix?.recall ?? 0.0
-            let precision = report.confusionMatrix?.precision ?? 0.0
+        | クラス | 訓練正解率 | 検証正解率 | 再現率 | 適合率 | F1スコア |
+        |--------|------------|------------|--------|--------|----------|
+        \(individualModelReports.map { report in
+            let trainingAccuracyPercent = report.metrics.training.accuracy * 100.0
+            let validationAccuracyPercent = report.metrics.validation.accuracy * 100.0
+            let recallPercent = report.confusionMatrix?.recall ?? 0.0 * 100.0
+            let precisionPercent = report.confusionMatrix?.precision ?? 0.0 * 100.0
             let f1Score = report.confusionMatrix?.f1Score ?? 0.0
-            return "| \(String(format: "%2d", index + 1)) | \(report.positiveClassName) | \(String(format: "%.1f%%", report.trainingAccuracyRate * 100.0)) | \(String(format: "%.1f%%", report.validationAccuracyRate * 100.0)) | \(String(format: "%.1f%%", recall * 100.0)) | \(String(format: "%.1f%%", precision * 100.0)) | \(String(format: "%.3f", f1Score)) |"
+            return "| \(report.classCounts.positive.name) | \(String(format: "%.1f%%", trainingAccuracyPercent)) | \(String(format: "%.1f%%", validationAccuracyPercent)) | \(String(format: "%.1f%%", recallPercent)) | \(String(format: "%.1f%%", precisionPercent)) | \(String(format: "%.3f", f1Score)) |"
         }.joined(separator: "\n"))
 
         ## モデルメタデータ
@@ -68,8 +61,8 @@ public struct OvOTrainingResult: TrainingResultProtocol {
         バージョン          : \(modelVersion)
         """
 
-        let outputDir = URL(fileURLWithPath: metadata.trainedModelFilePath).deletingLastPathComponent()
-        let textFileName = "OvO_Run_Report_\(modelVersion).md"
+        let outputDir = URL(fileURLWithPath: outputDirPath)
+        let textFileName = "\(modelName)_\(modelVersion).md"
         let textFilePath = outputDir.appendingPathComponent(textFileName).path
 
         do {
@@ -77,9 +70,33 @@ public struct OvOTrainingResult: TrainingResultProtocol {
             print("✅ [\(modelName)] モデル情報をMarkdownファイルに保存しました: \(textFilePath)")
         } catch {
             print("❌ [\(modelName)] Markdownファイルの書き込みに失敗しました: \(error.localizedDescription)")
-            print("--- [\(modelName)] モデル情報 (Markdown) ---:")
-            print(markdownText)
-            print("--- ここまで --- ")
         }
+    }
+
+    public func displayComparisonTable() {
+        guard !individualModelReports.isEmpty else { return }
+        
+        print("\n📊 モデルの性能")
+        print(
+            "+------------------+------------------+------------------+------------------+------------------+------------------+"
+        )
+        print("| ラベル           | 訓練正解率       | 検証正解率       | 再現率           | 適合率           | F1スコア         |")
+        print(
+            "+------------------+------------------+------------------+------------------+------------------+------------------+"
+        )
+
+        for report in individualModelReports {
+            let trainingAccuracyPercent = report.metrics.training.accuracy * 100.0
+            let validationAccuracyPercent = report.metrics.validation.accuracy * 100.0
+            let recallPercent = report.confusionMatrix?.recall ?? 0.0 * 100.0
+            let precisionPercent = report.confusionMatrix?.precision ?? 0.0 * 100.0
+            let f1Score = report.confusionMatrix?.f1Score ?? 0.0
+            print(
+                "| \(String(format: "%-14s", report.classCounts.positive.name)) | \(String(format: "%14.1f%%", trainingAccuracyPercent)) | \(String(format: "%14.1f%%", validationAccuracyPercent)) | \(String(format: "%14.1f%%", recallPercent)) | \(String(format: "%14.1f%%", precisionPercent)) | \(String(format: "%14.3f", f1Score)) |"
+            )
+        }
+        print(
+            "+------------------+------------------+------------------+------------------+------------------+------------------+"
+        )
     }
 }
