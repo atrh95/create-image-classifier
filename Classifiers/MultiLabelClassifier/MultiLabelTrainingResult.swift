@@ -84,27 +84,32 @@ public struct MultiLabelTrainingResult: TrainingResultProtocol {
     }
 
     public func displayComparisonTable() {
+        guard !individualModelReports.isEmpty else {
+            print("\n📊 モデルの性能")
+            print("+----------------------+-------+-------+-------+-------+-------+")
+            print("| ラベル                | 訓練  | 検証  | 再現率 | 適合率 | F1    |")
+            print("+----------------------+-------+-------+-------+-------+-------+")
+            print("| データなし              | - | - | - | - | - |")
+            print("+----------------------+-------+-------+-------+-------+-------+")
+            return
+        }
+        
         print("\n📊 モデルの性能")
-        print(
-            "+------------------+------------------+------------------+------------------+------------------+------------------+"
-        )
-        print("| ラベル           | 訓練正解率       | 検証正解率       | 再現率           | 適合率           | F1スコア         |")
-        print(
-            "+------------------+------------------+------------------+------------------+------------------+------------------+"
-        )
+        print("+----------------------+-------+-------+-------+-------+-------+")
+        print("| ラベル                | 訓練  | 検証  | 再現率 | 適合率 | F1    |")
+        print("+----------------------+-------+-------+-------+-------+-------+")
 
         for report in individualModelReports {
+            let label = String(report.classCounts.positive.name.prefix(20))
+            let paddedLabel = label.padding(toLength: 20, withPad: " ", startingAt: 0)
             let trainingAccuracyPercent = report.metrics.training.accuracy * 100.0
             let validationAccuracyPercent = report.metrics.validation.accuracy * 100.0
-            let recallPercent = report.confusionMatrix?.recall ?? 0.0 * 100.0
-            let precisionPercent = report.confusionMatrix?.precision ?? 0.0 * 100.0
+            let recallPercent = (report.confusionMatrix?.recall ?? 0.0) * 100.0
+            let precisionPercent = (report.confusionMatrix?.precision ?? 0.0) * 100.0
             let f1Score = report.confusionMatrix?.f1Score ?? 0.0
-            print(
-                "| \(String(format: "%-14s", report.classCounts.positive.name)) | \(String(format: "%14.1f%%", trainingAccuracyPercent)) | \(String(format: "%14.1f%%", validationAccuracyPercent)) | \(String(format: "%14.1f%%", recallPercent)) | \(String(format: "%14.1f%%", precisionPercent)) | \(String(format: "%14.3f", f1Score)) |"
-            )
+            
+            print("| \(paddedLabel) | \(String(format: "%.1f", trainingAccuracyPercent))% | \(String(format: "%.1f", validationAccuracyPercent))% | \(String(format: "%.1f", recallPercent))% | \(String(format: "%.1f", precisionPercent))% | \(String(format: "%.3f", f1Score)) |")
         }
-        print(
-            "+------------------+------------------+------------------+------------------+------------------+------------------+"
-        )
+        print("+----------------------+-------+-------+-------+-------+-------+")
     }
 }

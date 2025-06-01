@@ -25,11 +25,12 @@ excluded:
 # Rule Configuration
 #-------------------------------------------------------------------
 disabled_rules:
-  - trailing_whitespace # 行末の空白を許可
-  - line_length # 行の長さは別途カスタマイズ
-  - trailing_newline # 末尾の改行を無視
-  - trailing_comma # SwiftFormatで制御するため無効化
-  - function_body_length # 関数本体の長さ制限を無効化
+  - trailing_whitespace
+  - line_length
+  - trailing_newline
+  - trailing_comma
+  - function_body_length
+  - type_body_length
 
 opt_in_rules:
   - empty_count # count == 0 の代わりに isEmpty を使用

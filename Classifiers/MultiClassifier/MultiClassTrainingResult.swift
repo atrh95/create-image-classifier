@@ -71,9 +71,9 @@ public struct MultiClassTrainingResult: TrainingResultProtocol {
             markdownText += """
             ## クラス別性能指標
             | クラス | 再現率 | 適合率 | F1スコア |
-            |--------|--------|--------|----------|
-            \(classMetrics.map { metric in
-                "| \(metric.label) | \(String(format: "%.1f%%", metric.recall * 100.0)) | \(String(format: "%.1f%%", metric.precision * 100.0)) | \(String(format: "%.3f", metric.f1Score)) |"
+            |:---|:---|:---|:---|
+            \(classMetrics.isEmpty ? "" : classMetrics.map { metric in
+                "| \(metric.label) | \(String(format: "%.1f", metric.recall * 100.0))% | \(String(format: "%.1f", metric.precision * 100.0))% | \(String(format: "%.3f", metric.f1Score)) |"
             }.joined(separator: "\n"))
             """
         }
@@ -98,23 +98,30 @@ public struct MultiClassTrainingResult: TrainingResultProtocol {
     }
 
     public func displayComparisonTable() {
+        guard let confusionMatrix else { return }
+        
         print("\n📊 モデルの性能")
-        print(
-            "+------------------+------------------+------------------+------------------+------------------+------------------+"
-        )
-        print("| クラス           | 訓練正解率       | 検証正解率       | 再現率           | 適合率           | F1スコア         |")
-        print(
-            "+------------------+------------------+------------------+------------------+------------------+------------------+"
-        )
+        print("+----------------------+-------+-------+-------+-------+-------+")
+        print("| クラス                | 訓練  | 検証  | 再現率 | 適合率 | F1    |")
+        print("+----------------------+-------+-------+-------+-------+-------+")
 
-        let classMetrics = confusionMatrix?.calculateMetrics() ?? []
-        for metric in classMetrics {
-            print(
-                "| \(String(format: "%-14s", metric.label)) | \(String(format: "%14.1f%%", metrics.training.accuracy * 100.0)) | \(String(format: "%14.1f%%", metrics.validation.accuracy * 100.0)) | \(String(format: "%14.1f%%", metric.recall * 100.0)) | \(String(format: "%14.1f%%", metric.precision * 100.0)) | \(String(format: "%14.3f", metric.f1Score)) |"
-            )
+        guard !self.classMetrics.isEmpty else {
+            print("| データなし              | - | - | - | - | - |")
+            print("+----------------------+-------+-------+-------+-------+-------+")
+            return
         }
-        print(
-            "+------------------+------------------+------------------+------------------+------------------+------------------+"
-        )
+
+        for metric in self.classMetrics {
+            let label = String(metric.label.prefix(20))
+            let paddedLabel = label.padding(toLength: 20, withPad: " ", startingAt: 0)
+            let trainingAcc = String(format: "%.1f", metrics.training.accuracy * 100.0)
+            let validationAcc = String(format: "%.1f", metrics.validation.accuracy * 100.0)
+            let recall = String(format: "%.1f", metric.recall * 100.0)
+            let precision = String(format: "%.1f", metric.precision * 100.0)
+            let f1Score = String(format: "%.3f", metric.f1Score)
+            
+            print("| \(paddedLabel) | \(trainingAcc)% | \(validationAcc)% | \(recall)% | \(precision)% | \(f1Score) |")
+        }
+        print("+----------------------+-------+-------+-------+-------+-------+")
     }
 }

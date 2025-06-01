@@ -97,26 +97,26 @@ public struct BinaryTrainingResult: TrainingResultProtocol {
     }
 
     public func displayComparisonTable() {
+        guard let confusionMatrix else { return }
+        
         print("\n📊 モデルの性能")
         print(
-            "+------------------+------------------+------------------+------------------+------------------+------------------+"
+            "+------------------+------------------+------------------+------------------+------------------+"
         )
-        print("| ラベル           | 訓練正解率       | 検証正解率       | 再現率           | 適合率           | F1スコア         |")
+        print("| 訓練正解率       | 検証正解率       | 再現率           | 適合率           | F1スコア         |")
         print(
-            "+------------------+------------------+------------------+------------------+------------------+------------------+"
+            "+------------------+------------------+------------------+------------------+------------------+"
         )
 
-        if let confusionMatrix {
-            let trainingAccuracyPercent = metrics.training.accuracy * 100.0
-            let validationAccuracyPercent = metrics.validation.accuracy * 100.0
-            let recallPercent = confusionMatrix.recall * 100.0
-            let precisionPercent = confusionMatrix.precision * 100.0
-            print(
-                "| \(String(format: "%-14s", individualModelReport.classCounts.positive.name)) | \(String(format: "%14.1f%%", trainingAccuracyPercent)) | \(String(format: "%14.1f%%", validationAccuracyPercent)) | \(String(format: "%14.1f%%", recallPercent)) | \(String(format: "%14.1f%%", precisionPercent)) | \(String(format: "%14.3f", confusionMatrix.f1Score)) |"
-            )
-        }
+        let trainingAccuracyPercent = metrics.training.accuracy * 100.0
+        let validationAccuracyPercent = metrics.validation.accuracy * 100.0
+        let recallPercent = confusionMatrix.recall * 100.0
+        let precisionPercent = confusionMatrix.precision * 100.0
         print(
-            "+------------------+------------------+------------------+------------------+------------------+------------------+"
+            "| \(String(format: "%14.1f%%", trainingAccuracyPercent)) | \(String(format: "%14.1f%%", validationAccuracyPercent)) | \(String(format: "%14.1f%%", recallPercent)) | \(String(format: "%14.1f%%", precisionPercent)) | \(String(format: "%14.3f", confusionMatrix.f1Score)) |"
+        )
+        print(
+            "+------------------+------------------+------------------+------------------+------------------+"
         )
     }
 }

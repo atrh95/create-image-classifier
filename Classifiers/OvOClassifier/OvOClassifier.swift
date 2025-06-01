@@ -191,7 +191,7 @@ public final class OvOClassifier: ClassifierProtocol {
         let sourceDir = URL(fileURLWithPath: resourcesDirectoryPath)
         let class1Dir = sourceDir.appendingPathComponent(classPair.0)
         let class2Dir = sourceDir.appendingPathComponent(classPair.1)
-        let (class1Files, class2Files, tempDir) = try prepareTrainingData(
+        let trainingData = try prepareTrainingData(
             classPair: classPair,
             sourceDir: sourceDir,
             class1Dir: class1Dir,
@@ -199,7 +199,7 @@ public final class OvOClassifier: ClassifierProtocol {
         )
 
         // トレーニングデータソースを作成
-        let trainingDataSource = MLImageClassifier.DataSource.labeledDirectories(at: tempDir)
+        let trainingDataSource = MLImageClassifier.DataSource.labeledDirectories(at: trainingData.tempDir)
 
         // モデルのトレーニング
         let trainingStartTime = Date()
@@ -235,12 +235,18 @@ public final class OvOClassifier: ClassifierProtocol {
             ),
             confusionMatrix: confusionMatrix,
             classCounts: (
-                positive: (name: classPair.1, count: class2Files.count),
-                negative: (name: classPair.0, count: class1Files.count)
+                positive: (name: classPair.1, count: trainingData.class2Files.count),
+                negative: (name: classPair.0, count: trainingData.class1Files.count)
             )
         )
 
         return (imageClassifier, individualReport)
+    }
+
+    private struct TrainingData {
+        let class1Files: [URL]
+        let class2Files: [URL]
+        let tempDir: URL
     }
 
     private func prepareTrainingData(
@@ -248,7 +254,7 @@ public final class OvOClassifier: ClassifierProtocol {
         sourceDir _: URL,
         class1Dir: URL,
         class2Dir: URL
-    ) throws -> (class1Files: [URL], class2Files: [URL], tempDir: URL) {
+    ) throws -> TrainingData {
         // 各クラスの画像ファイルを取得
         let class1Files = try FileManager.default.contentsOfDirectory(
             at: class1Dir,
@@ -295,7 +301,11 @@ public final class OvOClassifier: ClassifierProtocol {
             try FileManager.default.copyItem(at: file, to: destination)
         }
 
-        return (selectedClass1Files, selectedClass2Files, tempDir)
+        return TrainingData(
+            class1Files: selectedClass1Files,
+            class2Files: selectedClass2Files,
+            tempDir: tempDir
+        )
     }
 
     private func createMetricsDescription(

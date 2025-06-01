@@ -166,14 +166,14 @@ public final class OvRClassifier: ClassifierProtocol {
         // トレーニングデータの準備
         let sourceDir = URL(fileURLWithPath: resourcesDirectoryPath)
         let positiveClassDir = sourceDir.appendingPathComponent(oneClassLabel)
-        let (positiveClassFiles, restClassFiles, tempDir) = try prepareTrainingData(
+        let trainingData = try prepareTrainingData(
             oneClassLabel: oneClassLabel,
             sourceDir: sourceDir,
             positiveClassDir: positiveClassDir
         )
 
         // トレーニングデータソースを作成
-        let trainingDataSource = MLImageClassifier.DataSource.labeledDirectories(at: tempDir)
+        let trainingDataSource = MLImageClassifier.DataSource.labeledDirectories(at: trainingData.tempDir)
 
         // モデルのトレーニング
         let trainingStartTime = Date()
@@ -209,19 +209,25 @@ public final class OvRClassifier: ClassifierProtocol {
             ),
             confusionMatrix: confusionMatrix,
             classCounts: (
-                positive: (name: oneClassLabel, count: positiveClassFiles.count),
-                negative: (name: "rest", count: restClassFiles.count)
+                positive: (name: oneClassLabel, count: trainingData.positiveClassFiles.count),
+                negative: (name: "rest", count: trainingData.restClassFiles.count)
             )
         )
 
         return (imageClassifier, individualReport)
     }
 
+    private struct TrainingData {
+        let positiveClassFiles: [URL]
+        let restClassFiles: [URL]
+        let tempDir: URL
+    }
+
     private func prepareTrainingData(
         oneClassLabel: String,
         sourceDir: URL,
         positiveClassDir: URL
-    ) throws -> (positiveClassFiles: [URL], restClassFiles: [URL], tempDir: URL) {
+    ) throws -> TrainingData {
         // 正例クラスの画像ファイルを取得
         let positiveClassFiles = try FileManager.default.contentsOfDirectory(
             at: positiveClassDir,
@@ -272,7 +278,11 @@ public final class OvRClassifier: ClassifierProtocol {
             try FileManager.default.copyItem(at: file, to: destination)
         }
 
-        return (positiveClassFiles, restClassFiles, tempDir)
+        return TrainingData(
+            positiveClassFiles: positiveClassFiles,
+            restClassFiles: restClassFiles,
+            tempDir: tempDir
+        )
     }
 
     private func createMetricsDescription(
