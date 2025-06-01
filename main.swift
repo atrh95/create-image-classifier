@@ -83,26 +83,28 @@ Task {
 
     // 指定された回数分トレーニングを実行
     for i in 1 ... trainingCount {
-        print("トレーニング開始: \(i)/\(trainingCount)")
+        print("\n📚 トレーニング開始: \(i)/\(trainingCount)")
 
         do {
             // モデルの作成
-            let result = try await classifier.create(
+            try await classifier.create(
                 author: selectedModel.config.author,
                 modelName: selectedModel.config.name,
                 version: version,
                 modelParameters: selectedModel.config.modelParameters
             )
 
-            result.saveLog(
-                modelAuthor: selectedModel.config.author,
-                modelName: selectedModel.config.name,
-                modelVersion: version
-            )
-
-            print("トレーニング完了: \(selectedModel.config.name) [\(selectedClassifier.rawValue)] \(version) - \(i)/\(trainingCount)")
+            print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+            print("🎉 MLModelの作成が完了しました！")
+            print("  モデル: \(selectedModel.config.name)")
+            print("  分類器: \(selectedClassifier.rawValue)")
+            print("  バージョン: \(version)")
+            print("  進捗: \(i)/\(trainingCount)")
+            print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
         } catch {
-            print("❌ エラー: \(error)")
+            print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+            print("❌ エラーが発生しました: \(error)")
+            print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
             continue
         }
     }

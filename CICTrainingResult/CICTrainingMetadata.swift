@@ -5,26 +5,20 @@ import Foundation
 /// 画像分類モデルのトレーニング結果に関するメタデータを格納する構造体
 public struct CICTrainingMetadata: TrainingResultProtocol {
     public let modelName: String
-    public let trainingDurationInSeconds: TimeInterval
-    public let trainedModelFilePath: String
-    public let detectedClassLabelsList: [String]
+    public let classLabelCounts: [String: Int]
     public let maxIterations: Int
     public let dataAugmentationDescription: String
     public let featureExtractorDescription: String
 
     public init(
         modelName: String,
-        trainingDurationInSeconds: TimeInterval,
-        trainedModelFilePath: String,
-        detectedClassLabelsList: [String],
+        classLabelCounts: [String: Int],
         maxIterations: Int,
         dataAugmentationDescription: String,
         featureExtractorDescription: String
     ) {
         self.modelName = modelName
-        self.trainingDurationInSeconds = trainingDurationInSeconds
-        self.trainedModelFilePath = trainedModelFilePath
-        self.detectedClassLabelsList = detectedClassLabelsList
+        self.classLabelCounts = classLabelCounts
         self.maxIterations = maxIterations
         self.dataAugmentationDescription = dataAugmentationDescription
         self.featureExtractorDescription = featureExtractorDescription
@@ -33,16 +27,14 @@ public struct CICTrainingMetadata: TrainingResultProtocol {
     public func saveLog(
         modelAuthor: String,
         modelName: String,
-        modelVersion: String
+        modelVersion: String,
+        outputDirPath: String
     ) {
         // ファイル生成日時フォーマッタ
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss Z"
         dateFormatter.timeZone = TimeZone(identifier: "Asia/Tokyo")
         let generatedDateString = dateFormatter.string(from: Date())
-
-        // 文字列フォーマット
-        let durationStr = String(format: "%.2f", trainingDurationInSeconds)
 
         // Markdownの基本内容
         let infoText = """
@@ -55,11 +47,8 @@ public struct CICTrainingMetadata: TrainingResultProtocol {
         データ拡張       : \(dataAugmentationDescription)
         特徴抽出器       : \(featureExtractorDescription)
 
-        ## トレーニング設定
-        使用されたクラスラベル : \(detectedClassLabelsList.joined(separator: ", "))
-
-        ## パフォーマンス指標
-        トレーニング所要時間: \(durationStr) 秒
+        ## トレーニングデータ
+        \(classLabelCounts.map { "- \($0.key): \($0.value)枚" }.joined(separator: "\n"))
 
         ## モデルメタデータ
         作成者            : \(modelAuthor)
@@ -67,7 +56,7 @@ public struct CICTrainingMetadata: TrainingResultProtocol {
         """
 
         // Markdownファイルのパスを作成
-        let outputDir = URL(fileURLWithPath: trainedModelFilePath).deletingLastPathComponent()
+        let outputDir = URL(fileURLWithPath: outputDirPath)
         let textFileName = "\(modelName)_\(modelVersion).md"
         let textFilePath = outputDir.appendingPathComponent(textFileName).path
 

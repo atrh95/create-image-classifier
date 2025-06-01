@@ -14,6 +14,7 @@ public final class MultiLabelClassifier: ClassifierProtocol {
     private let fileManager = CICFileManager()
     public var outputDirectoryPathOverride: String?
     public var resourceDirPathOverride: String?
+    private var classImageCounts: [String: Int] = [:]
 
     public var outputParentDirPath: String {
         if let override = outputDirectoryPathOverride {
@@ -58,7 +59,7 @@ public final class MultiLabelClassifier: ClassifierProtocol {
         modelName: String,
         version: String,
         modelParameters: CreateML.MLImageClassifier.ModelParameters
-    ) async throws -> MultiLabelTrainingResult {
+    ) async throws {
         print("📁 リソースディレクトリ: \(resourcesDirectoryPath)")
         print("🚀 MultiLabelモデル作成開始 (バージョン: \(version))...")
 
@@ -124,23 +125,7 @@ public final class MultiLabelClassifier: ClassifierProtocol {
             metadata: modelMetadata
         )
 
-        // モデルの性能を表示
-        print("\n📊 モデルの性能")
-        print("+------------------+------------------+------------------+------------------+------------------+")
-        print("| 訓練正解率       | 検証正解率       | 再現率           | 適合率           | F1スコア         |")
-        print("+------------------+------------------+------------------+------------------+------------------+")
-
-        let classMetrics = confusionMatrix?.calculateMetrics() ?? []
-        let macroRecall = classMetrics.map(\.recall).reduce(0.0, +) / Double(max(1, classMetrics.count))
-        let macroPrecision = classMetrics.map(\.precision).reduce(0.0, +) / Double(max(1, classMetrics.count))
-        let macroF1Score = classMetrics.map(\.f1Score).reduce(0.0, +) / Double(max(1, classMetrics.count))
-
-        print(
-            "| \(String(format: "%14.1f%%", (1.0 - trainingMetrics.classificationError) * 100.0)) | \(String(format: "%14.1f%%", (1.0 - validationMetrics.classificationError) * 100.0)) | \(String(format: "%14.1f%%", macroRecall * 100.0)) | \(String(format: "%14.1f%%", macroPrecision * 100.0)) | \(String(format: "%14.3f", macroF1Score)) |"
-        )
-        print("+------------------+------------------+------------------+------------------+------------------+")
-
-        return createTrainingResult(
+        let result = createTrainingResult(
             modelName: modelName,
             classLabelDirURLs: classLabelDirURLs,
             trainingMetrics: trainingMetrics,
@@ -148,6 +133,17 @@ public final class MultiLabelClassifier: ClassifierProtocol {
             modelParameters: modelParameters,
             trainingDurationSeconds: trainingDurationSeconds,
             modelFilePath: modelFilePath
+        )
+
+        // 全モデルの比較表を表示
+        result.displayComparisonTable()
+
+        // ログを保存
+        try result.saveLog(
+            modelAuthor: author,
+            modelName: modelName,
+            modelVersion: version,
+            outputDirPath: outputDirectoryURL.path
         )
     }
 
@@ -178,17 +174,19 @@ public final class MultiLabelClassifier: ClassifierProtocol {
     public func prepareTrainingData(from classLabelDirURLs: [URL]) throws -> MLImageClassifier.DataSource {
         print("📁 トレーニングデータ親ディレクトリ: \(resourcesDirectoryPath)")
 
-        let imageExtensions = Set(["jpg", "jpeg", "png"])
-
         // 各クラスの画像ファイルを取得
         var allFiles: [URL] = []
         for classDir in classLabelDirURLs {
+            let className = classDir.lastPathComponent
             let files = try FileManager.default.contentsOfDirectory(at: classDir, includingPropertiesForKeys: nil)
-                .filter { imageExtensions.contains($0.pathExtension.lowercased()) }
+            classImageCounts[className] = files.count
             allFiles.append(contentsOf: files)
         }
 
         print("📊 合計画像枚数: \(allFiles.count)枚")
+        for (className, count) in classImageCounts {
+            print("📊 \(className): \(count)枚")
+        }
 
         return MLImageClassifier.DataSource.labeledDirectories(at: URL(fileURLWithPath: resourcesDirectoryPath))
     }
@@ -279,12 +277,12 @@ public final class MultiLabelClassifier: ClassifierProtocol {
 
     public func createTrainingResult(
         modelName: String,
-        classLabelDirURLs: [URL],
+        classLabelDirURLs _: [URL],
         trainingMetrics: MLClassifierMetrics,
         validationMetrics: MLClassifierMetrics,
         modelParameters: CreateML.MLImageClassifier.ModelParameters,
-        trainingDurationSeconds: TimeInterval,
-        modelFilePath: String
+        trainingDurationSeconds _: TimeInterval,
+        modelFilePath _: String
     ) -> MultiLabelTrainingResult {
         let augmentationFinalDescription = if !modelParameters.augmentationOptions.isEmpty {
             String(describing: modelParameters.augmentationOptions)
@@ -296,9 +294,7 @@ public final class MultiLabelClassifier: ClassifierProtocol {
 
         let metadata = CICTrainingMetadata(
             modelName: modelName,
-            trainingDurationInSeconds: trainingDurationSeconds,
-            trainedModelFilePath: modelFilePath,
-            detectedClassLabelsList: classLabelDirURLs.map(\.lastPathComponent),
+            classLabelCounts: classImageCounts,
             maxIterations: modelParameters.maxIterations,
             dataAugmentationDescription: augmentationFinalDescription,
             featureExtractorDescription: featureExtractorDescription
@@ -312,13 +308,15 @@ public final class MultiLabelClassifier: ClassifierProtocol {
 
         return MultiLabelTrainingResult(
             metadata: metadata,
-            trainingMetrics: (
-                accuracy: 1.0 - trainingMetrics.classificationError,
-                errorRate: trainingMetrics.classificationError
-            ),
-            validationMetrics: (
-                accuracy: 1.0 - validationMetrics.classificationError,
-                errorRate: validationMetrics.classificationError
+            metrics: (
+                training: (
+                    accuracy: 1.0 - trainingMetrics.classificationError,
+                    errorRate: trainingMetrics.classificationError
+                ),
+                validation: (
+                    accuracy: 1.0 - validationMetrics.classificationError,
+                    errorRate: validationMetrics.classificationError
+                )
             ),
             confusionMatrix: confusionMatrix,
             individualModelReports: []

@@ -13,9 +13,6 @@ public final class MultiClassClassifier: ClassifierProtocol {
     public var outputDirectoryPathOverride: String?
     public var resourceDirPathOverride: String?
 
-    private static let imageExtensions = Set(["jpg", "jpeg", "png"])
-    private static let tempBaseDirName = "TempMultiClassTrainingData"
-
     public var outputParentDirPath: String {
         if let override = outputDirectoryPathOverride {
             return override
@@ -54,34 +51,105 @@ public final class MultiClassClassifier: ClassifierProtocol {
         self.resourceDirPathOverride = resourceDirPathOverride
     }
 
+    private func createMetricsDescription(
+        classLabelDirURLs: [URL],
+        classImageCounts: [String: Int],
+        metrics: (training: MLClassifierMetrics, validation: MLClassifierMetrics),
+        modelParameters _: CreateML.MLImageClassifier.ModelParameters,
+        augmentationFinalDescription: String,
+        featureExtractorDescription: String,
+        confusionMatrix: CICMultiClassConfusionMatrix?
+    ) -> String {
+        var metricsDescription = """
+        \(
+            classLabelDirURLs.map { "\($0.lastPathComponent): \(classImageCounts[$0.lastPathComponent] ?? 0)枚" }
+                .joined(separator: ", ")
+        )
+        訓練正解率: \(String(format: "%.1f%%", (1.0 - metrics.training.classificationError) * 100.0))
+        検証正解率: \(String(format: "%.1f%%", (1.0 - metrics.validation.classificationError) * 100.0))
+        """
+
+        if let confusionMatrix {
+            let classMetrics = confusionMatrix.calculateMetrics()
+            metricsDescription += """
+
+            クラス別性能指標:
+            \(classMetrics.map { metric in
+                "\(metric.label): 再現率 \(String(format: "%.1f%%", metric.recall * 100.0)), 適合率 \(String(format: "%.1f%%", metric.precision * 100.0)), F1 \(String(format: "%.3f", metric.f1Score))"
+            }.joined(separator: "\n"))
+            """
+        }
+
+        metricsDescription += """
+
+        データ拡張: \(augmentationFinalDescription)
+        特徴抽出器: \(featureExtractorDescription)
+        """
+
+        return metricsDescription
+    }
+
     public func create(
         author: String,
         modelName: String,
         version: String,
         modelParameters: CreateML.MLImageClassifier.ModelParameters
-    ) async throws -> MultiClassTrainingResult {
+    ) async throws {
         print("📁 リソースディレクトリ: \(resourcesDirectoryPath)")
-        print("🚀 MultiClassモデル作成開始 (バージョン: \(version))...")
+        print("🚀 多クラス分類モデル作成開始 (バージョン: \(version))...")
 
-        // クラスラベルディレクトリの取得
-        let classLabelDirURLs = try getClassLabelDirectories()
+        // クラスラベルディレクトリの取得と検証
+        let classLabelDirURLs = try fileManager.getClassLabelDirectories(resourcesPath: resourcesDirectoryPath)
+        print("📁 検出されたクラスラベルディレクトリ: \(classLabelDirURLs.map(\.lastPathComponent).joined(separator: ", "))")
+
+        guard classLabelDirURLs.count >= 2 else {
+            throw NSError(domain: "MultiClassifier", code: -1, userInfo: [
+                NSLocalizedDescriptionKey: "多クラス分類には少なくとも2つのクラスラベルディレクトリが必要です。現在 \(classLabelDirURLs.count)個。",
+            ])
+        }
+
+        // 出力ディレクトリの設定
+        let outputDirectoryURL = try fileManager.createOutputDirectory(
+            modelName: modelName,
+            version: version,
+            classificationMethod: classificationMethod,
+            moduleOutputPath: outputParentDirPath
+        )
+        print("📁 出力ディレクトリ作成成功: \(outputDirectoryURL.path)")
 
         // トレーニングデータの準備
-        let trainingDataSource = try prepareTrainingData(from: classLabelDirURLs)
-        print("📊 トレーニングデータソース作成完了")
+        print("📁 トレーニングデータ親ディレクトリ: \(resourcesDirectoryPath)")
+        var classImageCounts: [String: Int] = [:]
+        for classDir in classLabelDirURLs {
+            let className = classDir.lastPathComponent
+            let files = try FileManager.default.contentsOfDirectory(
+                at: classDir,
+                includingPropertiesForKeys: nil
+            )
+            let count = files.count
+            classImageCounts[className] = count
+            print("📊 \(className): \(count)枚")
+        }
+
+        // トレーニングデータソースを作成
+        let trainingDataSource = MLImageClassifier.DataSource
+            .labeledDirectories(at: URL(fileURLWithPath: resourcesDirectoryPath))
 
         // モデルのトレーニング
-        let (imageClassifier, trainingDurationSeconds) = try trainModel(
-            trainingDataSource: trainingDataSource,
-            modelParameters: modelParameters
-        )
+        let trainingStartTime = Date()
+        let imageClassifier = try MLImageClassifier(trainingData: trainingDataSource, parameters: modelParameters)
+        let trainingEndTime = Date()
+        let trainingDurationSeconds = trainingEndTime.timeIntervalSince(trainingStartTime)
+        print("✅ モデルの作成が完了 (所要時間: \(String(format: "%.1f", trainingDurationSeconds))秒)")
 
-        let trainingMetrics = imageClassifier.trainingMetrics
-        let validationMetrics = imageClassifier.validationMetrics
+        let metrics = (
+            training: imageClassifier.trainingMetrics,
+            validation: imageClassifier.validationMetrics
+        )
 
         // 混同行列の計算
         let confusionMatrix = CICMultiClassConfusionMatrix(
-            dataTable: validationMetrics.confusion,
+            dataTable: metrics.validation.confusion,
             predictedColumn: "Predicted",
             actualColumn: "True Label"
         )
@@ -90,13 +158,13 @@ public final class MultiClassClassifier: ClassifierProtocol {
         print("\n📊 トレーニング結果サマリー")
         print(String(
             format: "  訓練正解率: %.1f%%",
-            (1.0 - trainingMetrics.classificationError) * 100.0
+            (1.0 - metrics.training.classificationError) * 100.0
         ))
 
         if let confusionMatrix {
             print(String(
                 format: "  検証正解率: %.1f%%",
-                (1.0 - validationMetrics.classificationError) * 100.0
+                (1.0 - metrics.validation.classificationError) * 100.0
             ))
             print(confusionMatrix.getMatrixGraph())
         } else {
@@ -104,35 +172,70 @@ public final class MultiClassClassifier: ClassifierProtocol {
         }
 
         // モデルのメタデータ作成
-        let modelMetadata = createModelMetadata(
-            author: author,
-            version: version,
+        let augmentationFinalDescription = if !modelParameters.augmentationOptions.isEmpty {
+            String(describing: modelParameters.augmentationOptions)
+        } else {
+            "なし"
+        }
+
+        let featureExtractorDescription = String(describing: modelParameters.featureExtractor)
+
+        let metricsDescription = createMetricsDescription(
             classLabelDirURLs: classLabelDirURLs,
-            trainingMetrics: trainingMetrics,
-            validationMetrics: validationMetrics,
-            modelParameters: modelParameters
-        )
-
-        // 出力ディレクトリの設定
-        let outputDirectoryURL = try setupOutputDirectory(modelName: modelName, version: version)
-
-        let modelFilePath = try saveMLModel(
-            imageClassifier: imageClassifier,
-            modelName: modelName,
-            modelFileName: "\(modelName)_\(classificationMethod)_\(version).mlmodel",
-            version: version,
-            outputDirectoryURL: outputDirectoryURL,
-            metadata: modelMetadata
-        )
-
-        return createTrainingResult(
-            modelName: modelName,
-            classLabelDirURLs: classLabelDirURLs,
-            trainingMetrics: trainingMetrics,
-            validationMetrics: validationMetrics,
+            classImageCounts: classImageCounts,
+            metrics: metrics,
             modelParameters: modelParameters,
-            trainingDurationSeconds: trainingDurationSeconds,
-            modelFilePath: modelFilePath
+            augmentationFinalDescription: augmentationFinalDescription,
+            featureExtractorDescription: featureExtractorDescription,
+            confusionMatrix: confusionMatrix
+        )
+
+        let modelMetadata = MLModelMetadata(
+            author: author,
+            shortDescription: metricsDescription,
+            version: version
+        )
+
+        // モデルファイルを保存
+        let modelFileName = "\(modelName)_\(classificationMethod)_\(version).mlmodel"
+        let modelFilePath = outputDirectoryURL.appendingPathComponent(modelFileName).path
+        print("💾 モデルファイル保存中: \(modelFilePath)")
+        try imageClassifier.write(to: URL(fileURLWithPath: modelFilePath), metadata: modelMetadata)
+        print("✅ モデルファイル保存完了")
+
+        // メタデータの作成
+        let metadata = CICTrainingMetadata(
+            modelName: modelName,
+            classLabelCounts: classImageCounts,
+            maxIterations: modelParameters.maxIterations,
+            dataAugmentationDescription: augmentationFinalDescription,
+            featureExtractorDescription: featureExtractorDescription
+        )
+
+        let result = MultiClassTrainingResult(
+            metadata: metadata,
+            metrics: (
+                training: (
+                    accuracy: 1.0 - metrics.training.classificationError,
+                    errorRate: metrics.training.classificationError
+                ),
+                validation: (
+                    accuracy: 1.0 - metrics.validation.classificationError,
+                    errorRate: metrics.validation.classificationError
+                )
+            ),
+            confusionMatrix: confusionMatrix
+        )
+
+        // 全モデルの比較表を表示
+        result.displayComparisonTable()
+
+        // ログを保存
+        try result.saveLog(
+            modelAuthor: author,
+            modelName: modelName,
+            modelVersion: version,
+            outputDirPath: outputDirectoryURL.path
         )
     }
 
@@ -161,18 +264,8 @@ public final class MultiClassClassifier: ClassifierProtocol {
     }
 
     public func prepareTrainingData(from classLabelDirURLs: [URL]) throws -> MLImageClassifier.DataSource {
-        // 前回値をクリア
-        classImageCounts.removeAll()
-        
-        // 親ディレクトリを取得（最初のディレクトリの親を使用）
-        guard let firstDir = classLabelDirURLs.first else {
-            throw NSError(domain: "MultiClassClassifier", code: -1, userInfo: [
-                NSLocalizedDescriptionKey: "クラスラベルディレクトリが空です。"
-            ])
-        }
-        let parentDir = firstDir.deletingLastPathComponent()
-        print("📁 トレーニングデータ親ディレクトリ: \(parentDir.path)")
-        
+        print("📁 トレーニングデータ親ディレクトリ: \(resourcesDirectoryPath)")
+
         // 各クラスの画像枚数を効率的にカウント
         for classDir in classLabelDirURLs {
             let className = classDir.lastPathComponent
@@ -180,12 +273,12 @@ public final class MultiClassClassifier: ClassifierProtocol {
                 at: classDir,
                 includingPropertiesForKeys: nil
             )
-            let count = files.filter { Self.imageExtensions.contains($0.pathExtension.lowercased()) }.count
+            let count = files.count
             classImageCounts[className] = count
             print("📊 \(className): \(count)枚")
         }
-        
-        return MLImageClassifier.DataSource.labeledDirectories(at: parentDir)
+
+        return MLImageClassifier.DataSource.labeledDirectories(at: URL(fileURLWithPath: resourcesDirectoryPath))
     }
 
     public func trainModel(
@@ -201,7 +294,7 @@ public final class MultiClassClassifier: ClassifierProtocol {
     }
 
     private var classImageCounts: [String: Int] = [:]
-    
+
     public func createModelMetadata(
         author: String,
         version: String,
@@ -225,28 +318,18 @@ public final class MultiClassClassifier: ClassifierProtocol {
             actualColumn: "True Label"
         )
 
-        var metricsDescription = """
-        \(classLabelDirURLs.map { "\($0.lastPathComponent): \(classImageCounts[$0.lastPathComponent] ?? 0)枚" }.joined(separator: ", "))
-        訓練正解率: \(String(format: "%.1f%%", (1.0 - trainingMetrics.classificationError) * 100.0))
-        検証正解率: \(String(format: "%.1f%%", (1.0 - validationMetrics.classificationError) * 100.0))
-        """
-
-        if let confusionMatrix {
-            let classMetrics = confusionMatrix.calculateMetrics()
-            metricsDescription += """
-
-            クラス別性能指標:
-            \(classMetrics.map { metric in
-                "\(metric.label): 再現率 \(String(format: "%.1f%%", metric.recall * 100.0)), 適合率 \(String(format: "%.1f%%", metric.precision * 100.0)), F1 \(String(format: "%.3f", metric.f1Score))"
-            }.joined(separator: "\n"))
-            """
-        }
-
-        metricsDescription += """
-
-        データ拡張: \(augmentationFinalDescription)
-        特徴抽出器: \(featureExtractorDescription)
-        """
+        let metricsDescription = createMetricsDescription(
+            classLabelDirURLs: classLabelDirURLs,
+            classImageCounts: classImageCounts,
+            metrics: (
+                training: trainingMetrics,
+                validation: validationMetrics
+            ),
+            modelParameters: modelParameters,
+            augmentationFinalDescription: augmentationFinalDescription,
+            featureExtractorDescription: featureExtractorDescription,
+            confusionMatrix: confusionMatrix
+        )
 
         return MLModelMetadata(
             author: author,
@@ -274,12 +357,12 @@ public final class MultiClassClassifier: ClassifierProtocol {
 
     public func createTrainingResult(
         modelName: String,
-        classLabelDirURLs: [URL],
+        classLabelDirURLs _: [URL],
         trainingMetrics: MLClassifierMetrics,
         validationMetrics: MLClassifierMetrics,
         modelParameters: CreateML.MLImageClassifier.ModelParameters,
-        trainingDurationSeconds: TimeInterval,
-        modelFilePath: String
+        trainingDurationSeconds _: TimeInterval,
+        modelFilePath _: String
     ) -> MultiClassTrainingResult {
         let augmentationFinalDescription = if !modelParameters.augmentationOptions.isEmpty {
             String(describing: modelParameters.augmentationOptions)
@@ -291,9 +374,7 @@ public final class MultiClassClassifier: ClassifierProtocol {
 
         let metadata = CICTrainingMetadata(
             modelName: modelName,
-            trainingDurationInSeconds: trainingDurationSeconds,
-            trainedModelFilePath: modelFilePath,
-            detectedClassLabelsList: classLabelDirURLs.map(\.lastPathComponent),
+            classLabelCounts: classImageCounts,
             maxIterations: modelParameters.maxIterations,
             dataAugmentationDescription: augmentationFinalDescription,
             featureExtractorDescription: featureExtractorDescription
@@ -307,13 +388,15 @@ public final class MultiClassClassifier: ClassifierProtocol {
 
         return MultiClassTrainingResult(
             metadata: metadata,
-            trainingMetrics: (
-                accuracy: 1.0 - trainingMetrics.classificationError,
-                errorRate: trainingMetrics.classificationError
-            ),
-            validationMetrics: (
-                accuracy: 1.0 - validationMetrics.classificationError,
-                errorRate: validationMetrics.classificationError
+            metrics: (
+                training: (
+                    accuracy: 1.0 - trainingMetrics.classificationError,
+                    errorRate: trainingMetrics.classificationError
+                ),
+                validation: (
+                    accuracy: 1.0 - validationMetrics.classificationError,
+                    errorRate: validationMetrics.classificationError
+                )
             ),
             confusionMatrix: confusionMatrix
         )

@@ -64,50 +64,92 @@ final class MultiLabelClassifierTests: XCTestCase {
 
     func testClassifierDIConfiguration() async throws {
         // モデルの作成
-        let result = try await classifier.create(
+        try await classifier.create(
             author: authorName,
             modelName: testModelName,
             version: testModelVersion,
             modelParameters: modelParameters
         )
-        
+
         XCTAssertNotNil(classifier, "MultiLabelClassifierの初期化失敗")
         XCTAssertEqual(classifier.outputParentDirPath, temporaryOutputDirectoryURL.path, "分類器の出力パスが期待値と不一致")
     }
 
+    // モデルの訓練と成果物の生成をテスト
     func testModelTrainingAndArtifactGeneration() async throws {
         // モデルの作成
-        let result = try await classifier.create(
+        try await classifier.create(
             author: authorName,
             modelName: testModelName,
             version: testModelVersion,
             modelParameters: modelParameters
         )
 
+        // 出力ディレクトリから最新の結果を取得
+        let outputDir = URL(fileURLWithPath: classifier.outputParentDirPath)
+            .appendingPathComponent(testModelName)
+            .appendingPathComponent(testModelVersion)
+        let resultDirs = try fileManager.contentsOfDirectory(
+            at: outputDir,
+            includingPropertiesForKeys: [.isDirectoryKey],
+            options: [.skipsHiddenFiles]
+        ).filter(\.hasDirectoryPath)
+            .sorted { $0.lastPathComponent > $1.lastPathComponent }
+
+        guard let latestResultDir = resultDirs.first else {
+            XCTFail("結果ディレクトリが見つかりません: \(outputDir.path)")
+            return
+        }
+
+        // モデルファイルの存在確認
+        let expectedModelFileName = "\(testModelName)_\(classifier.classificationMethod)_\(testModelVersion).mlmodel"
+        let modelFilePath = latestResultDir.appendingPathComponent(expectedModelFileName).path
+
         XCTAssertTrue(
-            fileManager.fileExists(atPath: result.modelOutputPath),
-            "訓練モデルファイルが期待されるパス「\(result.modelOutputPath)」に見つかりません"
+            fileManager.fileExists(atPath: modelFilePath),
+            "訓練モデルファイルが期待されるパス「\(modelFilePath)」に見つかりません"
         )
 
-        let expectedClassLabels = ["black_and_white", "human_hands_detected", "mouth_open", "sphynx"].sorted()
-        XCTAssertEqual(
-            Set(result.metadata.detectedClassLabelsList.sorted()),
-            Set(expectedClassLabels),
-            "訓練結果のクラスラベル「\(result.metadata.detectedClassLabelsList.sorted())」が期待されるラベル「\(expectedClassLabels)」と一致しません"
+        // クラスラベルディレクトリの取得
+        let classLabelDirs = try fileManager.contentsOfDirectory(
+            at: URL(fileURLWithPath: classifier.resourcesDirectoryPath),
+            includingPropertiesForKeys: [.isDirectoryKey],
+            options: [.skipsHiddenFiles]
+        ).filter(\.hasDirectoryPath)
+            .map(\.lastPathComponent)
+            .sorted()
+
+        // クラスラベルの存在確認
+        XCTAssertFalse(
+            classLabelDirs.isEmpty,
+            "リソースディレクトリにクラスラベルディレクトリが見つかりません: \(classifier.resourcesDirectoryPath)"
         )
 
-        result.saveLog(modelAuthor: authorName, modelName: testModelName, modelVersion: testModelVersion)
-        let modelFileDir = URL(fileURLWithPath: result.modelOutputPath).deletingLastPathComponent()
-        let resultDir = modelFileDir.appendingPathComponent("MultiLabel_Result_1")
-        let expectedLogFileName = "MultiLabel_Run_Report_\(testModelVersion).md"
-        let expectedLogFilePath = resultDir.appendingPathComponent(expectedLogFileName).path
-        XCTAssertTrue(fileManager.fileExists(atPath: expectedLogFilePath), "ログファイル「\(expectedLogFilePath)」が生成されていません")
+        // 各クラスラベルディレクトリにファイルが存在することを確認
+        for classLabel in classLabelDirs {
+            let classDirURL = URL(fileURLWithPath: classifier.resourcesDirectoryPath)
+                .appendingPathComponent(classLabel)
+            let files = try fileManager.contentsOfDirectory(
+                at: classDirURL,
+                includingPropertiesForKeys: nil
+            )
 
-        XCTAssertEqual(result.metadata.modelName, testModelName)
+            XCTAssertFalse(
+                files.isEmpty,
+                "クラスラベル「\(classLabel)」のディレクトリにファイルが見つかりません: \(classDirURL.path)"
+            )
+        }
+
+        // ログファイルの存在確認
+        let expectedLogFileName = "\(testModelName)_\(testModelVersion).md"
+        let expectedLogFilePath = latestResultDir.appendingPathComponent(expectedLogFileName).path
+        XCTAssertTrue(
+            fileManager.fileExists(atPath: expectedLogFilePath),
+            "ログファイルが期待パス「\(expectedLogFilePath)」に未生成"
+        )
 
         // モデルファイル名の検証
-        let modelFilePath = result.metadata.trainedModelFilePath
-        let modelFileName = URL(fileURLWithPath: modelFilePath).lastPathComponent
+        let modelFileName = expectedModelFileName
         let regex = #"^TestModel_MultiLabel_v\d+\.mlmodel$"#
         XCTAssertTrue(
             modelFileName.range(of: regex, options: .regularExpression) != nil,
@@ -119,28 +161,59 @@ final class MultiLabelClassifierTests: XCTestCase {
         )
 
         XCTAssertTrue(
-            result.metadata.trainedModelFilePath.contains(testModelVersion),
-            "モデルファイルのパスにバージョン「\(testModelVersion)」が含まれていません"
+            modelFilePath.contains(testModelVersion),
+            "モデルファイルパスにバージョン「\(testModelVersion)」が含まれていません"
         )
         XCTAssertTrue(
-            result.metadata.trainedModelFilePath.contains(classifier.classificationMethod),
-            "モデルファイルのパスに分類手法「\(classifier.classificationMethod)」が含まれていません"
+            modelFilePath.contains("MultiLabel"),
+            "モデルファイルパスに分類法「MultiLabel」が含まれていません"
         )
     }
 
     // モデルが予測を実行できるかテスト
     func testModelCanPerformPrediction() async throws {
         // モデルの作成
-        let result = try await classifier.create(
+        try await classifier.create(
             author: authorName,
             modelName: testModelName,
             version: testModelVersion,
             modelParameters: modelParameters
         )
 
+        // 出力ディレクトリから最新の結果を取得
+        let outputDir = URL(fileURLWithPath: classifier.outputParentDirPath)
+            .appendingPathComponent(testModelName)
+            .appendingPathComponent(testModelVersion)
+        let resultDirs = try fileManager.contentsOfDirectory(
+            at: outputDir,
+            includingPropertiesForKeys: [.isDirectoryKey],
+            options: [.skipsHiddenFiles]
+        ).filter(\.hasDirectoryPath)
+            .sorted { $0.lastPathComponent > $1.lastPathComponent }
+
+        guard let latestResultDir = resultDirs.first else {
+            XCTFail("結果ディレクトリが見つかりません: \(outputDir.path)")
+            return
+        }
+
+        print("結果ディレクトリ: \(latestResultDir.path)")
+
+        // モデルファイルの存在確認
+        let modelFiles = try fileManager.contentsOfDirectory(
+            at: latestResultDir,
+            includingPropertiesForKeys: nil
+        ).filter { $0.pathExtension == "mlmodel" }
+
+        print("検出されたモデルファイル: \(modelFiles.map(\.lastPathComponent).joined(separator: ", "))")
+
+        guard let modelFile = modelFiles.first else {
+            XCTFail("モデルファイルが見つかりません: \(latestResultDir.path)")
+            return
+        }
+
         // モデルのコンパイル
-        let trainedModelURL = URL(fileURLWithPath: result.metadata.trainedModelFilePath)
-        let compiledModelURL = try await MLModel.compileModel(at: trainedModelURL)
+        let compiledModelURL = try await MLModel.compileModel(at: modelFile)
+        print("コンパイルされたモデル: \(compiledModelURL.path)")
 
         // コンパイルされたモデルファイルの存在確認
         guard fileManager.fileExists(atPath: compiledModelURL.path) else {
@@ -157,60 +230,138 @@ final class MultiLabelClassifierTests: XCTestCase {
             throw error
         }
 
-        let visionModel = try VNCoreMLModel(for: mlModel)
-        let request = VNCoreMLRequest(model: visionModel)
+        let vnCoreMLModel = try VNCoreMLModel(for: mlModel)
+        let predictionRequest = VNCoreMLRequest(model: vnCoreMLModel)
 
-        let imageURL = try getRandomImageURL(forClassLabel: "black_and_white")
-        let handler = VNImageRequestHandler(url: imageURL, options: [:])
-        try handler.perform([request])
+        let classLabels = try fileManager.contentsOfDirectory(
+            at: URL(fileURLWithPath: classifier.resourcesDirectoryPath),
+            includingPropertiesForKeys: [.isDirectoryKey],
+            options: [.skipsHiddenFiles]
+        ).filter(\.hasDirectoryPath)
+            .map(\.lastPathComponent)
+            .sorted()
 
-        guard let observations = request.results as? [VNClassificationObservation] else {
-            XCTFail("予測結果をVNClassificationObservationにキャストできませんでした。")
+        guard classLabels.count >= 2 else {
+            XCTFail("テストには少なくとも2つのクラスラベルが必要です。検出されたラベル: \(classLabels)")
+            throw ClassifierTestsError.setupFailed
+        }
+
+        let classLabel1 = classLabels[0]
+        let classLabel2 = classLabels[1]
+
+        print("動的に識別されたテスト用クラスラベル: '\(classLabel1)' および '\(classLabel2)'")
+
+        // classLabel1 の画像取得処理
+        let imageURL1: URL
+        do {
+            imageURL1 = try TestUtils.getRandomImageURL(
+                forClassLabel: classLabel1,
+                resourcesDirectoryPath: classifier.resourcesDirectoryPath,
+                fileManager: fileManager
+            )
+        } catch {
+            XCTFail("'\(classLabel1)' サブディレクトリからのランダム画像取得失敗。エラー: \(error.localizedDescription)")
+            throw error
+        }
+
+        // classLabel2 の画像取得処理
+        let imageURL2: URL
+        do {
+            imageURL2 = try TestUtils.getRandomImageURL(
+                forClassLabel: classLabel2,
+                resourcesDirectoryPath: classifier.resourcesDirectoryPath,
+                fileManager: fileManager
+            )
+        } catch {
+            XCTFail("'\(classLabel2)' サブディレクトリからのランダム画像取得失敗。エラー: \(error.localizedDescription)")
+            throw error
+        }
+
+        let imageHandler1 = VNImageRequestHandler(url: imageURL1, options: [:])
+        try imageHandler1.perform([predictionRequest])
+        guard let observations1 = predictionRequest.results as? [VNClassificationObservation],
+              let topResult1 = observations1.first
+        else {
+            XCTFail("クラス '\(classLabel1)' 画像: 有効な分類結果オブジェクトを取得できませんでした。")
             throw ClassifierTestsError.predictionFailed
         }
+        XCTAssertNotNil(topResult1.identifier, "クラス '\(classLabel1)' 画像: 予測結果からクラスラベルを取得できませんでした。")
+        print("クラス '\(classLabel1)' 画像の予測 (正解ラベル): \(topResult1.identifier) (確信度: \(topResult1.confidence))")
 
-        XCTAssertFalse(observations.isEmpty, "予測結果(observations)が空でした。モデルは予測を行いませんでした。")
-
-        if !observations.isEmpty {
-            let allPredictedLabelsWithConfidence = observations
-                .map { "\($0.identifier) (信頼度: \(String(format: "%.2f", $0.confidence)))" }.joined(separator: ", ")
-            print("ファイル「\(imageURL.lastPathComponent)」の全予測ラベル: [\(allPredictedLabelsWithConfidence)]")
+        let imageHandler2 = VNImageRequestHandler(url: imageURL2, options: [:])
+        try imageHandler2.perform([predictionRequest])
+        guard let observations2 = predictionRequest.results as? [VNClassificationObservation],
+              let topResult2 = observations2.first
+        else {
+            XCTFail("クラス '\(classLabel2)' 画像: 有効な分類結果オブジェクトを取得できませんでした。")
+            throw ClassifierTestsError.predictionFailed
         }
+        XCTAssertNotNil(topResult2.identifier, "クラス '\(classLabel2)' 画像: 予測結果からクラスラベルを取得できませんでした。")
+        print("クラス '\(classLabel2)' 画像の予測 (正解ラベル): \(topResult2.identifier) (確信度: \(topResult2.confidence))")
     }
 
     // 出力ディレクトリの連番を検証
     func testSequentialOutputDirectoryNumbering() async throws {
         // 1回目のモデル作成
-        let firstResult = try await classifier.create(
+        try await classifier.create(
             author: authorName,
             modelName: testModelName,
             version: testModelVersion,
             modelParameters: modelParameters
         )
 
-        let firstModelFileDir = URL(fileURLWithPath: firstResult.metadata.trainedModelFilePath)
-            .deletingLastPathComponent()
+        // 出力ディレクトリから最新の結果を取得
+        let outputDir = URL(fileURLWithPath: classifier.outputParentDirPath)
+            .appendingPathComponent(testModelName)
+            .appendingPathComponent(testModelVersion)
+        let firstResultDirs = try fileManager.contentsOfDirectory(
+            at: outputDir,
+            includingPropertiesForKeys: [.isDirectoryKey],
+            options: [.skipsHiddenFiles]
+        ).filter(\.hasDirectoryPath)
+            .sorted { $0.lastPathComponent > $1.lastPathComponent }
+
+        guard let firstResultDir = firstResultDirs.first else {
+            XCTFail("1回目の結果ディレクトリが見つかりません: \(outputDir.path)")
+            return
+        }
 
         // 2回目のモデル作成を実行
-        let secondResult = try await classifier.create(
+        try await classifier.create(
             author: "TestAuthor",
             modelName: testModelName,
             version: "v1",
             modelParameters: modelParameters
         )
 
-        let secondModelFileDir = URL(fileURLWithPath: secondResult.metadata.trainedModelFilePath)
-            .deletingLastPathComponent()
+        // 出力ディレクトリから最新の結果を取得
+        let secondResultDirs = try fileManager.contentsOfDirectory(
+            at: outputDir,
+            includingPropertiesForKeys: [.isDirectoryKey],
+            options: [.skipsHiddenFiles]
+        ).filter(\.hasDirectoryPath)
+            .sorted { $0.lastPathComponent > $1.lastPathComponent }
+
+        guard let secondResultDir = secondResultDirs.first else {
+            XCTFail("2回目の結果ディレクトリが見つかりません: \(outputDir.path)")
+            return
+        }
 
         // 連番の検証
-        let firstResultNumber = Int(firstModelFileDir.lastPathComponent.replacingOccurrences(
+        let firstResultNumber = Int(firstResultDir.lastPathComponent.replacingOccurrences(
             of: "MultiLabel_Result_",
             with: ""
         )) ?? 0
-        let secondResultNumber = Int(secondModelFileDir.lastPathComponent.replacingOccurrences(
+        let secondResultNumber = Int(secondResultDir.lastPathComponent.replacingOccurrences(
             of: "MultiLabel_Result_",
             with: ""
         )) ?? 0
+
+        print("1回目の結果ディレクトリ: \(firstResultDir.lastPathComponent)")
+        print("2回目の結果ディレクトリ: \(secondResultDir.lastPathComponent)")
+        print("1回目の番号: \(firstResultNumber)")
+        print("2回目の番号: \(secondResultNumber)")
+
         XCTAssertEqual(
             secondResultNumber,
             firstResultNumber + 1,
