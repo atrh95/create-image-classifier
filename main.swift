@@ -85,24 +85,26 @@ Task {
     for i in 1 ... trainingCount {
         print("トレーニング開始: \(i)/\(trainingCount)")
 
-        // モデルの作成
-        guard let result = await classifier.create(
-            author: selectedModel.config.author,
-            modelName: selectedModel.config.name,
-            version: version,
-            modelParameters: selectedModel.config.modelParameters
-        ) else {
-            print("❌ モデル作成失敗")
+        do {
+            // モデルの作成
+            let result = try await classifier.create(
+                author: selectedModel.config.author,
+                modelName: selectedModel.config.name,
+                version: version,
+                modelParameters: selectedModel.config.modelParameters
+            )
+
+            result.saveLog(
+                modelAuthor: selectedModel.config.author,
+                modelName: selectedModel.config.name,
+                modelVersion: version
+            )
+
+            print("トレーニング完了: \(selectedModel.config.name) [\(selectedClassifier.rawValue)] \(version) - \(i)/\(trainingCount)")
+        } catch {
+            print("❌ エラー: \(error)")
             continue
         }
-
-        result.saveLog(
-            modelAuthor: selectedModel.config.author,
-            modelName: selectedModel.config.name,
-            modelVersion: version
-        )
-
-        print("トレーニング完了: \(selectedModel.config.name) [\(selectedClassifier.rawValue)] \(version) - \(i)/\(trainingCount)")
     }
 
     semaphore.signal()

@@ -32,12 +32,8 @@ final class MultiClassClassifierTests: XCTestCase {
     }
 
     var temporaryOutputDirectoryURL: URL!
-    var compiledModelURL: URL?
-    var trainingResult: MultiClassTrainingResult?
 
-    override func setUp() async throws {
-        try await super.setUp()
-
+    override func setUpWithError() throws {
         temporaryOutputDirectoryURL = fileManager.temporaryDirectory
             .appendingPathComponent("TestOutput_MultiClass")
         try fileManager.createDirectory(
@@ -48,6 +44,7 @@ final class MultiClassClassifierTests: XCTestCase {
 
         let resourceDirectoryPath = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent() // MultiClassClassifierTests
+            .deletingLastPathComponent() // Tests
             .appendingPathComponent("TestResources")
             .appendingPathComponent("MultiClass")
             .path
@@ -56,35 +53,6 @@ final class MultiClassClassifierTests: XCTestCase {
             outputDirectoryPathOverride: temporaryOutputDirectoryURL.path,
             resourceDirPathOverride: resourceDirectoryPath
         )
-
-        // モデルの作成
-        trainingResult = await classifier.create(
-            author: authorName,
-            modelName: testModelName,
-            version: testModelVersion,
-            modelParameters: modelParameters
-        )
-
-        guard let result = trainingResult else {
-            throw TestError.trainingFailed
-        }
-
-        let modelOutputDir = URL(fileURLWithPath: result.metadata.trainedModelFilePath).deletingLastPathComponent()
-        let contents = try fileManager.contentsOfDirectory(
-            at: modelOutputDir,
-            includingPropertiesForKeys: nil,
-            options: []
-        )
-        guard let firstMlModelURL = contents.first(where: { $0.pathExtension == "mlmodel" }) else {
-            throw TestError.modelFileMissing
-        }
-
-        do {
-            compiledModelURL = try await MLModel.compileModel(at: firstMlModelURL)
-        } catch {
-            print("モデルのコンパイル失敗 (setUp): \(error.localizedDescription)")
-            throw TestError.modelFileMissing
-        }
     }
 
     override func tearDownWithError() throws {
@@ -93,41 +61,38 @@ final class MultiClassClassifierTests: XCTestCase {
         }
         temporaryOutputDirectoryURL = nil
 
-        if let compiledUrl = compiledModelURL, fileManager.fileExists(atPath: compiledUrl.path) {
-            try? fileManager.removeItem(at: compiledUrl)
-        }
-        compiledModelURL = nil
-        trainingResult = nil
         classifier.resourceDirPathOverride = nil
         classifier = nil
         try super.tearDownWithError()
     }
 
-    func testClassifierDIConfiguration() {
+    func testClassifierDIConfiguration() async throws {
+        // モデルの作成
+        let result = try await classifier.create(
+            author: authorName,
+            modelName: testModelName,
+            version: testModelVersion,
+            modelParameters: modelParameters
+        )
+        
         XCTAssertNotNil(classifier, "MultiClassClassifierの初期化失敗")
         XCTAssertEqual(classifier.outputParentDirPath, temporaryOutputDirectoryURL.path, "分類器の出力パスが期待値と不一致")
     }
 
-    enum TestError: Error {
-        case testResourceMissing
-        case trainingFailed
-        case modelFileMissing
-        case predictionFailed
-        case setupFailed
-    }
-
-    func testModelTrainingAndArtifactGeneration() throws {
-        guard let result = trainingResult else {
-            XCTFail("訓練結果がnilです (testModelTrainingAndArtifactGeneration)")
-            throw TestError.trainingFailed
-        }
+    func testModelTrainingAndArtifactGeneration() async throws {
+        // モデルの作成
+        let result = try await classifier.create(
+            author: authorName,
+            modelName: testModelName,
+            version: testModelVersion,
+            modelParameters: modelParameters
+        )
 
         XCTAssertTrue(
             fileManager.fileExists(atPath: result.modelOutputPath),
             "訓練モデルファイルが期待されるパス「\(result.modelOutputPath)」に見つかりません"
         )
 
-        // Dynamically get expected class labels from the TestResources subdirectories
         let resourceURL = URL(fileURLWithPath: classifier.resourcesDirectoryPath)
 
         var expectedClassLabels: [String] = []
@@ -143,12 +108,12 @@ final class MultiClassClassifierTests: XCTestCase {
             }.map(\.lastPathComponent).sorted()
         } catch {
             XCTFail("テストリソースのサブディレクトリからのクラスラベルの取得に失敗しました: \(error.localizedDescription)")
-            throw TestError.setupFailed
+            throw ClassifierTestsError.setupFailed
         }
 
         guard !expectedClassLabels.isEmpty else {
             XCTFail("テストリソースディレクトリから期待されるクラスラベルが見つかりませんでした。パス: \(resourceURL.path)")
-            throw TestError.setupFailed
+            throw ClassifierTestsError.setupFailed
         }
 
         XCTAssertEqual(
@@ -203,17 +168,35 @@ final class MultiClassClassifierTests: XCTestCase {
         )
     }
 
-    func testModelCanPerformPrediction() throws {
-        guard let finalModelURL = compiledModelURL else {
-            XCTFail("コンパイル済みモデルのURLがnilです (testModelCanPerformPrediction)")
-            throw TestError.modelFileMissing
-        }
-        guard let result = trainingResult else {
-            XCTFail("訓練結果がnilです (testModelCanPerformPrediction)")
-            throw TestError.setupFailed
+    // モデルが予測を実行できるかテスト
+    func testModelCanPerformPrediction() async throws {
+        // モデルの作成
+        let result = try await classifier.create(
+            author: authorName,
+            modelName: testModelName,
+            version: testModelVersion,
+            modelParameters: modelParameters
+        )
+
+        // モデルのコンパイル
+        let trainedModelURL = URL(fileURLWithPath: result.metadata.trainedModelFilePath)
+        let compiledModelURL = try await MLModel.compileModel(at: trainedModelURL)
+
+        // コンパイルされたモデルファイルの存在確認
+        guard fileManager.fileExists(atPath: compiledModelURL.path) else {
+            XCTFail("コンパイルされたモデルファイルが存在しません: \(compiledModelURL.path)")
+            throw ClassifierTestsError.modelFileMissing
         }
 
-        let mlModel = try MLModel(contentsOf: finalModelURL)
+        // モデルの読み込みを試みる
+        let mlModel: MLModel
+        do {
+            mlModel = try MLModel(contentsOf: compiledModelURL)
+        } catch {
+            XCTFail("モデルの読み込みに失敗しました: \(error.localizedDescription)")
+            throw error
+        }
+
         let vnCoreMLModel = try VNCoreMLModel(for: mlModel)
         let predictionRequest = VNCoreMLRequest(model: vnCoreMLModel)
 
@@ -221,13 +204,17 @@ final class MultiClassClassifierTests: XCTestCase {
 
         guard !classLabelsForPredictionTest.isEmpty else {
             XCTFail("予測テストの実行には、訓練結果に最低1つのクラスラベルが必要です。検出されたラベルはありません。")
-            throw TestError.setupFailed
+            throw ClassifierTestsError.setupFailed
         }
 
         let classLabelToTest = classLabelsForPredictionTest[0]
         let imageURL: URL
         do {
-            imageURL = try getRandomImageURL(forClassLabel: classLabelToTest)
+            imageURL = try TestUtils.getRandomImageURL(
+                forClassLabel: classLabelToTest,
+                resourcesDirectoryPath: classifier.resourcesDirectoryPath,
+                fileManager: fileManager
+            )
         } catch {
             XCTFail("クラス「\(classLabelToTest)」のサブディレクトリからのランダム画像取得に失敗しました。エラー: \(error.localizedDescription)")
             throw error
@@ -239,68 +226,31 @@ final class MultiClassClassifierTests: XCTestCase {
               let topResult = observations.first
         else {
             XCTFail("クラス「\(classLabelToTest)」の画像に対する分類結果オブジェクトの取得に失敗しました。")
-            throw TestError.predictionFailed
+            throw ClassifierTestsError.predictionFailed
         }
         XCTAssertNotNil(topResult.identifier, "クラス「\(classLabelToTest)」の画像に対する予測結果からクラスラベルが取得できませんでした。")
     }
 
-    private func getRandomImageURL(forClassLabel classLabel: String) throws -> URL {
-        let resourceURL = URL(fileURLWithPath: classifier.resourcesDirectoryPath)
-        let classLabelURL = resourceURL.appendingPathComponent(classLabel)
-
-        var isDirectory: ObjCBool = false
-        guard fileManager.fileExists(atPath: classLabelURL.path, isDirectory: &isDirectory),
-              isDirectory.boolValue
-        else {
-            let message = "サブディレクトリ '\(classLabel)' が見つからないか、ディレクトリではありません: \(classLabelURL.path)"
-            XCTFail(message)
-            throw TestError.testResourceMissing
-        }
-
-        let validExtensions = ["jpg", "jpeg", "png"]
-        let allFiles = try fileManager.contentsOfDirectory(
-            at: classLabelURL,
-            includingPropertiesForKeys: nil,
-            options: [.skipsHiddenFiles]
-        ).filter { url in
-            validExtensions.contains(url.pathExtension.lowercased())
-        }
-
-        guard !allFiles.isEmpty else {
-            throw TestError.testResourceMissing
-        }
-
-        guard let randomFile = allFiles.randomElement() else {
-            XCTFail("利用可能な画像ファイルが見つかりません")
-            throw TestError.testResourceMissing
-        }
-
-        return randomFile
-    }
-
     // 出力ディレクトリの連番を検証
     func testSequentialOutputDirectoryNumbering() async throws {
-        // 1回目のモデル作成（setUpで実行済み）
-        guard let firstResult = trainingResult else {
-            XCTFail("1回目の訓練結果がnilです")
-            throw TestError.trainingFailed
-        }
+        // 1回目のモデル作成
+        let firstResult = try await classifier.create(
+            author: authorName,
+            modelName: testModelName,
+            version: testModelVersion,
+            modelParameters: modelParameters
+        )
 
         let firstModelFileDir = URL(fileURLWithPath: firstResult.metadata.trainedModelFilePath)
             .deletingLastPathComponent()
 
         // 2回目のモデル作成を実行
-        let secondResult = await classifier.create(
+        let secondResult = try await classifier.create(
             author: "TestAuthor",
             modelName: testModelName,
             version: "v1",
             modelParameters: modelParameters
         )
-
-        guard let secondResult else {
-            XCTFail("2回目の訓練結果がnilです")
-            throw TestError.trainingFailed
-        }
 
         let secondModelFileDir = URL(fileURLWithPath: secondResult.metadata.trainedModelFilePath)
             .deletingLastPathComponent()

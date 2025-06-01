@@ -62,109 +62,95 @@ public final class BinaryClassifier: ClassifierProtocol {
         modelName: String,
         version: String,
         modelParameters: CreateML.MLImageClassifier.ModelParameters
-    ) async -> BinaryTrainingResult? {
+    ) async throws -> BinaryTrainingResult {
         print("📁 リソースディレクトリ: \(resourcesDirectoryPath)")
         print("🚀 Binaryモデル作成開始 (バージョン: \(version))...")
 
-        do {
-            // クラスラベルディレクトリの取得
-            let classLabelDirURLs = try getClassLabelDirectories()
+        // クラスラベルディレクトリの取得
+        let classLabelDirURLs = try getClassLabelDirectories()
 
-            // トレーニングデータの準備
-            let trainingDataSource = try prepareTrainingData(from: classLabelDirURLs)
-            print("📊 トレーニングデータソース作成完了")
+        // トレーニングデータの準備
+        let trainingDataSource = try prepareTrainingData(from: classLabelDirURLs)
+        print("📊 トレーニングデータソース作成完了")
 
-            // モデルのトレーニング
-            let (imageClassifier, trainingDurationSeconds) = try trainModel(
-                trainingDataSource: trainingDataSource,
-                modelParameters: modelParameters
-            )
+        // モデルのトレーニング
+        let (imageClassifier, trainingDurationSeconds) = try trainModel(
+            trainingDataSource: trainingDataSource,
+            modelParameters: modelParameters
+        )
 
-            let trainingMetrics = imageClassifier.trainingMetrics
-            let validationMetrics = imageClassifier.validationMetrics
+        let trainingMetrics = imageClassifier.trainingMetrics
+        let validationMetrics = imageClassifier.validationMetrics
 
-            // 混同行列の計算
-            let confusionMatrix = CICBinaryConfusionMatrix(
-                dataTable: validationMetrics.confusion,
-                predictedColumn: "Predicted",
-                actualColumn: "True Label",
-                positiveClass: classLabelDirURLs[1].lastPathComponent
-            )
+        // 混同行列の計算
+        let confusionMatrix = CICBinaryConfusionMatrix(
+            dataTable: validationMetrics.confusion,
+            predictedColumn: "Predicted",
+            actualColumn: "True Label",
+            positiveClass: classLabelDirURLs[1].lastPathComponent
+        )
 
-            // トレーニング結果の表示
-            print("\n📊 トレーニング結果サマリー")
+        // トレーニング結果の表示
+        print("\n📊 トレーニング結果サマリー")
+        print(String(
+            format: "  訓練正解率: %.1f%%",
+            (1.0 - trainingMetrics.classificationError) * 100.0
+        ))
+
+        if let confusionMatrix {
             print(String(
-                format: "  訓練正解率: %.1f%%",
-                (1.0 - trainingMetrics.classificationError) * 100.0
+                format: "  検証正解率: %.1f%%",
+                (1.0 - validationMetrics.classificationError) * 100.0
             ))
-
-            if let confusionMatrix {
-                print(String(
-                    format: "  検証正解率: %.1f%%",
-                    (1.0 - validationMetrics.classificationError) * 100.0
-                ))
-                print(confusionMatrix.getMatrixGraph())
-            } else {
-                print("⚠️ 警告: 検証データが不十分なため、混同行列の計算をスキップしました")
-            }
-
-            // モデルのメタデータ作成
-            let modelMetadata = createModelMetadata(
-                author: author,
-                version: version,
-                classLabelDirURLs: classLabelDirURLs,
-                trainingMetrics: trainingMetrics,
-                validationMetrics: validationMetrics,
-                modelParameters: modelParameters
-            )
-
-            // 出力ディレクトリの設定
-            let outputDirectoryURL = try setupOutputDirectory(modelName: modelName, version: version)
-
-            let modelFilePath = try saveMLModel(
-                imageClassifier: imageClassifier,
-                modelName: modelName,
-                modelFileName: "\(modelName)_\(classificationMethod)_\(version).mlmodel",
-                version: version,
-                outputDirectoryURL: outputDirectoryURL,
-                metadata: modelMetadata
-            )
-
-            // モデルの性能を表示
-            print("\n📊 モデルの性能")
-            print("+------------------+------------------+------------------+------------------+------------------+")
-            print("| 訓練正解率       | 検証正解率       | 再現率           | 適合率           | F1スコア         |")
-            print("+------------------+------------------+------------------+------------------+------------------+")
-            let recall = confusionMatrix?.recall ?? 0.0
-            let precision = confusionMatrix?.precision ?? 0.0
-            let f1Score = confusionMatrix?.f1Score ?? 0.0
-            print(
-                "| \(String(format: "%14.1f%%", (1.0 - trainingMetrics.classificationError) * 100.0)) | \(String(format: "%14.1f%%", (1.0 - validationMetrics.classificationError) * 100.0)) | \(String(format: "%14.1f%%", recall * 100.0)) | \(String(format: "%14.1f%%", precision * 100.0)) | \(String(format: "%14.3f", f1Score)) |"
-            )
-            print("+------------------+------------------+------------------+------------------+------------------+")
-
-            return createTrainingResult(
-                modelName: modelName,
-                classLabelDirURLs: classLabelDirURLs,
-                trainingMetrics: trainingMetrics,
-                validationMetrics: validationMetrics,
-                modelParameters: modelParameters,
-                trainingDurationSeconds: trainingDurationSeconds,
-                modelFilePath: modelFilePath
-            )
-
-        } catch let createMLError as CreateML.MLCreateError {
-            print("🛑 エラー: モデル [\(modelName)] のトレーニングまたは保存失敗 (CreateML): \(createMLError.localizedDescription)")
-            print("詳細なエラー情報:")
-            print("- エラーコード: \(createMLError.errorCode)")
-            print("- エラーの種類: \(type(of: createMLError))")
-            return nil
-        } catch {
-            print("🛑 エラー: トレーニングプロセス中に予期しないエラー: \(error.localizedDescription)")
-            print("エラーの詳細:")
-            print(error)
-            return nil
+            print(confusionMatrix.getMatrixGraph())
+        } else {
+            print("⚠️ 警告: 検証データが不十分なため、混同行列の計算をスキップしました")
         }
+
+        // モデルのメタデータ作成
+        let modelMetadata = createModelMetadata(
+            author: author,
+            version: version,
+            classLabelDirURLs: classLabelDirURLs,
+            trainingMetrics: trainingMetrics,
+            validationMetrics: validationMetrics,
+            modelParameters: modelParameters
+        )
+
+        // 出力ディレクトリの設定
+        let outputDirectoryURL = try setupOutputDirectory(modelName: modelName, version: version)
+
+        let modelFilePath = try saveMLModel(
+            imageClassifier: imageClassifier,
+            modelName: modelName,
+            modelFileName: "\(modelName)_\(classificationMethod)_\(version).mlmodel",
+            version: version,
+            outputDirectoryURL: outputDirectoryURL,
+            metadata: modelMetadata
+        )
+
+        // モデルの性能を表示
+        print("\n📊 モデルの性能")
+        print("+------------------+------------------+------------------+------------------+------------------+")
+        print("| 訓練正解率       | 検証正解率       | 再現率           | 適合率           | F1スコア         |")
+        print("+------------------+------------------+------------------+------------------+------------------+")
+        let recall = confusionMatrix?.recall ?? 0.0
+        let precision = confusionMatrix?.precision ?? 0.0
+        let f1Score = confusionMatrix?.f1Score ?? 0.0
+        print(
+            "| \(String(format: "%14.1f%%", (1.0 - trainingMetrics.classificationError) * 100.0)) | \(String(format: "%14.1f%%", (1.0 - validationMetrics.classificationError) * 100.0)) | \(String(format: "%14.1f%%", recall * 100.0)) | \(String(format: "%14.1f%%", precision * 100.0)) | \(String(format: "%14.3f", f1Score)) |"
+        )
+        print("+------------------+------------------+------------------+------------------+------------------+")
+
+        return createTrainingResult(
+            modelName: modelName,
+            classLabelDirURLs: classLabelDirURLs,
+            trainingMetrics: trainingMetrics,
+            validationMetrics: validationMetrics,
+            modelParameters: modelParameters,
+            trainingDurationSeconds: trainingDurationSeconds,
+            modelFilePath: modelFilePath
+        )
     }
 
     public func setupOutputDirectory(modelName: String, version: String) throws -> URL {
