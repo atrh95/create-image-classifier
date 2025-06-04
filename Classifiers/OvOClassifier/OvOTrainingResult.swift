@@ -50,8 +50,8 @@ public struct OvOTrainingResult: TrainingResultProtocol {
         \(individualModelReports.map { report in
             let trainingAccuracyPercent = report.metrics.training.accuracy * 100.0
             let validationAccuracyPercent = report.metrics.validation.accuracy * 100.0
-            let recallPercent = report.confusionMatrix?.recall ?? 0.0 * 100.0
-            let precisionPercent = report.confusionMatrix?.precision ?? 0.0 * 100.0
+            let recallPercent = (report.confusionMatrix?.recall ?? 0.0) * 100.0
+            let precisionPercent = (report.confusionMatrix?.precision ?? 0.0) * 100.0
             let f1Score = report.confusionMatrix?.f1Score ?? 0.0
             return "| \(report.classCounts.positive.name) | \(String(format: "%.1f%%", trainingAccuracyPercent)) | \(String(format: "%.1f%%", validationAccuracyPercent)) | \(String(format: "%.1f%%", recallPercent)) | \(String(format: "%.1f%%", precisionPercent)) | \(String(format: "%.3f", f1Score)) |"
         }.joined(separator: "\n"))

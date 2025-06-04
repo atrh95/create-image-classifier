@@ -41,7 +41,7 @@ enum MLModelType: String {
                 .binary: "v6",
                 .multiClass: "v3",
                 .multiLabel: "v1",
-                .ovr: "v27",
+                .ovr: "v28",
                 .ovo: "v1",
             ],
             author: "akitora",
@@ -69,8 +69,8 @@ let semaphore = DispatchSemaphore(value: 0)
 
 Task {
     let selectedModel: MLModelType = .scaryCatScreeningML
-    let selectedClassifier: ClassifierType = .multiClass
-    let trainingCount = 1
+    let selectedClassifier: ClassifierType = .ovr
+    let trainingCount = 5
 
     guard selectedModel.config.supportedClassifierVersions.keys.contains(selectedClassifier),
           let version = selectedModel.config.supportedClassifierVersions[selectedClassifier]

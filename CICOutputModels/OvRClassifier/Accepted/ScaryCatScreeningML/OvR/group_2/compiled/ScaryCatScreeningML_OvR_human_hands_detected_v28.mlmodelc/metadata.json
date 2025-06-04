@@ -1,0 +1,75 @@
+[
+  {
+    "shortDescription" : "human_hands_detected: 276枚\nrest: 276枚\n最大反復回数: 20回\n訓練正解率: 100.0%\n検証正解率: 100.0%\n再現率: 100.0%\n適合率: 100.0%\nF1スコア: 1.000\nデータ拡張: なし\n特徴抽出器: ScenePrint",
+    "metadataOutputVersion" : "3.0",
+    "outputSchema" : [
+      {
+        "isOptional" : "0",
+        "formattedType" : "String",
+        "type" : "String",
+        "name" : "target",
+        "shortDescription" : ""
+      },
+      {
+        "isOptional" : "0",
+        "keyType" : "String",
+        "formattedType" : "Dictionary (String → Double)",
+        "type" : "Dictionary",
+        "name" : "targetProbability",
+        "shortDescription" : ""
+      }
+    ],
+    "version" : "v28",
+    "modelParameters" : [
+
+    ],
+    "author" : "akitora",
+    "specificationVersion" : 8,
+    "stateSchema" : [
+
+    ],
+    "isUpdatable" : "0",
+    "availability" : {
+      "macOS" : "14.0",
+      "tvOS" : "17.0",
+      "visionOS" : "1.0",
+      "watchOS" : "unavailable",
+      "iOS" : "17.0",
+      "macCatalyst" : "17.0"
+    },
+    "modelType" : {
+      "name" : "MLModelType_imageClassifier",
+      "structure" : [
+        {
+          "name" : "MLModelType_visionFeaturePrint"
+        },
+        {
+          "name" : "MLModelType_glmClassifier"
+        }
+      ]
+    },
+    "inputSchema" : [
+      {
+        "height" : "360",
+        "colorspace" : "BGR",
+        "isOptional" : "0",
+        "width" : "360",
+        "isColor" : "1",
+        "formattedType" : "Image (Color 360 × 360)",
+        "hasSizeFlexibility" : "0",
+        "type" : "Image",
+        "shortDescription" : "",
+        "name" : "image"
+      }
+    ],
+    "classLabels" : [
+      "human_hands_detected",
+      "rest"
+    ],
+    "generatedClassName" : "ScaryCatScreeningML_OvR_human_hands_detected_v28",
+    "userDefinedMetadata" : {
+      "com.apple.createml.version" : "15.5.0"
+    },
+    "method" : "predict"
+  }
+]
