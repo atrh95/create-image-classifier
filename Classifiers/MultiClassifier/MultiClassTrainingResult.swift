@@ -99,19 +99,19 @@ public struct MultiClassTrainingResult: TrainingResultProtocol {
 
     public func displayComparisonTable() {
         guard let confusionMatrix else { return }
-        
+
         print("\n📊 モデルの性能")
         print("+----------------------+-------+-------+-------+-------+-------+")
         print("| クラス                | 訓練  | 検証  | 再現率 | 適合率 | F1    |")
         print("+----------------------+-------+-------+-------+-------+-------+")
 
-        guard !self.classMetrics.isEmpty else {
+        guard !classMetrics.isEmpty else {
             print("| データなし              | - | - | - | - | - |")
             print("+----------------------+-------+-------+-------+-------+-------+")
             return
         }
 
-        for metric in self.classMetrics {
+        for metric in classMetrics {
             let label = String(metric.label.prefix(20))
             let paddedLabel = label.padding(toLength: 20, withPad: " ", startingAt: 0)
             let trainingAcc = String(format: "%.1f", metrics.training.accuracy * 100.0)
@@ -119,7 +119,7 @@ public struct MultiClassTrainingResult: TrainingResultProtocol {
             let recall = String(format: "%.1f", metric.recall * 100.0)
             let precision = String(format: "%.1f", metric.precision * 100.0)
             let f1Score = String(format: "%.3f", metric.f1Score)
-            
+
             print("| \(paddedLabel) | \(trainingAcc)% | \(validationAcc)% | \(recall)% | \(precision)% | \(f1Score) |")
         }
         print("+----------------------+-------+-------+-------+-------+-------+")

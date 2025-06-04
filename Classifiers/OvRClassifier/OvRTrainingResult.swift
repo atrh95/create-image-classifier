@@ -73,7 +73,7 @@ public struct OvRTrainingResult: TrainingResultProtocol {
 
     public func displayComparisonTable() {
         guard !individualModelReports.isEmpty else { return }
-        
+
         print("\n📊 モデルの性能")
         print(
             "+------------------+------------------+------------------+------------------+------------------+------------------+"

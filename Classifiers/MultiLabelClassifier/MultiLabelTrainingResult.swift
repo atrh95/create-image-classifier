@@ -93,7 +93,7 @@ public struct MultiLabelTrainingResult: TrainingResultProtocol {
             print("+----------------------+-------+-------+-------+-------+-------+")
             return
         }
-        
+
         print("\n📊 モデルの性能")
         print("+----------------------+-------+-------+-------+-------+-------+")
         print("| ラベル                | 訓練  | 検証  | 再現率 | 適合率 | F1    |")
@@ -107,8 +107,10 @@ public struct MultiLabelTrainingResult: TrainingResultProtocol {
             let recallPercent = (report.confusionMatrix?.recall ?? 0.0) * 100.0
             let precisionPercent = (report.confusionMatrix?.precision ?? 0.0) * 100.0
             let f1Score = report.confusionMatrix?.f1Score ?? 0.0
-            
-            print("| \(paddedLabel) | \(String(format: "%.1f", trainingAccuracyPercent))% | \(String(format: "%.1f", validationAccuracyPercent))% | \(String(format: "%.1f", recallPercent))% | \(String(format: "%.1f", precisionPercent))% | \(String(format: "%.3f", f1Score)) |")
+
+            print(
+                "| \(paddedLabel) | \(String(format: "%.1f", trainingAccuracyPercent))% | \(String(format: "%.1f", validationAccuracyPercent))% | \(String(format: "%.1f", recallPercent))% | \(String(format: "%.1f", precisionPercent))% | \(String(format: "%.3f", f1Score)) |"
+            )
         }
         print("+----------------------+-------+-------+-------+-------+-------+")
     }

@@ -98,7 +98,7 @@ public struct BinaryTrainingResult: TrainingResultProtocol {
 
     public func displayComparisonTable() {
         guard let confusionMatrix else { return }
-        
+
         print("\n📊 モデルの性能")
         print(
             "+------------------+------------------+------------------+------------------+------------------+"
