@@ -41,14 +41,14 @@ enum MLModelType: String {
                 .binary: "v6",
                 .multiClass: "v3",
                 .multiLabel: "v1",
-                .ovr: "v28",
+                .ovr: "v30",
                 .ovo: "v1",
             ],
             author: "akitora",
             modelParameters: MLImageClassifier.ModelParameters(
                 validation: .split(strategy: .automatic),
                 maxIterations: 20,
-                augmentation: [],
+                augmentation: [.flip, .rotation],
                 algorithm: .transferLearning(
                     featureExtractor: .scenePrint(revision: 2),
                     classifier: .logisticRegressor
