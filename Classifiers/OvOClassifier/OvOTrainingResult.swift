@@ -45,15 +45,17 @@ public struct OvOTrainingResult: TrainingResultProtocol {
         markdownText += """
 
         ## 個別モデルの性能指標
-        | クラス | 訓練正解率 | 検証正解率 | 再現率 | 適合率 | F1スコア |
-        |--------|------------|------------|--------|--------|----------|
+        | クラス1 | クラス2 | 訓練正解率 | 検証正解率 | 再現率 | 適合率 | F1スコア |
+        |---------|---------|------------|------------|--------|--------|----------|
         \(individualModelReports.map { report in
             let trainingAccuracyPercent = report.metrics.training.accuracy * 100.0
             let validationAccuracyPercent = report.metrics.validation.accuracy * 100.0
             let recallPercent = (report.confusionMatrix?.recall ?? 0.0) * 100.0
             let precisionPercent = (report.confusionMatrix?.precision ?? 0.0) * 100.0
             let f1Score = report.confusionMatrix?.f1Score ?? 0.0
-            return "| \(report.classCounts.positive.name) | \(String(format: "%.1f%%", trainingAccuracyPercent)) | \(String(format: "%.1f%%", validationAccuracyPercent)) | \(String(format: "%.1f%%", recallPercent)) | \(String(format: "%.1f%%", precisionPercent)) | \(String(format: "%.3f", f1Score)) |"
+            let class1Name = report.classCounts.negative.name.padding(toLength: 14, withPad: " ", startingAt: 0)
+            let class2Name = report.classCounts.positive.name.padding(toLength: 14, withPad: " ", startingAt: 0)
+            return "| \(class1Name) | \(class2Name) | \(String(format: "%.1f%%", trainingAccuracyPercent)) | \(String(format: "%.1f%%", validationAccuracyPercent)) | \(String(format: "%.1f%%", recallPercent)) | \(String(format: "%.1f%%", precisionPercent)) | \(String(format: "%.3f", f1Score)) |"
         }.joined(separator: "\n"))
 
         ## モデルメタデータ
@@ -78,25 +80,27 @@ public struct OvOTrainingResult: TrainingResultProtocol {
 
         print("\n📊 モデルの性能")
         print(
-            "+------------------+------------------+------------------+------------------+------------------+------------------+"
+            "+------------------+------------------+------------------+------------------+------------------+------------------+------------------+"
         )
-        print("| ラベル           | 訓練正解率       | 検証正解率       | 再現率           | 適合率           | F1スコア         |")
+        print("| クラス1          | クラス2          | 訓練正解率       | 検証正解率       | 再現率           | 適合率           | F1スコア         |")
         print(
-            "+------------------+------------------+------------------+------------------+------------------+------------------+"
+            "+------------------+------------------+------------------+------------------+------------------+------------------+------------------+"
         )
 
         for report in individualModelReports {
             let trainingAccuracyPercent = report.metrics.training.accuracy * 100.0
             let validationAccuracyPercent = report.metrics.validation.accuracy * 100.0
-            let recallPercent = report.confusionMatrix?.recall ?? 0.0 * 100.0
-            let precisionPercent = report.confusionMatrix?.precision ?? 0.0 * 100.0
+            let recallPercent = (report.confusionMatrix?.recall ?? 0.0) * 100.0
+            let precisionPercent = (report.confusionMatrix?.precision ?? 0.0) * 100.0
             let f1Score = report.confusionMatrix?.f1Score ?? 0.0
+            let class1Name = report.classCounts.negative.name.padding(toLength: 14, withPad: " ", startingAt: 0)
+            let class2Name = report.classCounts.positive.name.padding(toLength: 14, withPad: " ", startingAt: 0)
             print(
-                "| \(String(format: "%-14s", report.classCounts.positive.name)) | \(String(format: "%14.1f%%", trainingAccuracyPercent)) | \(String(format: "%14.1f%%", validationAccuracyPercent)) | \(String(format: "%14.1f%%", recallPercent)) | \(String(format: "%14.1f%%", precisionPercent)) | \(String(format: "%14.3f", f1Score)) |"
+                "| \(class1Name) | \(class2Name) | \(String(format: "%14.1f%%", trainingAccuracyPercent)) | \(String(format: "%14.1f%%", validationAccuracyPercent)) | \(String(format: "%14.1f%%", recallPercent)) | \(String(format: "%14.1f%%", precisionPercent)) | \(String(format: "%14.3f", f1Score)) |"
             )
         }
         print(
-            "+------------------+------------------+------------------+------------------+------------------+------------------+"
+            "+------------------+------------------+------------------+------------------+------------------+------------------+------------------+"
         )
     }
 }
