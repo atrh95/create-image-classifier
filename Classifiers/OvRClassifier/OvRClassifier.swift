@@ -16,7 +16,7 @@ public final class OvRClassifier: ClassifierProtocol {
     public var resourceDirPathOverride: String?
 
     private static let imageExtensions = Set(["jpg", "jpeg", "png"])
-    private static let tempBaseDirName = "TempOvRTrainingData"
+    public static let tempBaseDirName = "TempOvRTrainingData"
 
     public var outputParentDirPath: String {
         if let override = outputDirectoryPathOverride {
@@ -226,14 +226,11 @@ public final class OvRClassifier: ClassifierProtocol {
         sourceDir: URL,
         positiveClassDir: URL
     ) throws -> TrainingData {
-        // 正例クラスの画像ファイルを取得
         let positiveClassFiles = try fileManager.contentsOfDirectory(
             at: positiveClassDir,
             includingPropertiesForKeys: nil
         )
-        .filter { Self.imageExtensions.contains($0.pathExtension.lowercased()) }
 
-        // 残りのクラスの画像URLを取得
         var restClassFiles: [URL] = []
         let subdirectories = try fileManager.contentsOfDirectory(
             at: sourceDir,
@@ -241,7 +238,6 @@ public final class OvRClassifier: ClassifierProtocol {
         )
         .filter { $0.hasDirectoryPath && $0.lastPathComponent != oneClassLabel }
 
-        // 各restクラスから均等にサンプリング
         let samplesPerRestClass = Int(ceil(Double(positiveClassFiles.count) / Double(subdirectories.count)))
 
         for subdir in subdirectories {
@@ -249,19 +245,17 @@ public final class OvRClassifier: ClassifierProtocol {
             let sampledFiles = files.shuffled().prefix(samplesPerRestClass)
             restClassFiles.append(contentsOf: sampledFiles)
         }
-        print("📊 \(oneClassLabel): \(positiveClassFiles.count)枚, rest: \(restClassFiles.count)枚")
+        print("📊 \(oneClassLabel) (正例): \(positiveClassFiles.count)枚, rest (計算値): \(restClassFiles.count)枚")
 
-        // 一時ディレクトリを準備
-        let tempDir = fileManager.temporaryDirectory.appendingPathComponent(Self.tempBaseDirName)
+        let tempDir = fileManager.temporaryDirectory
+            .appendingPathComponent(Self.tempBaseDirName)
+            .appendingPathComponent(oneClassLabel) // クラス別のサブディレクトリを追加
         let tempPositiveDir = tempDir.appendingPathComponent(oneClassLabel)
         let tempRestDir = tempDir.appendingPathComponent("rest")
 
-        // 既存の一時ディレクトリをクリーンにする（初回のみ）
         if !fileManager.fileExists(atPath: tempDir.path) {
             try fileManager.createDirectory(at: tempDir, withIntermediateDirectories: true)
         }
-
-        // 既存のクラスディレクトリをクリーンにする
         if fileManager.fileExists(atPath: tempPositiveDir.path) {
             try fileManager.removeItem(at: tempPositiveDir)
         }
@@ -269,24 +263,54 @@ public final class OvRClassifier: ClassifierProtocol {
             try fileManager.removeItem(at: tempRestDir)
         }
 
+        // Create fresh directories for copying
         try fileManager.createDirectory(at: tempPositiveDir, withIntermediateDirectories: true)
         try fileManager.createDirectory(at: tempRestDir, withIntermediateDirectories: true)
 
-        // 正例は全画像をコピー
+        // Copy positive class files
         for (index, file) in positiveClassFiles.enumerated() {
             let destination = tempPositiveDir.appendingPathComponent("\(index).\(file.pathExtension)")
-            try fileManager.copyItem(at: file, to: destination)
+            do {
+                try fileManager.copyItem(at: file, to: destination)
+            } catch {
+                print(
+                    "❌ 正例ファイルコピー失敗: \(file.lastPathComponent) -> \(destination.lastPathComponent) エラー: \(error.localizedDescription)"
+                )
+                // Consider re-throwing or failing early if a critical file fails to copy
+            }
         }
 
-        // restはサンプリング済みの画像をすべてコピー
-        for (index, file) in restClassFiles.enumerated() {
-            let destination = tempRestDir.appendingPathComponent("\(index).\(file.pathExtension)")
-            try fileManager.copyItem(at: file, to: destination)
+        // Copy rest class files with unique names and robust error handling
+        var copiedRestFilesCount = 0
+        for file in restClassFiles {
+            let originalDirectoryName = file.deletingLastPathComponent().lastPathComponent
+            let originalFileName = file.lastPathComponent
+            let uniqueDestinationFileName = "\(originalDirectoryName)_\(originalFileName)"
+            let destination = tempRestDir.appendingPathComponent(uniqueDestinationFileName)
+
+            do {
+                try fileManager.copyItem(at: file, to: destination)
+                copiedRestFilesCount += 1
+            } catch {
+                print(
+                    "❌ restファイルコピー失敗: \(file.lastPathComponent) -> \(uniqueDestinationFileName) エラー: \(error.localizedDescription)"
+                )
+                // Log the error but continue if other files might succeed
+            }
         }
+        print("DEBUG: tempRestDirに実際にコピーされたrestファイル数: \(copiedRestFilesCount)枚")
+
+        // Validate the actual count of files in tempRestDir immediately after copying
+        let actualRestFilesCountInTempDir = try fileManager.contentsOfDirectory(
+            at: tempRestDir,
+            includingPropertiesForKeys: nil
+        )
+        .count
+        print("DEBUG: tempRestDir内の実際に存在するrestファイル数 (確認): \(actualRestFilesCountInTempDir)枚")
 
         return TrainingData(
-            positiveClassFiles: positiveClassFiles,
-            restClassFiles: restClassFiles,
+            positiveClassFiles: positiveClassFiles, // This refers to original files
+            restClassFiles: restClassFiles, // This refers to original sampled files
             tempDir: tempDir
         )
     }

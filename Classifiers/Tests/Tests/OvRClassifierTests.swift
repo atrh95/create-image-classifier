@@ -257,7 +257,6 @@ final class OvRClassifierTests: XCTestCase {
             shouldEqualizeFileCount: true
         )
 
-        // 出力ディレクトリから最新の結果を取得
         let outputDir = URL(fileURLWithPath: classifier.outputParentDirPath)
             .appendingPathComponent(testModelName)
             .appendingPathComponent(testModelVersion)
@@ -273,7 +272,6 @@ final class OvRClassifierTests: XCTestCase {
             return
         }
 
-        // クラスラベルディレクトリの取得
         let classLabelDirs = try fileManager.contentsOfDirectory(
             at: URL(fileURLWithPath: classifier.resourcesDirectoryPath),
             includingPropertiesForKeys: [.isDirectoryKey],
@@ -282,7 +280,6 @@ final class OvRClassifierTests: XCTestCase {
             .map(\.lastPathComponent)
             .sorted()
 
-        // 各クラスの元のファイル数を取得
         var originalFileCounts: [String: Int] = [:]
         for classLabel in classLabelDirs {
             let classDir = URL(fileURLWithPath: classifier.resourcesDirectoryPath).appendingPathComponent(classLabel)
@@ -293,51 +290,63 @@ final class OvRClassifierTests: XCTestCase {
             originalFileCounts[classLabel] = files.count
         }
 
-        // 最小枚数を計算
-        let minCount = originalFileCounts.values.min() ?? 0
-
-        // 各クラスのモデルファイルを検証
         for classLabel in classLabelDirs {
             let expectedModelFileName =
                 "\(testModelName)_\(classifier.classificationMethod)_\(classLabel)_\(testModelVersion).mlmodel"
             let modelFilePath = latestResultDir.appendingPathComponent(expectedModelFileName).path
 
-            // モデルファイルの存在確認
             XCTAssertTrue(
                 fileManager.fileExists(atPath: modelFilePath),
                 "クラス '\(classLabel)' の訓練モデルファイルが期待されるパス「\(modelFilePath)」に見つかりません"
             )
 
-            // 一時ディレクトリ内のファイル数を確認
-            let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent("TempOvRTrainingData")
+            let tempDir = fileManager.temporaryDirectory
+                .appendingPathComponent(OvRClassifier.tempBaseDirName)
+                .appendingPathComponent(classLabel)
             let positiveClassDir = tempDir.appendingPathComponent(classLabel)
             let restClassDir = tempDir.appendingPathComponent("rest")
 
-            // 正例クラスのファイル数を確認
-            let positiveFiles = try FileManager.default.contentsOfDirectory(
+            let positiveFiles = try fileManager.contentsOfDirectory(
                 at: positiveClassDir,
                 includingPropertiesForKeys: nil
             )
+
+            let expectedPositiveCount = originalFileCounts[classLabel] ?? 0
             XCTAssertEqual(
                 positiveFiles.count,
-                minCount,
+                expectedPositiveCount,
                 """
-                クラス '\(classLabel)' のモデルで、正例のファイル数が最小枚数と一致しません。
-                期待: \(minCount)枚
+                クラス '\(classLabel)' のモデルで、正例のファイル数が元の枚数と一致しません。
+                期待: \(expectedPositiveCount)枚
                 実際: \(positiveFiles.count)枚
-                元のファイル数: \(originalFileCounts[classLabel] ?? 0)枚
                 """
             )
 
-            // restクラスのファイル数を確認
-            let restFiles = try fileManager.contentsOfDirectory(
+            var calculatedExpectedRestCount = 0
+            let otherClassLabels = originalFileCounts.keys.filter { $0 != classLabel }
+            let subdirectoriesCount = otherClassLabels.count
+
+            if subdirectoriesCount > 0 {
+                let currentPositiveCount = originalFileCounts[classLabel] ?? 0
+                let samplesPerRestClass = Int(ceil(Double(currentPositiveCount) / Double(subdirectoriesCount)))
+
+                for otherClassLabel in otherClassLabels {
+                    let actualFilesFromOtherClass = originalFileCounts[otherClassLabel] ?? 0
+                    calculatedExpectedRestCount += min(samplesPerRestClass, actualFilesFromOtherClass)
+                }
+            }
+            
+            // FileManager.default を直接使用して、最新のディレクトリ内容を再取得します。
+            let restFiles = try FileManager.default.contentsOfDirectory(
                 at: restClassDir,
-                includingPropertiesForKeys: nil
+                includingPropertiesForKeys: nil,
+                options: [.skipsHiddenFiles]
             )
-            XCTAssertGreaterThanOrEqual(
+
+            XCTAssertEqual(
                 restFiles.count,
-                positiveFiles.count,
-                "クラス '\(classLabel)' のモデルで、restクラスのファイル数が正例のファイル数未満です。期待: \(positiveFiles.count)枚以上、実際: \(restFiles.count)枚"
+                calculatedExpectedRestCount,
+                "クラス '\(classLabel)' のモデルで、restクラスのファイル数が期待値と一致しません。期待: \(calculatedExpectedRestCount)枚、実際: \(restFiles.count)枚"
             )
         }
     }

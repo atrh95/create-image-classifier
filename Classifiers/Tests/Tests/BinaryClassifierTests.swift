@@ -227,7 +227,7 @@ final class BinaryClassifierTests: XCTestCase {
             "2回目の出力ディレクトリの連番が期待値と一致しません。\n1回目: \(firstResultNumber)\n2回目: \(secondResultNumber)"
         )
     }
-    
+
     // クラス間のファイル数バランスを検証
     func testClassFileCountBalance() throws {
         // クラスラベルディレクトリの取得
@@ -291,4 +291,3 @@ final class BinaryClassifierTests: XCTestCase {
         }
     }
 }
-
