@@ -1,12 +1,12 @@
+import BinaryClassifier
 import CICFileManager
 import CoreML
 import CreateML
 import Foundation
-import OvOClassifier
 import XCTest
 
-final class OvOClassifierTests: XCTestCase {
-    var classifier: OvOClassifier!
+final class BinaryClassifierTests: XCTestCase {
+    var classifier: BinaryClassifier!
     let fileManager = CICFileManager()
     var authorName: String = "Test Author"
     var testModelName: String = "TestModel"
@@ -30,7 +30,7 @@ final class OvOClassifierTests: XCTestCase {
 
     override func setUpWithError() throws {
         temporaryOutputDirectoryURL = fileManager.temporaryDirectory
-            .appendingPathComponent("TestOutput_OvO")
+            .appendingPathComponent("TestOutput_Binary")
         try fileManager.createDirectory(
             at: temporaryOutputDirectoryURL,
             withIntermediateDirectories: true,
@@ -38,13 +38,12 @@ final class OvOClassifierTests: XCTestCase {
         )
 
         let resourceDirectoryPath = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent() // Tests/Tests
+            .deletingLastPathComponent() // BinaryClassifierTests
             .deletingLastPathComponent() // Tests
             .appendingPathComponent("TestResources")
-            .appendingPathComponent("OvOResources")
             .path
 
-        classifier = OvOClassifier(
+        classifier = BinaryClassifier(
             outputDirectoryPathOverride: temporaryOutputDirectoryURL.path,
             resourceDirPathOverride: resourceDirectoryPath
         )
@@ -62,6 +61,7 @@ final class OvOClassifierTests: XCTestCase {
     }
 
     func testClassifierDIConfiguration() throws {
+        // モデルの作成
         try classifier.createAndSaveModel(
             author: authorName,
             modelName: testModelName,
@@ -70,12 +70,13 @@ final class OvOClassifierTests: XCTestCase {
             shouldEqualizeFileCount: true
         )
 
-        XCTAssertNotNil(classifier, "OvOClassifierの初期化失敗")
+        XCTAssertNotNil(classifier, "BinaryClassifierの初期化失敗")
         XCTAssertEqual(classifier.outputParentDirPath, temporaryOutputDirectoryURL.path, "分類器の出力パスが期待値と不一致")
     }
 
     // モデルの訓練と成果物の生成をテスト
     func testModelTrainingAndArtifactGeneration() throws {
+        // モデルの作成
         try classifier.createAndSaveModel(
             author: authorName,
             modelName: testModelName,
@@ -100,26 +101,19 @@ final class OvOClassifierTests: XCTestCase {
             return
         }
 
-        // クラスラベルディレクトリの取得
+        // モデルファイルの存在確認
+        let expectedModelFileName = "\(testModelName)_\(classifier.classificationMethod)_\(testModelVersion).mlmodel"
+        let modelFilePath = latestResultDir.appendingPathComponent(expectedModelFileName).path
+
+        XCTAssertTrue(
+            fileManager.fileExists(atPath: modelFilePath),
+            "訓練モデルファイルが期待されるパス「\(modelFilePath)」に見つかりません"
+        )
+
+        // Binary分類器の期待されるクラスラベル
         let classLabelDirs = try fileManager.getClassLabelDirectories(resourcesPath: classifier.resourcesDirectoryPath)
             .map(\.lastPathComponent)
             .sorted()
-
-        // 各クラスラベルペアに対応するモデルファイルの存在確認
-        for i in 0 ..< classLabelDirs.count {
-            for j in (i + 1) ..< classLabelDirs.count {
-                let classLabel1 = classLabelDirs[i]
-                let classLabel2 = classLabelDirs[j]
-                let expectedModelFileName =
-                    "\(testModelName)_\(classifier.classificationMethod)_\(classLabel1)_vs_\(classLabel2)_\(testModelVersion).mlmodel"
-                let modelFilePath = latestResultDir.appendingPathComponent(expectedModelFileName).path
-
-                XCTAssertTrue(
-                    fileManager.fileExists(atPath: modelFilePath),
-                    "クラスペア '\(classLabel1)_vs_\(classLabel2)' の訓練モデルファイルが期待されるパス「\(modelFilePath)」に見つかりません"
-                )
-            }
-        }
 
         // クラスラベルの存在確認
         XCTAssertFalse(
@@ -129,8 +123,7 @@ final class OvOClassifierTests: XCTestCase {
 
         // 各クラスラベルディレクトリにファイルが存在することを確認
         for classLabel in classLabelDirs {
-            let classDirURL = URL(fileURLWithPath: classifier.resourcesDirectoryPath)
-                .appendingPathComponent(classLabel)
+            let classDirURL = URL(fileURLWithPath: classifier.resourcesDirectoryPath).appendingPathComponent(classLabel)
             let files = try fileManager.getFilesInDirectory(classDirURL)
 
             XCTAssertFalse(
@@ -148,41 +141,30 @@ final class OvOClassifierTests: XCTestCase {
         )
 
         // モデルファイル名の検証
-        for i in 0 ..< classLabelDirs.count {
-            for j in (i + 1) ..< classLabelDirs.count {
-                let classLabel1 = classLabelDirs[i]
-                let classLabel2 = classLabelDirs[j]
-                let modelFileName =
-                    "\(testModelName)_\(classifier.classificationMethod)_\(classLabel1)_vs_\(classLabel2)_\(testModelVersion).mlmodel"
-                let regex = #"^TestModel_OvO_\w+_vs_\w+_v\d+\.mlmodel$"#
-                XCTAssertTrue(
-                    modelFileName.range(of: regex, options: .regularExpression) != nil,
-                    """
-                    モデルファイル名が期待パターンに一致しません。
-                    期待パターン: \(regex)
-                    実際: \(modelFileName)
-                    """
-                )
+        let modelFileName = expectedModelFileName
+        let regex = #"^TestModel_Binary_v\d+\.mlmodel$"#
+        XCTAssertTrue(
+            modelFileName.range(of: regex, options: .regularExpression) != nil,
+            """
+            モデルファイル名が期待パターンに一致しません。
+            期待パターン: \(regex)
+            実際: \(modelFileName)
+            """
+        )
 
-                let modelFilePath = latestResultDir.appendingPathComponent(modelFileName).path
-                XCTAssertTrue(
-                    modelFilePath.contains(testModelVersion),
-                    "モデルファイルパスにバージョン「\(testModelVersion)」が含まれていません"
-                )
-                XCTAssertTrue(
-                    modelFilePath.contains("OvO"),
-                    "モデルファイルパスに分類法「OvO」が含まれていません"
-                )
-                XCTAssertTrue(
-                    modelFilePath.contains("\(classLabel1)_vs_\(classLabel2)"),
-                    "モデルファイルパスにクラスラベルペア「\(classLabel1)_vs_\(classLabel2)」が含まれていません"
-                )
-            }
-        }
+        XCTAssertTrue(
+            modelFilePath.contains(testModelVersion),
+            "モデルファイルパスにバージョン「\(testModelVersion)」が含まれていません"
+        )
+        XCTAssertTrue(
+            modelFilePath.contains("Binary"),
+            "モデルファイルパスに分類法「Binary」が含まれていません"
+        )
     }
 
-    // 出力ディレクトリの連番を検証
+    // モデルの再訓練をテスト
     func testSequentialOutputDirectoryNumbering() throws {
+        // 1回目の訓練
         try classifier.createAndSaveModel(
             author: authorName,
             modelName: testModelName,
@@ -202,16 +184,16 @@ final class OvOClassifierTests: XCTestCase {
         ).filter(\.hasDirectoryPath)
             .sorted { $0.lastPathComponent > $1.lastPathComponent }
 
-        guard let firstResultDir = firstResultDirs.first else {
+        guard let firstLatestResultDir = firstResultDirs.first else {
             XCTFail("1回目の結果ディレクトリが見つかりません: \(outputDir.path)")
             return
         }
 
-        // 2回目のモデル作成を実行
+        // 2回目の訓練
         try classifier.createAndSaveModel(
-            author: "TestAuthor",
+            author: authorName,
             modelName: testModelName,
-            version: "v1",
+            version: testModelVersion,
             modelParameters: modelParameters,
             shouldEqualizeFileCount: true
         )
@@ -224,26 +206,20 @@ final class OvOClassifierTests: XCTestCase {
         ).filter(\.hasDirectoryPath)
             .sorted { $0.lastPathComponent > $1.lastPathComponent }
 
-        guard let secondResultDir = secondResultDirs.first else {
+        guard let secondLatestResultDir = secondResultDirs.first else {
             XCTFail("2回目の結果ディレクトリが見つかりません: \(outputDir.path)")
             return
         }
 
-        // 連番の検証
-        let firstResultNumber = Int(firstResultDir.lastPathComponent.replacingOccurrences(
-            of: "OvO_Result_",
+        // 2回目の結果ディレクトリが1回目より新しいことを確認
+        let firstResultNumber = Int(firstLatestResultDir.lastPathComponent.replacingOccurrences(
+            of: "Binary_Result_",
             with: ""
         )) ?? 0
-        let secondResultNumber = Int(secondResultDir.lastPathComponent.replacingOccurrences(
-            of: "OvO_Result_",
+        let secondResultNumber = Int(secondLatestResultDir.lastPathComponent.replacingOccurrences(
+            of: "Binary_Result_",
             with: ""
         )) ?? 0
-
-        print("1回目の結果ディレクトリ: \(firstResultDir.lastPathComponent)")
-        print("2回目の結果ディレクトリ: \(secondResultDir.lastPathComponent)")
-        print("1回目の番号: \(firstResultNumber)")
-        print("2回目の番号: \(secondResultNumber)")
-
         XCTAssertEqual(
             secondResultNumber,
             firstResultNumber + 1,
@@ -271,8 +247,7 @@ final class OvOClassifierTests: XCTestCase {
             URL(fileURLWithPath: classifier.resourcesDirectoryPath).appendingPathComponent(classLabel)
         }
         let balancedDirs = try fileManager.prepareEqualizedMinimumImageSet(
-            classDirs: classDirURLs,
-            shouldEqualize: true
+            classDirs: classDirURLs
         )
 
         // 各クラスのファイル数が等しいことを確認

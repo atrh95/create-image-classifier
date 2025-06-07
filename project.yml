@@ -21,15 +21,6 @@ settings:
 packages:
   CreateImageClassifier:
     path: .
-    products:
-      - CICInterface
-      - CICConfusionMatrix
-      - CICFileManager
-      - CICTrainingResult
-      - BinaryClassifier
-      - MultiClassClassifier
-      - OvOClassifier
-      - OvRClassifier
 
 targets:
   CreateImageClassifier:
@@ -72,7 +63,10 @@ targets:
     type: bundle.unit-test
     platform: macOS
     sources:
-      - path: Classifiers/Tests
+      - path: Classifiers/BinaryClassifier/Tests
+      - path: Classifiers/MultiClassClassifier/Tests
+      - path: Classifiers/OvOClassifier/Tests
+      - path: Classifiers/OvRClassifier/Tests
     dependencies:
       - package: CreateImageClassifier
     settings:

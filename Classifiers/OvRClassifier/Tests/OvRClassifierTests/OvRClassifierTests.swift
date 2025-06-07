@@ -38,10 +38,9 @@ final class OvRClassifierTests: XCTestCase {
         )
 
         let resourceDirectoryPath = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent() // Tests/Tests
+            .deletingLastPathComponent() // OvRClassifierTests
             .deletingLastPathComponent() // Tests
             .appendingPathComponent("TestResources")
-            .appendingPathComponent("OvRResources")
             .path
 
         classifier = OvRClassifier(
@@ -335,7 +334,7 @@ final class OvRClassifierTests: XCTestCase {
                     calculatedExpectedRestCount += min(samplesPerRestClass, actualFilesFromOtherClass)
                 }
             }
-            
+
             // FileManager.default を直接使用して、最新のディレクトリ内容を再取得します。
             let restFiles = try FileManager.default.contentsOfDirectory(
                 at: restClassDir,

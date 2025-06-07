@@ -38,10 +38,9 @@ final class MultiClassClassifierTests: XCTestCase {
         )
 
         let resourceDirectoryPath = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent() // Tests/Tests
+            .deletingLastPathComponent() // MultiClassClassifierTests
             .deletingLastPathComponent() // Tests
             .appendingPathComponent("TestResources")
-            .appendingPathComponent("MultiClassResources")
             .path
 
         classifier = MultiClassClassifier(
