@@ -38,7 +38,10 @@ jobs:
         run: mint run xcodegen generate
 
       - name: Create Test Output Directory
-        run: mkdir -p ci-outputs/test-results/all-tests
+        run: |
+          rm -rf ci-outputs/test-results/all-tests
+          mkdir -p ci-outputs/test-results/all-tests
+
       - name: Run Unit Tests
         id: execute_all_tests
         continue-on-error: true 
@@ -46,7 +49,7 @@ jobs:
           set -o pipefail
           xcodebuild test \
             -project "CreateImageClassifier.xcodeproj" \
-            -scheme "CreateImageClassifierTests" \
+            -scheme "CreateImageClassifier" \
             -destination "platform=macOS" \
             -enableCodeCoverage NO \
             MACOSX_DEPLOYMENT_TARGET=15.2 \
