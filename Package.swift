@@ -74,12 +74,13 @@ let package = Package(
                 "CICFileManager",
                 "CICTrainingResult",
             ],
-            path: "Classifiers/BinaryClassifier",
-            sources: [
-                "BinaryClassifier.swift",
-                "BinaryTrainingResult.swift",
-            ],
-            resources: [.copy("Resources")]
+            path: "Classifiers/BinaryClassifier/Sources"
+        ),
+        .testTarget(
+            name: "BinaryClassifierTests",
+            dependencies: ["BinaryClassifier"],
+            path: "Classifiers/BinaryClassifier/Tests",
+            resources: [.process("TestResources")]
         ),
         .target(
             name: "MultiClassClassifier",
@@ -89,12 +90,13 @@ let package = Package(
                 "CICFileManager",
                 "CICTrainingResult",
             ],
-            path: "Classifiers/MultiClassClassifier",
-            sources: [
-                "MultiClassClassifier.swift",
-                "MultiClassTrainingResult.swift",
-            ],
-            resources: [.copy("Resources")]
+            path: "Classifiers/MultiClassClassifier/Sources"
+        ),
+        .testTarget(
+            name: "MultiClassClassifierTests",
+            dependencies: ["MultiClassClassifier"],
+            path: "Classifiers/MultiClassClassifier/Tests",
+            resources: [.process("TestResources")]
         ),
         .target(
             name: "OvOClassifier",
@@ -104,12 +106,13 @@ let package = Package(
                 "CICFileManager",
                 "CICTrainingResult",
             ],
-            path: "Classifiers/OvOClassifier",
-            sources: [
-                "OvOClassifier.swift",
-                "OvOTrainingResult.swift",
-            ],
-            resources: [.copy("Resources")]
+            path: "Classifiers/OvOClassifier/Sources"
+        ),
+        .testTarget(
+            name: "OvOClassifierTests",
+            dependencies: ["OvOClassifier"],
+            path: "Classifiers/OvOClassifier/Tests",
+            resources: [.process("TestResources")]
         ),
         .target(
             name: "OvRClassifier",
@@ -119,37 +122,13 @@ let package = Package(
                 "CICFileManager",
                 "CICTrainingResult",
             ],
-            path: "Classifiers/OvRClassifier",
-            sources: [
-                "OvRClassifier.swift",
-                "OvRTrainingResult.swift",
-            ],
-            resources: [.copy("Resources")]
+            path: "Classifiers/OvRClassifier/Sources"
         ),
         .testTarget(
-            name: "ClassifierTests",
-            dependencies: [
-                "BinaryClassifier",
-                "MultiClassClassifier",
-                "OvOClassifier",
-                "OvRClassifier",
-                "CICInterface",
-                "CICConfusionMatrix",
-                "CICFileManager",
-                "CICTrainingResult",
-            ],
-            path: "Classifiers/Tests",
-            sources: [
-                "Tests/BinaryClassifierTests.swift",
-                "Tests/MultiClassClassifierTests.swift",
-                "Tests/OvOClassifierTests.swift",
-                "Tests/OvRClassifierTests.swift",
-                "TestUtils.swift",
-                "ClassifierTestsError.swift",
-            ],
-            resources: [
-                .process("TestResources"),
-            ]
+            name: "OvRClassifierTests",
+            dependencies: ["OvRClassifier"],
+            path: "Classifiers/OvRClassifier/Tests",
+            resources: [.process("TestResources")]
         ),
     ]
 )

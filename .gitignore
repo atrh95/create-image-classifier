@@ -40,3 +40,6 @@ TempOvRTrainingData/
 TempOvOTrainingData/
 TempOvRTrainingData_*/
 TempOvOTrainingData_*/
+
+# CI outputs
+ci-outputs/

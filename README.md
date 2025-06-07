@@ -8,24 +8,32 @@ Create Image Classifier は、AppleのCoreMLおよびCreateMLフレームワー�
 
 ```
 .
-├── main.swift
+├── .github/
+│   └── workflows/
 ├── CICInterface/
 ├── CICConfusionMatrix/
 ├── CICFileManager/
 ├── CICTrainingResult/
-├── CICResources/
-│   ├── BinaryResources/
-│   ├── MultiClassResources/
-│   ├── OvOResources/
-│   └── OvRResources/
 ├── CICOutputModels/
 ├── Classifiers/
 │   ├── BinaryClassifier/
-│   ├── MultiClassifier/
-│   ├── OvRClassifier/
-│   └── OvOClassifier/
-└── CreateImageClassifierTests/
+│   ├── MultiClassClassifier/
+│   ├── OvOClassifier/
+│   └── OvRClassifier/
+├── Package.swift
+├── project.yml
+└── main.swift
 ```
+
+各ディレクトリの役割：
+
+* `CICInterface/`: プロトコル定義
+* `CICConfusionMatrix/`: 混同行列の計算と評価
+* `CICFileManager/`: ファイルシステム操作
+* `CICTrainingResult/`: トレーニング結果の管理
+* `CICOutputModels/`: 生成されたモデルの保存
+* `Classifiers/`: 各分類器の実装
+* `.github/workflows/`: CI/CD設定
 
 ## 主要機能
 
@@ -42,7 +50,23 @@ Create Image Classifierは、以下の4つの異なる分類アプローチを�
 
 ## Unit Tests
 
-各分類器のユニットテストでは、主に以下の点が確認されています
-*   モデルのトレーニングプロセスがエラーなく正常に完了すること
-*   学習済みモデルファイル (`.mlmodel`) が指定された場所と命名規則で正しく生成されること
-*   マークダウン形式のレポートが生成されること
+各モジュールのユニットテストでは、主に以下の点が確認されています
+
+### 分類器のテスト
+* 分類器の初期化と設定が正しく行われること
+* モデルのトレーニングプロセスが正常に完了し、以下の成果物が正しく生成されること
+  * 学習済みモデルファイル (`.mlmodel`) が指定された命名規則で生成されること
+  * マークダウン形式のレポートが生成されること
+  * 各クラスラベルに対応するモデルファイルが正しく生成されること
+* 出力ディレクトリの連番管理が正しく機能すること
+* クラス間のファイル数バランスが適切に保たれること
+
+### 混同行列のテスト
+* 二値分類とマルチクラス分類それぞれの混同行列が正しく計算されること
+* 性能指標（再現率、適合率、F1スコア）が正しく計算されること
+* データテーブルの検証が適切に行われること
+
+### ファイル管理のテスト
+* 出力ディレクトリの作成と管理が正しく行われること
+* クラスラベルディレクトリの取得が正しく行われること
+* バージョン管理が適切に機能すること
