@@ -58,7 +58,8 @@ public final class OvOClassifier: ClassifierProtocol {
         author: String,
         modelName: String,
         version: String,
-        modelParameters: CreateML.MLImageClassifier.ModelParameters
+        modelParameters: CreateML.MLImageClassifier.ModelParameters,
+        shouldEqualizeFileCount: Bool
     ) throws {
         print("📁 リソースディレクトリ: \(resourcesDirectoryPath)")
         print("🚀 OvOモデル作成開始 (バージョン: \(version))...")
@@ -104,11 +105,8 @@ public final class OvOClassifier: ClassifierProtocol {
         var classLabelCounts: [String: Int] = [:]
         for classLabel in classLabels {
             let classDir = URL(fileURLWithPath: resourcesDirectoryPath).appendingPathComponent(classLabel)
-            let files = try FileManager.default.contentsOfDirectory(
-                at: classDir,
-                includingPropertiesForKeys: nil
-            )
-            .filter { Self.imageExtensions.contains($0.pathExtension.lowercased()) }
+            let files = try fileManager.contentsOfDirectory(at: classDir, includingPropertiesForKeys: nil)
+                .filter { Self.imageExtensions.contains($0.pathExtension.lowercased()) }
             classLabelCounts[classLabel] = files.count
         }
 
@@ -123,7 +121,8 @@ public final class OvOClassifier: ClassifierProtocol {
                 classPair: classPair,
                 modelName: modelName,
                 version: version,
-                modelParameters: modelParameters
+                modelParameters: modelParameters,
+                shouldEqualizeFileCount: shouldEqualizeFileCount
             )
 
             // モデルのメタデータ作成
@@ -182,7 +181,8 @@ public final class OvOClassifier: ClassifierProtocol {
         classPair: (String, String),
         modelName: String,
         version: String,
-        modelParameters: CreateML.MLImageClassifier.ModelParameters
+        modelParameters: CreateML.MLImageClassifier.ModelParameters,
+        shouldEqualizeFileCount: Bool
     ) throws -> (MLImageClassifier, CICIndividualModelReport) {
         // トレーニングデータの準備
         let sourceDir = URL(fileURLWithPath: resourcesDirectoryPath)
@@ -191,7 +191,8 @@ public final class OvOClassifier: ClassifierProtocol {
 
         // バランス調整された画像セットを準備
         let balancedDirs = try fileManager.prepareEqualizedMinimumImageSet(
-            classDirs: [class1Dir, class2Dir]
+            classDirs: [class1Dir, class2Dir],
+            shouldEqualize: shouldEqualizeFileCount
         )
 
         // トレーニングデータソースを作成
@@ -220,6 +221,9 @@ public final class OvOClassifier: ClassifierProtocol {
             actualColumn: "True Label",
             positiveClass: classPair.1
         )
+        if let confusionMatrix {
+            print("⚠️ 警告: 検証データが不十分なため、混同行列の計算をスキップしました")
+        }
 
         // 個別モデルのレポートを作成
         let modelFileName = "\(modelName)_\(classificationMethod)_\(classPair.0)_vs_\(classPair.1)_\(version).mlmodel"
@@ -239,11 +243,11 @@ public final class OvOClassifier: ClassifierProtocol {
             classCounts: (
                 positive: (
                     name: classPair.1,
-                    count: FileManager.default.contentsOfDirectory(at: class2Dir, includingPropertiesForKeys: nil).count
+                    count: fileManager.contentsOfDirectory(at: class2Dir, includingPropertiesForKeys: nil).count
                 ),
                 negative: (
                     name: classPair.0,
-                    count: FileManager.default.contentsOfDirectory(at: class1Dir, includingPropertiesForKeys: nil).count
+                    count: fileManager.contentsOfDirectory(at: class1Dir, includingPropertiesForKeys: nil).count
                 )
             )
         )

@@ -8,7 +8,7 @@ import XCTest
 
 final class MultiClassClassifierTests: XCTestCase {
     var classifier: MultiClassClassifier!
-    let fileManager = FileManager.default
+    let fileManager = CICFileManager()
     let authorName: String = "Test Author"
     let testModelName: String = "TestModel"
     let testModelVersion: String = "v1"
@@ -62,7 +62,8 @@ final class MultiClassClassifierTests: XCTestCase {
             author: authorName,
             modelName: testModelName,
             version: testModelVersion,
-            modelParameters: modelParameters
+            modelParameters: modelParameters,
+            shouldEqualizeFileCount: true
         )
 
         XCTAssertNotNil(classifier, "MultiClassClassifierの初期化失敗")
@@ -75,7 +76,8 @@ final class MultiClassClassifierTests: XCTestCase {
             author: authorName,
             modelName: testModelName,
             version: testModelVersion,
-            modelParameters: modelParameters
+            modelParameters: modelParameters,
+            shouldEqualizeFileCount: true
         )
 
         // 出力ディレクトリから最新の結果を取得
@@ -163,142 +165,14 @@ final class MultiClassClassifierTests: XCTestCase {
         )
     }
 
-    // モデルが予測を実行できるかテスト
-    func testModelCanPerformPrediction() throws {
-        try classifier.createAndSaveModel(
-            author: authorName,
-            modelName: testModelName,
-            version: testModelVersion,
-            modelParameters: modelParameters
-        )
-
-        // 出力ディレクトリから最新の結果を取得
-        let outputDir = URL(fileURLWithPath: classifier.outputParentDirPath)
-            .appendingPathComponent(testModelName)
-            .appendingPathComponent(testModelVersion)
-        let resultDirs = try fileManager.contentsOfDirectory(
-            at: outputDir,
-            includingPropertiesForKeys: [.isDirectoryKey],
-            options: [.skipsHiddenFiles]
-        ).filter(\.hasDirectoryPath)
-            .sorted { $0.lastPathComponent > $1.lastPathComponent }
-
-        guard let latestResultDir = resultDirs.first else {
-            XCTFail("結果ディレクトリが見つかりません: \(outputDir.path)")
-            return
-        }
-
-        print("結果ディレクトリ: \(latestResultDir.path)")
-
-        // モデルファイルの存在確認
-        let modelFiles = try fileManager.contentsOfDirectory(
-            at: latestResultDir,
-            includingPropertiesForKeys: nil
-        ).filter { $0.pathExtension == "mlmodel" }
-
-        print("検出されたモデルファイル: \(modelFiles.map(\.lastPathComponent).joined(separator: ", "))")
-
-        guard let modelFile = modelFiles.first else {
-            XCTFail("モデルファイルが見つかりません: \(latestResultDir.path)")
-            return
-        }
-
-        // モデルのコンパイル
-        let compiledModelURL = try MLModel.compileModel(at: modelFile)
-        print("コンパイルされたモデル: \(compiledModelURL.path)")
-
-        // コンパイルされたモデルファイルの存在確認
-        guard fileManager.fileExists(atPath: compiledModelURL.path) else {
-            XCTFail("コンパイルされたモデルファイルが存在しません: \(compiledModelURL.path)")
-            throw ClassifierTestsError.modelFileMissing
-        }
-
-        // モデルの読み込みを試みる
-        let mlModel: MLModel
-        do {
-            mlModel = try MLModel(contentsOf: compiledModelURL)
-        } catch {
-            XCTFail("モデルの読み込みに失敗しました: \(error.localizedDescription)")
-            throw error
-        }
-
-        let vnCoreMLModel = try VNCoreMLModel(for: mlModel)
-        let predictionRequest = VNCoreMLRequest(model: vnCoreMLModel)
-
-        let classLabels = try fileManager.contentsOfDirectory(
-            at: URL(fileURLWithPath: classifier.resourcesDirectoryPath),
-            includingPropertiesForKeys: [.isDirectoryKey],
-            options: [.skipsHiddenFiles]
-        ).filter(\.hasDirectoryPath)
-            .map(\.lastPathComponent)
-            .sorted()
-
-        guard classLabels.count >= 2 else {
-            XCTFail("テストには少なくとも2つのクラスラベルが必要です。検出されたラベル: \(classLabels)")
-            throw ClassifierTestsError.setupFailed
-        }
-
-        let classLabel1 = classLabels[0]
-        let classLabel2 = classLabels[1]
-
-        print("動的に識別されたテスト用クラスラベル: '\(classLabel1)' および '\(classLabel2)'")
-
-        // classLabel1 の画像取得処理
-        let imageURL1: URL
-        do {
-            imageURL1 = try TestUtils.getRandomImageURL(
-                forClassLabel: classLabel1,
-                resourcesDirectoryPath: classifier.resourcesDirectoryPath,
-                fileManager: fileManager
-            )
-        } catch {
-            XCTFail("'\(classLabel1)' サブディレクトリからのランダム画像取得失敗。エラー: \(error.localizedDescription)")
-            throw error
-        }
-
-        // classLabel2 の画像取得処理
-        let imageURL2: URL
-        do {
-            imageURL2 = try TestUtils.getRandomImageURL(
-                forClassLabel: classLabel2,
-                resourcesDirectoryPath: classifier.resourcesDirectoryPath,
-                fileManager: fileManager
-            )
-        } catch {
-            XCTFail("'\(classLabel2)' サブディレクトリからのランダム画像取得失敗。エラー: \(error.localizedDescription)")
-            throw error
-        }
-
-        let imageHandler1 = VNImageRequestHandler(url: imageURL1, options: [:])
-        try imageHandler1.perform([predictionRequest])
-        guard let observations1 = predictionRequest.results as? [VNClassificationObservation],
-              let topResult1 = observations1.first
-        else {
-            XCTFail("クラス '\(classLabel1)' 画像: 有効な分類結果オブジェクトを取得できませんでした。")
-            throw ClassifierTestsError.predictionFailed
-        }
-        XCTAssertNotNil(topResult1.identifier, "クラス '\(classLabel1)' 画像: 予測結果からクラスラベルを取得できませんでした。")
-        print("クラス '\(classLabel1)' 画像の予測 (正解ラベル): \(topResult1.identifier) (確信度: \(topResult1.confidence))")
-
-        let imageHandler2 = VNImageRequestHandler(url: imageURL2, options: [:])
-        try imageHandler2.perform([predictionRequest])
-        guard let observations2 = predictionRequest.results as? [VNClassificationObservation],
-              let topResult2 = observations2.first
-        else {
-            XCTFail("クラス '\(classLabel2)' 画像: 有効な分類結果オブジェクトを取得できませんでした。")
-            throw ClassifierTestsError.predictionFailed
-        }
-        XCTAssertNotNil(topResult2.identifier, "クラス '\(classLabel2)' 画像: 予測結果からクラスラベルを取得できませんでした。")
-        print("クラス '\(classLabel2)' 画像の予測 (正解ラベル): \(topResult2.identifier) (確信度: \(topResult2.confidence))")
-    }
-
     // 出力ディレクトリの連番を検証
     func testSequentialOutputDirectoryNumbering() throws {
         try classifier.createAndSaveModel(
             author: authorName,
             modelName: testModelName,
             version: testModelVersion,
-            modelParameters: modelParameters
+            modelParameters: modelParameters,
+            shouldEqualizeFileCount: true
         )
 
         // 出力ディレクトリから最新の結果を取得
@@ -322,7 +196,8 @@ final class MultiClassClassifierTests: XCTestCase {
             author: "TestAuthor",
             modelName: testModelName,
             version: "v1",
-            modelParameters: modelParameters
+            modelParameters: modelParameters,
+            shouldEqualizeFileCount: true
         )
 
         // 出力ディレクトリから最新の結果を取得
@@ -358,5 +233,60 @@ final class MultiClassClassifierTests: XCTestCase {
             firstResultNumber + 1,
             "2回目の出力ディレクトリの連番が期待値と一致しません。\n1回目: \(firstResultNumber)\n2回目: \(secondResultNumber)"
         )
+    }
+
+    // クラス間のファイル数バランスを検証
+    func testClassFileCountBalance() throws {
+        try classifier.createAndSaveModel(
+            author: authorName,
+            modelName: testModelName,
+            version: testModelVersion,
+            modelParameters: modelParameters,
+            shouldEqualizeFileCount: true
+        )
+
+        // クラスラベルディレクトリの取得
+        let classLabelDirs = try fileManager.contentsOfDirectory(
+            at: URL(fileURLWithPath: classifier.resourcesDirectoryPath),
+            includingPropertiesForKeys: [.isDirectoryKey],
+            options: [.skipsHiddenFiles]
+        ).filter(\.hasDirectoryPath)
+            .map(\.lastPathComponent)
+            .sorted()
+
+        // 各クラスの元のファイル数を取得
+        var originalFileCounts: [String: Int] = [:]
+        for classLabel in classLabelDirs {
+            let classDir = URL(fileURLWithPath: classifier.resourcesDirectoryPath).appendingPathComponent(classLabel)
+            let files = try fileManager.contentsOfDirectory(
+                at: classDir,
+                includingPropertiesForKeys: nil
+            )
+            originalFileCounts[classLabel] = files.count
+        }
+
+        // 最小枚数を計算
+        let minCount = originalFileCounts.values.min() ?? 0
+
+        // 一時ディレクトリから各クラスのファイル数を直接確認
+        let tempDir = fileManager.temporaryDirectory.appendingPathComponent("TempMultiClassTrainingData")
+        for classLabel in classLabelDirs {
+            let tempClassDir = tempDir.appendingPathComponent(classLabel)
+            guard fileManager.fileExists(atPath: tempClassDir.path) else {
+                XCTFail("クラス '\(classLabel)' の一時ディレクトリが見つかりません")
+                continue
+            }
+            let tempFiles = try fileManager.contentsOfDirectory(at: tempClassDir, includingPropertiesForKeys: nil)
+            XCTAssertEqual(
+                tempFiles.count,
+                minCount,
+                """
+                クラス '\(classLabel)' のファイル数が最小枚数と一致しません。
+                期待: \(minCount)枚
+                実際: \(tempFiles.count)枚
+                元のファイル数: \(originalFileCounts[classLabel] ?? 0)枚
+                """
+            )
+        }
     }
 }

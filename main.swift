@@ -33,6 +33,7 @@ enum MLModelType: String {
         let supportedClassifierVersions: [ClassifierType: String]
         let author: String
         let modelParameters: CreateML.MLImageClassifier.ModelParameters
+        let shouldEqualizeFileCount: Bool
     }
 
     static let configs: [MLModelType: ModelConfig] = [
@@ -53,7 +54,8 @@ enum MLModelType: String {
                     featureExtractor: .scenePrint(revision: 2),
                     classifier: .logisticRegressor
                 )
-            )
+            ),
+            shouldEqualizeFileCount: true
         ),
     ]
 
@@ -91,7 +93,8 @@ Task {
                 author: selectedModel.config.author,
                 modelName: selectedModel.config.name,
                 version: version,
-                modelParameters: selectedModel.config.modelParameters
+                modelParameters: selectedModel.config.modelParameters,
+                shouldEqualizeFileCount: selectedModel.config.shouldEqualizeFileCount
             )
 
             print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")

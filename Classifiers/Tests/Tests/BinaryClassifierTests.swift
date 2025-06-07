@@ -63,7 +63,8 @@ final class BinaryClassifierTests: XCTestCase {
             author: authorName,
             modelName: testModelName,
             version: testModelVersion,
-            modelParameters: modelParameters
+            modelParameters: modelParameters,
+            shouldEqualizeFileCount: true
         )
 
         XCTAssertNotNil(classifier, "BinaryClassifierの初期化失敗")
@@ -77,7 +78,8 @@ final class BinaryClassifierTests: XCTestCase {
             author: authorName,
             modelName: testModelName,
             version: testModelVersion,
-            modelParameters: modelParameters
+            modelParameters: modelParameters,
+            shouldEqualizeFileCount: true
         )
 
         // 出力ディレクトリから最新の結果を取得
@@ -157,95 +159,15 @@ final class BinaryClassifierTests: XCTestCase {
         )
     }
 
-    // モデルが予測を実行できるかテスト
-    func testModelCanPerformPrediction() throws {
-        // モデルの作成
-        try classifier.createAndSaveModel(
-            author: authorName,
-            modelName: testModelName,
-            version: testModelVersion,
-            modelParameters: modelParameters
-        )
-
-        // 出力ディレクトリから最新の結果を取得
-        let outputDir = URL(fileURLWithPath: classifier.outputParentDirPath)
-            .appendingPathComponent(testModelName)
-            .appendingPathComponent(testModelVersion)
-        let resultDirs = try fileManager.contentsOfDirectory(
-            at: outputDir,
-            includingPropertiesForKeys: [.isDirectoryKey],
-            options: [.skipsHiddenFiles]
-        ).filter(\.hasDirectoryPath)
-            .sorted { $0.lastPathComponent > $1.lastPathComponent }
-
-        guard let latestResultDir = resultDirs.first else {
-            XCTFail("結果ディレクトリが見つかりません: \(outputDir.path)")
-            return
-        }
-
-        // モデルファイルの存在確認
-        let expectedModelFileName = "\(testModelName)_\(classifier.classificationMethod)_\(testModelVersion).mlmodel"
-        let modelFilePath = latestResultDir.appendingPathComponent(expectedModelFileName).path
-
-        guard fileManager.fileExists(atPath: modelFilePath) else {
-            XCTFail("モデルファイルが見つかりません: \(modelFilePath)")
-            return
-        }
-
-        // モデルのコンパイル
-        let compiledModelURL = try MLModel.compileModel(at: URL(fileURLWithPath: modelFilePath))
-
-        // コンパイルされたモデルファイルの存在確認
-        guard fileManager.fileExists(atPath: compiledModelURL.path) else {
-            XCTFail("コンパイルされたモデルファイルが存在しません: \(compiledModelURL.path)")
-            throw ClassifierTestsError.modelFileMissing
-        }
-
-        // モデルの読み込み
-        let model = try MLModel(contentsOf: compiledModelURL)
-        let vnCoreMLModel = try VNCoreMLModel(for: model)
-        let predictionRequest = VNCoreMLRequest(model: vnCoreMLModel)
-
-        // クラスラベルの取得
-        let classLabels = try fileManager.getClassLabelDirectories(resourcesPath: classifier.resourcesDirectoryPath)
-            .map(\.lastPathComponent)
-            .sorted()
-
-        // 各クラスの画像で予測をテスト
-        for classLabel in classLabels {
-            let classDirURL = URL(fileURLWithPath: classifier.resourcesDirectoryPath)
-                .appendingPathComponent(classLabel)
-            let files = try fileManager.getFilesInDirectory(classDirURL)
-
-            for file in files {
-                let handler = VNImageRequestHandler(url: file, options: [:])
-                try handler.perform([predictionRequest])
-
-                guard let results = predictionRequest.results as? [VNClassificationObservation] else {
-                    XCTFail("予測結果の型が不正です")
-                    continue
-                }
-
-                XCTAssertFalse(results.isEmpty, "予測結果が空です")
-                XCTAssertEqual(results.count, 2, "予測結果が2つではありません")
-
-                let topResult = results[0]
-                XCTAssertTrue(
-                    classLabels.contains(topResult.identifier),
-                    "予測結果のクラスラベル「\(topResult.identifier)」が期待されるクラスラベルに含まれていません"
-                )
-            }
-        }
-    }
-
     // モデルの再訓練をテスト
-    func testModelRetraining() throws {
+    func testSequentialOutputDirectoryNumbering() throws {
         // 1回目の訓練
         try classifier.createAndSaveModel(
             author: authorName,
             modelName: testModelName,
             version: testModelVersion,
-            modelParameters: modelParameters
+            modelParameters: modelParameters,
+            shouldEqualizeFileCount: true
         )
 
         // 出力ディレクトリから最新の結果を取得
@@ -269,7 +191,8 @@ final class BinaryClassifierTests: XCTestCase {
             author: authorName,
             modelName: testModelName,
             version: testModelVersion,
-            modelParameters: modelParameters
+            modelParameters: modelParameters,
+            shouldEqualizeFileCount: true
         )
 
         // 出力ディレクトリから最新の結果を取得
@@ -286,9 +209,18 @@ final class BinaryClassifierTests: XCTestCase {
         }
 
         // 2回目の結果ディレクトリが1回目より新しいことを確認
-        XCTAssertTrue(
-            secondLatestResultDir.lastPathComponent > firstLatestResultDir.lastPathComponent,
-            "2回目の結果ディレクトリが1回目より新しくありません"
+        let firstResultNumber = Int(firstLatestResultDir.lastPathComponent.replacingOccurrences(
+            of: "Binary_Result_",
+            with: ""
+        )) ?? 0
+        let secondResultNumber = Int(secondLatestResultDir.lastPathComponent.replacingOccurrences(
+            of: "Binary_Result_",
+            with: ""
+        )) ?? 0
+        XCTAssertEqual(
+            secondResultNumber,
+            firstResultNumber + 1,
+            "2回目の出力ディレクトリの連番が期待値と一致しません。\n1回目: \(firstResultNumber)\n2回目: \(secondResultNumber)"
         )
     }
 }

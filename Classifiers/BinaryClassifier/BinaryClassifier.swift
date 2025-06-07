@@ -9,7 +9,7 @@ import Foundation
 public final class BinaryClassifier: ClassifierProtocol {
     public typealias TrainingResultType = BinaryTrainingResult
 
-    private let fileManager: CICFileManager
+    private let fileManager = CICFileManager()
     public var outputDirectoryPathOverride: String?
     public var resourceDirPathOverride: String?
     private var classImageCounts: [String: Int] = [:]
@@ -45,19 +45,18 @@ public final class BinaryClassifier: ClassifierProtocol {
 
     public init(
         outputDirectoryPathOverride: String? = nil,
-        resourceDirPathOverride: String? = nil,
-        fileManager: CICFileManager = CICFileManager()
+        resourceDirPathOverride: String? = nil
     ) {
         self.outputDirectoryPathOverride = outputDirectoryPathOverride
         self.resourceDirPathOverride = resourceDirPathOverride
-        self.fileManager = fileManager
     }
 
     public func createAndSaveModel(
         author: String,
         modelName: String,
         version: String,
-        modelParameters: MLImageClassifier.ModelParameters
+        modelParameters: MLImageClassifier.ModelParameters,
+        shouldEqualizeFileCount: Bool
     ) throws {
         print("📁 リソースディレクトリ: \(resourcesDirectoryPath)")
         print("🚀 Binaryモデル作成開始 (バージョン: \(version))...")
@@ -103,7 +102,8 @@ public final class BinaryClassifier: ClassifierProtocol {
 
         // バランス調整された画像セットを準備
         let balancedDirs = try fileManager.prepareEqualizedMinimumImageSet(
-            classDirs: classLabelDirURLs
+            classDirs: classLabelDirURLs,
+            shouldEqualize: shouldEqualizeFileCount
         )
 
         // トレーニングデータソースを作成
@@ -132,6 +132,9 @@ public final class BinaryClassifier: ClassifierProtocol {
             actualColumn: "True Label",
             positiveClass: classLabelDirURLs[1].lastPathComponent
         )
+        if let confusionMatrix {
+            print("⚠️ 警告: 検証データが不十分なため、混同行列の計算をスキップしました")
+        }
 
         // 個別モデルのレポートを作成
         let modelFileName = "\(modelName)_\(classificationMethod)_\(version).mlmodel"

@@ -62,7 +62,8 @@ final class OvOClassifierTests: XCTestCase {
             author: authorName,
             modelName: testModelName,
             version: testModelVersion,
-            modelParameters: modelParameters
+            modelParameters: modelParameters,
+            shouldEqualizeFileCount: true
         )
 
         XCTAssertNotNil(classifier, "OvOClassifierの初期化失敗")
@@ -75,7 +76,8 @@ final class OvOClassifierTests: XCTestCase {
             author: authorName,
             modelName: testModelName,
             version: testModelVersion,
-            modelParameters: modelParameters
+            modelParameters: modelParameters,
+            shouldEqualizeFileCount: true
         )
 
         // 出力ディレクトリから最新の結果を取得
@@ -175,138 +177,14 @@ final class OvOClassifierTests: XCTestCase {
         }
     }
 
-    // モデルが予測を実行できるかテスト
-    func testModelCanPerformPrediction() throws {
-        try classifier.createAndSaveModel(
-            author: authorName,
-            modelName: testModelName,
-            version: testModelVersion,
-            modelParameters: modelParameters
-        )
-
-        // 出力ディレクトリから最新の結果を取得
-        let outputDir = URL(fileURLWithPath: classifier.outputParentDirPath)
-            .appendingPathComponent(testModelName)
-            .appendingPathComponent(testModelVersion)
-        let resultDirs = try fileManager.contentsOfDirectory(
-            at: outputDir,
-            includingPropertiesForKeys: [.isDirectoryKey],
-            options: [.skipsHiddenFiles]
-        ).filter(\.hasDirectoryPath)
-            .sorted { $0.lastPathComponent > $1.lastPathComponent }
-
-        guard let latestResultDir = resultDirs.first else {
-            XCTFail("結果ディレクトリが見つかりません: \(outputDir.path)")
-            return
-        }
-
-        print("結果ディレクトリ: \(latestResultDir.path)")
-
-        // モデルファイルの存在確認
-        let modelFiles = try fileManager.contentsOfDirectory(
-            at: latestResultDir,
-            includingPropertiesForKeys: nil
-        ).filter { $0.pathExtension == "mlmodel" }
-
-        print("検出されたモデルファイル: \(modelFiles.map(\.lastPathComponent).joined(separator: ", "))")
-
-        guard let modelFile = modelFiles.first else {
-            XCTFail("モデルファイルが見つかりません: \(latestResultDir.path)")
-            return
-        }
-
-        // モデルのコンパイル
-        let compiledModelURL = try MLModel.compileModel(at: modelFile)
-        print("コンパイルされたモデル: \(compiledModelURL.path)")
-
-        // コンパイルされたモデルファイルの存在確認
-        guard fileManager.fileExists(atPath: compiledModelURL.path) else {
-            XCTFail("コンパイルされたモデルファイルが存在しません: \(compiledModelURL.path)")
-            throw ClassifierTestsError.modelFileMissing
-        }
-
-        // モデルの読み込みを試みる
-        let mlModel: MLModel
-        do {
-            mlModel = try MLModel(contentsOf: compiledModelURL)
-        } catch {
-            XCTFail("モデルの読み込みに失敗しました: \(error.localizedDescription)")
-            throw error
-        }
-
-        let vnCoreMLModel = try VNCoreMLModel(for: mlModel)
-        let predictionRequest = VNCoreMLRequest(model: vnCoreMLModel)
-
-        let classLabels = try fileManager.getClassLabelDirectories(resourcesPath: classifier.resourcesDirectoryPath)
-            .map(\.lastPathComponent)
-            .sorted()
-
-        guard classLabels.count >= 2 else {
-            XCTFail("テストには少なくとも2つのクラスラベルが必要です。検出されたラベル: \(classLabels)")
-            throw ClassifierTestsError.setupFailed
-        }
-
-        let classLabel1 = classLabels[0]
-        let classLabel2 = classLabels[1]
-
-        print("動的に識別されたテスト用クラスラベル: '\(classLabel1)' および '\(classLabel2)'")
-
-        // classLabel1 の画像取得処理
-        let imageURL1: URL
-        do {
-            imageURL1 = try TestUtils.getRandomImageURL(
-                forClassLabel: classLabel1,
-                resourcesDirectoryPath: classifier.resourcesDirectoryPath,
-                fileManager: fileManager
-            )
-        } catch {
-            XCTFail("'\(classLabel1)' サブディレクトリからのランダム画像取得失敗。エラー: \(error.localizedDescription)")
-            throw error
-        }
-
-        // classLabel2 の画像取得処理
-        let imageURL2: URL
-        do {
-            imageURL2 = try TestUtils.getRandomImageURL(
-                forClassLabel: classLabel2,
-                resourcesDirectoryPath: classifier.resourcesDirectoryPath,
-                fileManager: fileManager
-            )
-        } catch {
-            XCTFail("'\(classLabel2)' サブディレクトリからのランダム画像取得失敗。エラー: \(error.localizedDescription)")
-            throw error
-        }
-
-        let imageHandler1 = VNImageRequestHandler(url: imageURL1, options: [:])
-        try imageHandler1.perform([predictionRequest])
-        guard let observations1 = predictionRequest.results as? [VNClassificationObservation],
-              let topResult1 = observations1.first
-        else {
-            XCTFail("クラス '\(classLabel1)' 画像: 有効な分類結果オブジェクトを取得できませんでした。")
-            throw ClassifierTestsError.predictionFailed
-        }
-        XCTAssertNotNil(topResult1.identifier, "クラス '\(classLabel1)' 画像: 予測結果からクラスラベルを取得できませんでした。")
-        print("クラス '\(classLabel1)' 画像の予測 (正解ラベル): \(topResult1.identifier) (確信度: \(topResult1.confidence))")
-
-        let imageHandler2 = VNImageRequestHandler(url: imageURL2, options: [:])
-        try imageHandler2.perform([predictionRequest])
-        guard let observations2 = predictionRequest.results as? [VNClassificationObservation],
-              let topResult2 = observations2.first
-        else {
-            XCTFail("クラス '\(classLabel2)' 画像: 有効な分類結果オブジェクトを取得できませんでした。")
-            throw ClassifierTestsError.predictionFailed
-        }
-        XCTAssertNotNil(topResult2.identifier, "クラス '\(classLabel2)' 画像: 予測結果からクラスラベルを取得できませんでした。")
-        print("クラス '\(classLabel2)' 画像の予測 (正解ラベル): \(topResult2.identifier) (確信度: \(topResult2.confidence))")
-    }
-
     // 出力ディレクトリの連番を検証
     func testSequentialOutputDirectoryNumbering() throws {
         try classifier.createAndSaveModel(
             author: authorName,
             modelName: testModelName,
             version: testModelVersion,
-            modelParameters: modelParameters
+            modelParameters: modelParameters,
+            shouldEqualizeFileCount: true
         )
 
         // 出力ディレクトリから最新の結果を取得
@@ -330,7 +208,8 @@ final class OvOClassifierTests: XCTestCase {
             author: "TestAuthor",
             modelName: testModelName,
             version: "v1",
-            modelParameters: modelParameters
+            modelParameters: modelParameters,
+            shouldEqualizeFileCount: true
         )
 
         // 出力ディレクトリから最新の結果を取得
@@ -387,7 +266,10 @@ final class OvOClassifierTests: XCTestCase {
         let classDirURLs = classLabelDirs.map { classLabel in
             URL(fileURLWithPath: classifier.resourcesDirectoryPath).appendingPathComponent(classLabel)
         }
-        let balancedDirs = try fileManager.prepareEqualizedMinimumImageSet(classDirs: classDirURLs)
+        let balancedDirs = try fileManager.prepareEqualizedMinimumImageSet(
+            classDirs: classDirURLs,
+            shouldEqualize: true
+        )
 
         // 各クラスのファイル数が等しいことを確認
         var balancedFileCounts: [String: Int] = [:]

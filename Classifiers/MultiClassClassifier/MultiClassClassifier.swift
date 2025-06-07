@@ -53,40 +53,62 @@ public final class MultiClassClassifier: ClassifierProtocol {
         author: String,
         modelName: String,
         version: String,
-        modelParameters: CreateML.MLImageClassifier.ModelParameters
+        modelParameters: CreateML.MLImageClassifier.ModelParameters,
+        shouldEqualizeFileCount: Bool
     ) throws {
         print("📁 リソースディレクトリ: \(resourcesDirectoryPath)")
         print("🚀 多クラス分類モデル作成開始 (バージョン: \(version))...")
 
-        // クラスラベルディレクトリの取得と検証
+        // 出力ディレクトリの準備
+        let outputDirectoryURL = try setupOutputDirectory(modelName: modelName, version: version)
+
+        // クラスラベルディレクトリの取得
         let classLabelDirURLs = try getClassLabelDirectories()
         print("📁 検出されたクラスラベルディレクトリ: \(classLabelDirURLs.map(\.lastPathComponent).joined(separator: ", "))")
 
-        // 出力ディレクトリの設定
-        let outputDirectoryURL = try fileManager.createOutputDirectory(
-            modelName: modelName,
-            version: version,
-            classificationMethod: classificationMethod,
-            moduleOutputPath: outputParentDirPath
-        )
-        print("📁 出力ディレクトリ作成成功: \(outputDirectoryURL.path)")
-
-        // トレーニングデータの準備
-        print("📁 トレーニングデータ親ディレクトリ: \(resourcesDirectoryPath)")
-        for classDir in classLabelDirURLs {
-            let className = classDir.lastPathComponent
-            let files = try FileManager.default.contentsOfDirectory(
-                at: classDir,
+        // 各クラスの画像枚数を更新
+        var classImageCounts: [String: Int] = [:]
+        for classLabelDir in classLabelDirURLs {
+            let files = try fileManager.contentsOfDirectory(
+                at: classLabelDir,
                 includingPropertiesForKeys: nil
             )
-            let count = files.count
-            classImageCounts[className] = count
-            print("📊 \(className): \(count)枚")
+            classImageCounts[classLabelDir.lastPathComponent] = files.count
+        }
+
+        // 各クラスの画像を最小枚数に揃える
+        let tempDir = fileManager.temporaryDirectory.appendingPathComponent("TempMultiClassTrainingData")
+        if fileManager.fileExists(atPath: tempDir.path) {
+            try? fileManager.removeItem(at: tempDir)
+        }
+        try fileManager.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        let balancedDirs = try fileManager.prepareEqualizedMinimumImageSet(
+            classDirs: classLabelDirURLs,
+            shouldEqualize: shouldEqualizeFileCount
+        )
+        // 各クラスの画像を一時ディレクトリにコピー
+        for (className, dir) in balancedDirs {
+            let tempClassDir = tempDir.appendingPathComponent(className)
+            try fileManager.createDirectory(at: tempClassDir, withIntermediateDirectories: true)
+            let files = try fileManager.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)
+            for file in files {
+                let dest = tempClassDir.appendingPathComponent(file.lastPathComponent)
+                try? fileManager.copyItem(at: file, to: dest)
+            }
+        }
+
+        // 各クラスの画像枚数を更新
+        for (className, dir) in balancedDirs {
+            let files = try fileManager.contentsOfDirectory(
+                at: dir,
+                includingPropertiesForKeys: nil
+            )
+            classImageCounts[className] = files.count
+            print("📊 \(className): \(files.count)枚")
         }
 
         // トレーニングデータソースを作成
-        let trainingDataSource = MLImageClassifier.DataSource
-            .labeledDirectories(at: URL(fileURLWithPath: resourcesDirectoryPath))
+        let trainingDataSource = try prepareTrainingData(from: classLabelDirURLs, shouldEqualizeFileCount: shouldEqualizeFileCount)
 
         // モデルのトレーニング
         let trainingStartTime = Date()
@@ -114,7 +136,7 @@ public final class MultiClassClassifier: ClassifierProtocol {
             (1.0 - metrics.training.classificationError) * 100.0
         ))
 
-        if let confusionMatrix {
+        if let confusionMatrix = confusionMatrix {
             print(String(
                 format: "  検証正解率: %.1f%%",
                 (1.0 - metrics.validation.classificationError) * 100.0
@@ -227,17 +249,33 @@ public final class MultiClassClassifier: ClassifierProtocol {
         return classLabelDirURLs
     }
 
-    public func prepareTrainingData(from classLabelDirURLs: [URL]) throws -> MLImageClassifier.DataSource {
+    public func prepareTrainingData(from classLabelDirURLs: [URL], shouldEqualizeFileCount: Bool) throws -> MLImageClassifier.DataSource {
         print("📁 トレーニングデータ親ディレクトリ: \(resourcesDirectoryPath)")
 
         // 各クラスの画像を最小枚数に揃える
+        let tempDir = fileManager.temporaryDirectory.appendingPathComponent("TempMultiClassTrainingData")
+        if fileManager.fileExists(atPath: tempDir.path) {
+            try? fileManager.removeItem(at: tempDir)
+        }
+        try fileManager.createDirectory(at: tempDir, withIntermediateDirectories: true)
         let balancedDirs = try fileManager.prepareEqualizedMinimumImageSet(
-            classDirs: classLabelDirURLs
+            classDirs: classLabelDirURLs,
+            shouldEqualize: shouldEqualizeFileCount
         )
+        // 各クラスの画像を一時ディレクトリにコピー
+        for (className, dir) in balancedDirs {
+            let tempClassDir = tempDir.appendingPathComponent(className)
+            try fileManager.createDirectory(at: tempClassDir, withIntermediateDirectories: true)
+            let files = try fileManager.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)
+            for file in files {
+                let dest = tempClassDir.appendingPathComponent(file.lastPathComponent)
+                try? fileManager.copyItem(at: file, to: dest)
+            }
+        }
 
         // 各クラスの画像枚数を更新
         for (className, dir) in balancedDirs {
-            let files = try FileManager.default.contentsOfDirectory(
+            let files = try fileManager.contentsOfDirectory(
                 at: dir,
                 includingPropertiesForKeys: nil
             )

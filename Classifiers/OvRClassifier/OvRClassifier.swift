@@ -57,7 +57,8 @@ public final class OvRClassifier: ClassifierProtocol {
         author: String,
         modelName: String,
         version: String,
-        modelParameters: CreateML.MLImageClassifier.ModelParameters
+        modelParameters: CreateML.MLImageClassifier.ModelParameters,
+        shouldEqualizeFileCount: Bool
     ) throws {
         print("📁 リソースディレクトリ: \(resourcesDirectoryPath)")
         print("🚀 OvRモデル作成開始 (バージョン: \(version))...")
@@ -189,6 +190,9 @@ public final class OvRClassifier: ClassifierProtocol {
             actualColumn: "True Label",
             positiveClass: oneClassLabel
         )
+        if let confusionMatrix {
+            print("⚠️ 警告: 検証データが不十分なため、混同行列の計算をスキップしました")
+        }
 
         // 個別モデルのレポートを作成
         let modelFileName = "\(modelName)_\(classificationMethod)_\(oneClassLabel)_\(version).mlmodel"
@@ -226,7 +230,7 @@ public final class OvRClassifier: ClassifierProtocol {
         positiveClassDir: URL
     ) throws -> TrainingData {
         // 正例クラスの画像ファイルを取得
-        let positiveClassFiles = try FileManager.default.contentsOfDirectory(
+        let positiveClassFiles = try fileManager.contentsOfDirectory(
             at: positiveClassDir,
             includingPropertiesForKeys: nil
         )
@@ -234,7 +238,7 @@ public final class OvRClassifier: ClassifierProtocol {
 
         // 残りのクラスの画像URLを取得
         var restClassFiles: [URL] = []
-        let subdirectories = try FileManager.default.contentsOfDirectory(
+        let subdirectories = try fileManager.contentsOfDirectory(
             at: sourceDir,
             includingPropertiesForKeys: [.isDirectoryKey]
         )
@@ -244,35 +248,43 @@ public final class OvRClassifier: ClassifierProtocol {
         let samplesPerRestClass = Int(ceil(Double(positiveClassFiles.count) / Double(subdirectories.count)))
 
         for subdir in subdirectories {
-            let files = try FileManager.default.contentsOfDirectory(at: subdir, includingPropertiesForKeys: nil)
+            let files = try fileManager.contentsOfDirectory(at: subdir, includingPropertiesForKeys: nil)
             let sampledFiles = files.shuffled().prefix(samplesPerRestClass)
             restClassFiles.append(contentsOf: sampledFiles)
         }
         print("📊 \(oneClassLabel): \(positiveClassFiles.count)枚, rest: \(restClassFiles.count)枚")
 
         // 一時ディレクトリを準備
-        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(Self.tempBaseDirName)
+        let tempDir = fileManager.temporaryDirectory.appendingPathComponent(Self.tempBaseDirName)
         let tempPositiveDir = tempDir.appendingPathComponent(oneClassLabel)
         let tempRestDir = tempDir.appendingPathComponent("rest")
 
-        // 既存の一時ディレクトリをクリーンにする
-        if FileManager.default.fileExists(atPath: tempDir.path) {
-            try FileManager.default.removeItem(at: tempDir)
+        // 既存の一時ディレクトリをクリーンにする（初回のみ）
+        if !fileManager.fileExists(atPath: tempDir.path) {
+            try fileManager.createDirectory(at: tempDir, withIntermediateDirectories: true)
         }
 
-        try FileManager.default.createDirectory(at: tempPositiveDir, withIntermediateDirectories: true)
-        try FileManager.default.createDirectory(at: tempRestDir, withIntermediateDirectories: true)
+        // 既存のクラスディレクトリをクリーンにする
+        if fileManager.fileExists(atPath: tempPositiveDir.path) {
+            try fileManager.removeItem(at: tempPositiveDir)
+        }
+        if fileManager.fileExists(atPath: tempRestDir.path) {
+            try fileManager.removeItem(at: tempRestDir)
+        }
+
+        try fileManager.createDirectory(at: tempPositiveDir, withIntermediateDirectories: true)
+        try fileManager.createDirectory(at: tempRestDir, withIntermediateDirectories: true)
 
         // 正例は全画像をコピー
         for (index, file) in positiveClassFiles.enumerated() {
             let destination = tempPositiveDir.appendingPathComponent("\(index).\(file.pathExtension)")
-            try FileManager.default.copyItem(at: file, to: destination)
+            try fileManager.copyItem(at: file, to: destination)
         }
 
-        // 負例はサンプリング済みの画像をすべてコピー
+        // restはサンプリング済みの画像をすべてコピー
         for (index, file) in restClassFiles.enumerated() {
             let destination = tempRestDir.appendingPathComponent("\(index).\(file.pathExtension)")
-            try FileManager.default.copyItem(at: file, to: destination)
+            try fileManager.copyItem(at: file, to: destination)
         }
 
         return TrainingData(
