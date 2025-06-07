@@ -3,7 +3,6 @@ import CICFileManager
 import CoreML
 import CreateML
 import Foundation
-import Vision
 import XCTest
 
 final class BinaryClassifierTests: XCTestCase {
@@ -38,7 +37,12 @@ final class BinaryClassifierTests: XCTestCase {
             attributes: nil
         )
 
-        let resourceDirectoryPath = "Classifiers/Tests/TestResources/BinaryResources"
+        let resourceDirectoryPath = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent() // Tests/Tests
+            .deletingLastPathComponent() // Tests
+            .appendingPathComponent("TestResources")
+            .appendingPathComponent("BinaryResources")
+            .path
 
         classifier = BinaryClassifier(
             outputDirectoryPathOverride: temporaryOutputDirectoryURL.path,
@@ -223,4 +227,68 @@ final class BinaryClassifierTests: XCTestCase {
             "2回目の出力ディレクトリの連番が期待値と一致しません。\n1回目: \(firstResultNumber)\n2回目: \(secondResultNumber)"
         )
     }
+    
+    // クラス間のファイル数バランスを検証
+    func testClassFileCountBalance() throws {
+        // クラスラベルディレクトリの取得
+        let classLabelDirs = try fileManager.getClassLabelDirectories(resourcesPath: classifier.resourcesDirectoryPath)
+            .map(\.lastPathComponent)
+            .sorted()
+
+        // 各クラスの元のファイル数を取得
+        var originalFileCounts: [String: Int] = [:]
+        for classLabel in classLabelDirs {
+            let classDir = URL(fileURLWithPath: classifier.resourcesDirectoryPath).appendingPathComponent(classLabel)
+            let files = try fileManager.getFilesInDirectory(classDir)
+            originalFileCounts[classLabel] = files.count
+        }
+
+        // バランス調整された画像セットを準備
+        let classDirURLs = classLabelDirs.map { classLabel in
+            URL(fileURLWithPath: classifier.resourcesDirectoryPath).appendingPathComponent(classLabel)
+        }
+        let balancedDirs = try fileManager.prepareEqualizedMinimumImageSet(
+            classDirs: classDirURLs
+        )
+
+        // 各クラスのファイル数が等しいことを確認
+        var balancedFileCounts: [String: Int] = [:]
+        for (className, dir) in balancedDirs {
+            let files = try fileManager.getFilesInDirectory(dir)
+            balancedFileCounts[className] = files.count
+        }
+
+        // 最小枚数を計算
+        let minCount = originalFileCounts.values.min() ?? 0
+
+        // 各クラスのファイル数が最小枚数に揃えられていることを確認
+        for (className, count) in balancedFileCounts {
+            XCTAssertEqual(
+                count,
+                minCount,
+                """
+                クラス '\(className)' のファイル数が最小枚数と一致しません。
+                期待: \(minCount)枚
+                実際: \(count)枚
+                元のファイル数: \(originalFileCounts[className] ?? 0)枚
+                """
+            )
+        }
+
+        // クラス間のファイル数が等しいことを確認
+        let counts = Array(balancedFileCounts.values)
+        let firstCount = counts[0]
+        for (index, count) in counts.enumerated() {
+            XCTAssertEqual(
+                count,
+                firstCount,
+                """
+                クラス間のファイル数が等しくありません。
+                クラス1 (\(Array(balancedFileCounts.keys)[0])): \(firstCount)枚
+                クラス\(index + 1) (\(Array(balancedFileCounts.keys)[index])): \(count)枚
+                """
+            )
+        }
+    }
 }
+

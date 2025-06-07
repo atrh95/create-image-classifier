@@ -3,7 +3,6 @@ import CoreML
 import CreateML
 import Foundation
 import OvRClassifier
-import Vision
 import XCTest
 
 final class OvRClassifierTests: XCTestCase {
@@ -38,7 +37,12 @@ final class OvRClassifierTests: XCTestCase {
             attributes: nil
         )
 
-        let resourceDirectoryPath = "Classifiers/Tests/TestResources/OvRResources"
+        let resourceDirectoryPath = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent() // Tests/Tests
+            .deletingLastPathComponent() // Tests
+            .appendingPathComponent("TestResources")
+            .appendingPathComponent("OvRResources")
+            .path
 
         classifier = OvRClassifier(
             outputDirectoryPathOverride: temporaryOutputDirectoryURL.path,

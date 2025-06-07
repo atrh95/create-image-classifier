@@ -3,7 +3,6 @@ import CoreML
 import CreateML
 import Foundation
 import MultiClassClassifier
-import Vision
 import XCTest
 
 final class MultiClassClassifierTests: XCTestCase {
@@ -38,7 +37,12 @@ final class MultiClassClassifierTests: XCTestCase {
             attributes: nil
         )
 
-        let resourceDirectoryPath = "Classifiers/Tests/TestResources/MultiClassResources"
+        let resourceDirectoryPath = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent() // Tests/Tests
+            .deletingLastPathComponent() // Tests
+            .appendingPathComponent("TestResources")
+            .appendingPathComponent("MultiClassResources")
+            .path
 
         classifier = MultiClassClassifier(
             outputDirectoryPathOverride: temporaryOutputDirectoryURL.path,

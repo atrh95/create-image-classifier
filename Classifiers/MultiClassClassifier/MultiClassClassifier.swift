@@ -108,7 +108,10 @@ public final class MultiClassClassifier: ClassifierProtocol {
         }
 
         // トレーニングデータソースを作成
-        let trainingDataSource = try prepareTrainingData(from: classLabelDirURLs, shouldEqualizeFileCount: shouldEqualizeFileCount)
+        let trainingDataSource = try prepareTrainingData(
+            from: classLabelDirURLs,
+            shouldEqualizeFileCount: shouldEqualizeFileCount
+        )
 
         // モデルのトレーニング
         let trainingStartTime = Date()
@@ -136,7 +139,7 @@ public final class MultiClassClassifier: ClassifierProtocol {
             (1.0 - metrics.training.classificationError) * 100.0
         ))
 
-        if let confusionMatrix = confusionMatrix {
+        if let confusionMatrix {
             print(String(
                 format: "  検証正解率: %.1f%%",
                 (1.0 - metrics.validation.classificationError) * 100.0
@@ -249,7 +252,10 @@ public final class MultiClassClassifier: ClassifierProtocol {
         return classLabelDirURLs
     }
 
-    public func prepareTrainingData(from classLabelDirURLs: [URL], shouldEqualizeFileCount: Bool) throws -> MLImageClassifier.DataSource {
+    public func prepareTrainingData(
+        from classLabelDirURLs: [URL],
+        shouldEqualizeFileCount: Bool
+    ) throws -> MLImageClassifier.DataSource {
         print("📁 トレーニングデータ親ディレクトリ: \(resourcesDirectoryPath)")
 
         // 各クラスの画像を最小枚数に揃える

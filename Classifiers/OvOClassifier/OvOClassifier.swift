@@ -221,9 +221,6 @@ public final class OvOClassifier: ClassifierProtocol {
             actualColumn: "True Label",
             positiveClass: classPair.1
         )
-        if let confusionMatrix {
-            print("⚠️ 警告: 検証データが不十分なため、混同行列の計算をスキップしました")
-        }
 
         // 個別モデルのレポートを作成
         let modelFileName = "\(modelName)_\(classificationMethod)_\(classPair.0)_vs_\(classPair.1)_\(version).mlmodel"

@@ -3,7 +3,6 @@ import CoreML
 import CreateML
 import Foundation
 import OvOClassifier
-import Vision
 import XCTest
 
 final class OvOClassifierTests: XCTestCase {
@@ -38,7 +37,12 @@ final class OvOClassifierTests: XCTestCase {
             attributes: nil
         )
 
-        let resourceDirectoryPath = "Classifiers/Tests/TestResources/OvOResources"
+        let resourceDirectoryPath = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent() // Tests/Tests
+            .deletingLastPathComponent() // Tests
+            .appendingPathComponent("TestResources")
+            .appendingPathComponent("OvOResources")
+            .path
 
         classifier = OvOClassifier(
             outputDirectoryPathOverride: temporaryOutputDirectoryURL.path,

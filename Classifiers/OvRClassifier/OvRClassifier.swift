@@ -58,7 +58,7 @@ public final class OvRClassifier: ClassifierProtocol {
         modelName: String,
         version: String,
         modelParameters: CreateML.MLImageClassifier.ModelParameters,
-        shouldEqualizeFileCount: Bool
+        shouldEqualizeFileCount _: Bool
     ) throws {
         print("📁 リソースディレクトリ: \(resourcesDirectoryPath)")
         print("🚀 OvRモデル作成開始 (バージョン: \(version))...")
@@ -190,9 +190,6 @@ public final class OvRClassifier: ClassifierProtocol {
             actualColumn: "True Label",
             positiveClass: oneClassLabel
         )
-        if let confusionMatrix {
-            print("⚠️ 警告: 検証データが不十分なため、混同行列の計算をスキップしました")
-        }
 
         // 個別モデルのレポートを作成
         let modelFileName = "\(modelName)_\(classificationMethod)_\(oneClassLabel)_\(version).mlmodel"

@@ -132,9 +132,6 @@ public final class BinaryClassifier: ClassifierProtocol {
             actualColumn: "True Label",
             positiveClass: classLabelDirURLs[1].lastPathComponent
         )
-        if let confusionMatrix {
-            print("⚠️ 警告: 検証データが不十分なため、混同行列の計算をスキップしました")
-        }
 
         // 個別モデルのレポートを作成
         let modelFileName = "\(modelName)_\(classificationMethod)_\(version).mlmodel"

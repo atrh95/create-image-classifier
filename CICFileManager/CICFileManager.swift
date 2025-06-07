@@ -73,7 +73,8 @@ public final class CICFileManager: FileManager {
         }
 
         // 2. 最小枚数を計算
-        let minCount = shouldEqualize ? (classFiles.values.map(\.count).min() ?? 0) : (classFiles.values.map(\.count).max() ?? 0)
+        let minCount = shouldEqualize ? (classFiles.values.map(\.count).min() ?? 0) :
+            (classFiles.values.map(\.count).max() ?? 0)
 
         // 3. 一時ディレクトリを作成
         let tempBaseDir = temporaryDirectory
@@ -91,6 +92,61 @@ public final class CICFileManager: FileManager {
 
             // ランダムに選択した画像をコピー
             let selectedFiles = shouldEqualize ? Array(files.shuffled().prefix(minCount)) : files
+            for (index, file) in selectedFiles.enumerated() {
+                let destination = tempClassDir.appendingPathComponent("\(index).\(file.pathExtension)")
+                try copyItem(at: file, to: destination)
+            }
+
+            result[className] = tempClassDir
+        }
+
+        return result
+    }
+
+    public func prepareEqualizedMinimumImageSet(
+        classDirs: [URL]
+    ) throws -> [String: URL] {
+        guard !classDirs.isEmpty else {
+            throw NSError(domain: "CICFileManager", code: -1, userInfo: [
+                NSLocalizedDescriptionKey: "クラスディレクトリが空です",
+            ])
+        }
+
+        // 1. 各クラスの画像ファイルを取得
+        var classFiles: [String: [URL]] = [:]
+        for classDir in classDirs {
+            let files = try getFilesInDirectory(classDir)
+            guard !files.isEmpty else {
+                throw NSError(domain: "CICFileManager", code: -2, userInfo: [
+                    NSLocalizedDescriptionKey: "クラス '\(classDir.lastPathComponent)' に画像ファイルがありません",
+                ])
+            }
+            classFiles[classDir.lastPathComponent] = files
+        }
+
+        // 2. 最小枚数を計算
+        let minCount = classFiles.values.map(\.count).min() ?? 0
+        guard minCount > 0 else {
+            throw NSError(domain: "CICFileManager", code: -3, userInfo: [
+                NSLocalizedDescriptionKey: "すべてのクラスに少なくとも1つの画像ファイルが必要です",
+            ])
+        }
+
+        // 3. 一時ディレクトリを作成
+        let tempBaseDir = temporaryDirectory
+            .appendingPathComponent("TempBalancedImages")
+        if fileExists(atPath: tempBaseDir.path) {
+            try removeItem(at: tempBaseDir)
+        }
+        try createDirectory(at: tempBaseDir, withIntermediateDirectories: true)
+
+        // 4. 各クラスのサブディレクトリを作成し、画像をコピー
+        var result: [String: URL] = [:]
+        for (className, files) in classFiles {
+            let tempClassDir = tempBaseDir.appendingPathComponent(className)
+            try createDirectory(at: tempClassDir, withIntermediateDirectories: true)
+
+            let selectedFiles = Array(files.shuffled().prefix(minCount))
             for (index, file) in selectedFiles.enumerated() {
                 let destination = tempClassDir.appendingPathComponent("\(index).\(file.pathExtension)")
                 try copyItem(at: file, to: destination)
