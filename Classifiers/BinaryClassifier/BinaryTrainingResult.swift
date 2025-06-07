@@ -62,18 +62,19 @@ public struct BinaryTrainingResult: TrainingResultProtocol {
         訓練データ正解率 (学習時) : \(trainingAccuracyPercent)%
         検証データ正解率 (学習時自動検証) : \(validationAccuracyPercent)%
         検証誤分類率 (学習時自動検証) : \(validationErrorPercent)%
+
         """
 
         if let confusionMatrix {
             markdownText += """
-            ## クラス別性能指標
-            | クラス | 再現率 | 適合率 | F1スコア |
-            |--------|--------|--------|----------|
-            | \(individualModelReport.classCounts.positive.name) | \(String(
-                format: "%.1f%%",
-                confusionMatrix.recall * 100.0
-            )) | \(String(format: "%.1f%%", confusionMatrix.precision * 100.0)) | \(String(format: "%.3f",
-                                                                                           confusionMatrix.f1Score)) |
+
+            ## 性能指標
+            | 指標 | 値 |
+            |------|-----|
+            | 再現率 | \(String(format: "%.1f%%", confusionMatrix.recall * 100.0)) |
+            | 適合率 | \(String(format: "%.1f%%", confusionMatrix.precision * 100.0)) |
+            | F1スコア | \(String(format: "%.3f", confusionMatrix.f1Score)) |
+
             """
         }
 

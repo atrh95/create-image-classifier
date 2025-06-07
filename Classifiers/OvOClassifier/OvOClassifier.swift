@@ -40,10 +40,7 @@ public final class OvOClassifier: ClassifierProtocol {
         let currentFileURL = URL(fileURLWithPath: #filePath)
         return currentFileURL
             .deletingLastPathComponent() // OvOClassifier
-            .deletingLastPathComponent() // Classifiers
-            .deletingLastPathComponent() // Project root
-            .appendingPathComponent("CICResources")
-            .appendingPathComponent("OvOResources")
+            .appendingPathComponent("Resources")
             .path
     }
 
@@ -57,12 +54,13 @@ public final class OvOClassifier: ClassifierProtocol {
 
     static let tempBaseDirName = "TempOvOTrainingData"
 
-    public func create(
+    public func createAndSaveModel(
         author: String,
         modelName: String,
         version: String,
-        modelParameters: CreateML.MLImageClassifier.ModelParameters
-    ) async throws {
+        modelParameters: CreateML.MLImageClassifier.ModelParameters,
+        shouldEqualizeFileCount: Bool
+    ) throws {
         print("📁 リソースディレクトリ: \(resourcesDirectoryPath)")
         print("🚀 OvOモデル作成開始 (バージョン: \(version))...")
 
@@ -72,7 +70,7 @@ public final class OvOClassifier: ClassifierProtocol {
         } else {
             "なし"
         }
-        let featureExtractorDescription = String(describing: modelParameters.featureExtractor)
+        let featureExtractorDescription = modelParameters.algorithm.description
 
         // クラスラベルディレクトリの取得と検証
         let classLabelDirURLs = try fileManager.getClassLabelDirectories(resourcesPath: resourcesDirectoryPath)
@@ -107,11 +105,8 @@ public final class OvOClassifier: ClassifierProtocol {
         var classLabelCounts: [String: Int] = [:]
         for classLabel in classLabels {
             let classDir = URL(fileURLWithPath: resourcesDirectoryPath).appendingPathComponent(classLabel)
-            let files = try FileManager.default.contentsOfDirectory(
-                at: classDir,
-                includingPropertiesForKeys: nil
-            )
-            .filter { Self.imageExtensions.contains($0.pathExtension.lowercased()) }
+            let files = try fileManager.contentsOfDirectory(at: classDir, includingPropertiesForKeys: nil)
+                .filter { Self.imageExtensions.contains($0.pathExtension.lowercased()) }
             classLabelCounts[classLabel] = files.count
         }
 
@@ -122,11 +117,12 @@ public final class OvOClassifier: ClassifierProtocol {
         for classPair in combinations {
             print("🔄 クラス組み合わせ [\(classPair.0) vs \(classPair.1)] のモデル作成開始...")
 
-            let (imageClassifier, individualReport) = try await createModelForClassPair(
+            let (imageClassifier, individualReport) = try createModelForClassPair(
                 classPair: classPair,
                 modelName: modelName,
                 version: version,
-                modelParameters: modelParameters
+                modelParameters: modelParameters,
+                shouldEqualizeFileCount: shouldEqualizeFileCount
             )
 
             // モデルのメタデータ作成
@@ -173,7 +169,7 @@ public final class OvOClassifier: ClassifierProtocol {
         result.displayComparisonTable()
 
         // ログを保存
-        try result.saveLog(
+        result.saveLog(
             modelAuthor: author,
             modelName: modelName,
             modelVersion: version,
@@ -185,21 +181,28 @@ public final class OvOClassifier: ClassifierProtocol {
         classPair: (String, String),
         modelName: String,
         version: String,
-        modelParameters: CreateML.MLImageClassifier.ModelParameters
-    ) async throws -> (MLImageClassifier, CICIndividualModelReport) {
+        modelParameters: CreateML.MLImageClassifier.ModelParameters,
+        shouldEqualizeFileCount: Bool
+    ) throws -> (MLImageClassifier, CICIndividualModelReport) {
         // トレーニングデータの準備
         let sourceDir = URL(fileURLWithPath: resourcesDirectoryPath)
         let class1Dir = sourceDir.appendingPathComponent(classPair.0)
         let class2Dir = sourceDir.appendingPathComponent(classPair.1)
-        let trainingData = try prepareTrainingData(
-            classPair: classPair,
-            sourceDir: sourceDir,
-            class1Dir: class1Dir,
-            class2Dir: class2Dir
+
+        // バランス調整された画像セットを準備
+        let balancedDirs = try fileManager.prepareEqualizedMinimumImageSet(
+            classDirs: [class1Dir, class2Dir],
+            shouldEqualize: shouldEqualizeFileCount
         )
 
         // トレーニングデータソースを作成
-        let trainingDataSource = MLImageClassifier.DataSource.labeledDirectories(at: trainingData.tempDir)
+        guard let firstClassDir = balancedDirs[classPair.0] else {
+            throw NSError(domain: "OvOClassifier", code: -1, userInfo: [
+                NSLocalizedDescriptionKey: "トレーニングデータの準備に失敗しました。",
+            ])
+        }
+        let trainingDataSource = MLImageClassifier.DataSource
+            .labeledDirectories(at: firstClassDir.deletingLastPathComponent())
 
         // モデルのトレーニング
         let trainingStartTime = Date()
@@ -221,7 +224,7 @@ public final class OvOClassifier: ClassifierProtocol {
 
         // 個別モデルのレポートを作成
         let modelFileName = "\(modelName)_\(classificationMethod)_\(classPair.0)_vs_\(classPair.1)_\(version).mlmodel"
-        let individualReport = CICIndividualModelReport(
+        let individualReport = try CICIndividualModelReport(
             modelFileName: modelFileName,
             metrics: (
                 training: (
@@ -235,77 +238,18 @@ public final class OvOClassifier: ClassifierProtocol {
             ),
             confusionMatrix: confusionMatrix,
             classCounts: (
-                positive: (name: classPair.1, count: trainingData.class2Files.count),
-                negative: (name: classPair.0, count: trainingData.class1Files.count)
+                positive: (
+                    name: classPair.1,
+                    count: fileManager.contentsOfDirectory(at: class2Dir, includingPropertiesForKeys: nil).count
+                ),
+                negative: (
+                    name: classPair.0,
+                    count: fileManager.contentsOfDirectory(at: class1Dir, includingPropertiesForKeys: nil).count
+                )
             )
         )
 
         return (imageClassifier, individualReport)
-    }
-
-    private struct TrainingData {
-        let class1Files: [URL]
-        let class2Files: [URL]
-        let tempDir: URL
-    }
-
-    private func prepareTrainingData(
-        classPair: (String, String),
-        sourceDir _: URL,
-        class1Dir: URL,
-        class2Dir: URL
-    ) throws -> TrainingData {
-        // 各クラスの画像ファイルを取得
-        let class1Files = try FileManager.default.contentsOfDirectory(
-            at: class1Dir,
-            includingPropertiesForKeys: nil
-        )
-        .filter { Self.imageExtensions.contains($0.pathExtension.lowercased()) }
-
-        let class2Files = try FileManager.default.contentsOfDirectory(
-            at: class2Dir,
-            includingPropertiesForKeys: nil
-        )
-        .filter { Self.imageExtensions.contains($0.pathExtension.lowercased()) }
-
-        // 最小枚数を取得
-        let minCount = min(class1Files.count, class2Files.count)
-
-        // 各クラスから最小枚数分の画像をランダムに選択
-        let selectedClass1Files = Array(class1Files.shuffled().prefix(minCount))
-        let selectedClass2Files = Array(class2Files.shuffled().prefix(minCount))
-
-        print("📊 \(classPair.0): \(selectedClass1Files.count)枚, \(classPair.1): \(selectedClass2Files.count)枚")
-
-        // 一時ディレクトリを準備
-        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(Self.tempBaseDirName)
-        let tempClass1Dir = tempDir.appendingPathComponent(classPair.0)
-        let tempClass2Dir = tempDir.appendingPathComponent(classPair.1)
-
-        // 既存の一時ディレクトリをクリーンにする
-        if FileManager.default.fileExists(atPath: tempDir.path) {
-            try FileManager.default.removeItem(at: tempDir)
-        }
-
-        try FileManager.default.createDirectory(at: tempClass1Dir, withIntermediateDirectories: true)
-        try FileManager.default.createDirectory(at: tempClass2Dir, withIntermediateDirectories: true)
-
-        // 各クラスの画像をコピー
-        for (index, file) in selectedClass1Files.enumerated() {
-            let destination = tempClass1Dir.appendingPathComponent("\(index).\(file.pathExtension)")
-            try FileManager.default.copyItem(at: file, to: destination)
-        }
-
-        for (index, file) in selectedClass2Files.enumerated() {
-            let destination = tempClass2Dir.appendingPathComponent("\(index).\(file.pathExtension)")
-            try FileManager.default.copyItem(at: file, to: destination)
-        }
-
-        return TrainingData(
-            class1Files: selectedClass1Files,
-            class2Files: selectedClass2Files,
-            tempDir: tempDir
-        )
     }
 
     private func createMetricsDescription(

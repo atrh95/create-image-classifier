@@ -1,10 +1,36 @@
-# $ mint run xcodegen
+# $ mint run xcodegen generate
 
 name: CreateImageClassifier
 options:
-  bundleIdPrefix: com.akitorahayashi
   deploymentTarget:
     macOS: "15.2"
+  createIntermediateGroups: true
+
+configs:
+  Debug: debug
+  Release: release
+
+settings:
+  base:
+    SWIFT_VERSION: 5.9
+    MARKETING_VERSION: 1.0
+    CURRENT_PROJECT_VERSION: 1
+    COREML_CODEGEN_LANGUAGE: Swift
+    ENABLE_USER_SCRIPT_SANDBOXING: "NO"
+
+packages:
+  CreateImageClassifier:
+    path: .
+    products:
+      - CICInterface
+      - CICConfusionMatrix
+      - CICFileManager
+      - CICTrainingResult
+      - BinaryClassifier
+      - MultiClassClassifier
+      - OvOClassifier
+      - OvRClassifier
+
 targets:
   CreateImageClassifier:
     type: tool
@@ -12,285 +38,16 @@ targets:
     sources:
       - path: main.swift
     dependencies:
-      - target: BinaryClassification
-      - target: MultiClassClassification
-      - target: MultiLabelClassification
-      - target: OvRClassification
-      - target: OvOClassification
+      - package: CreateImageClassifier
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.CreateImageClassifier
         MACOSX_DEPLOYMENT_TARGET: "15.2"
-        CODE_SIGNING_ALLOWED: NO
-        CODE_SIGNING_REQUIRED: NO
 
-  CreateImageClassifierTests:
-    type: bundle.unit-test
-    platform: macOS
-    sources:
-      - path: CreateImageClassifierTests
-        excludes:
-          - "ClassifierTests/TestResources/**"
-    dependencies:
-      - target: BinaryClassification
-      - target: MultiClassClassification
-      - target: MultiLabelClassification
-      - target: OvRClassification
-      - target: OvOClassification
-      - target: CICFileManager
-      - target: TestResources
-    settings:
-      base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.CreateImageClassifierTests
-        MACOSX_DEPLOYMENT_TARGET: "15.2"
-        GENERATE_INFOPLIST_FILE: true
-        CODE_SIGNING_ALLOWED: NO
-        CODE_SIGNING_REQUIRED: NO
-
-  CICInterface:
-    type: framework
-    platform: macOS
-    sources:
-      - path: CICInterface
-    settings:
-      base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.CICInterface
-        MACOSX_DEPLOYMENT_TARGET: "15.2"
-        DEFINES_MODULE: "YES"
-        CODE_SIGNING_ALLOWED: NO
-        CODE_SIGNING_REQUIRED: NO
-
-  CICConfusionMatrix:
-    type: framework
-    platform: macOS
-    sources:
-      - path: CICConfusionMatrix
-    settings:
-      base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.CICConfusionMatrix
-        MACOSX_DEPLOYMENT_TARGET: "15.2"
-        DEFINES_MODULE: "YES"
-        CODE_SIGNING_ALLOWED: NO
-        CODE_SIGNING_REQUIRED: NO
-
-  CICFileManager:
-    type: framework
-    platform: macOS
-    sources:
-      - path: CICFileManager
-    settings:
-      base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.CICFileManager
-        MACOSX_DEPLOYMENT_TARGET: "15.2"
-        DEFINES_MODULE: "YES"
-        CODE_SIGNING_ALLOWED: NO
-        CODE_SIGNING_REQUIRED: NO
-
-  CICTrainingResult:
-    type: framework
-    platform: macOS
-    sources:
-      - path: CICTrainingResult
-    dependencies:
-      - target: CICInterface
-      - target: CICConfusionMatrix
-    settings:
-      base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.CICTrainingResult
-        MACOSX_DEPLOYMENT_TARGET: "15.2"
-        DEFINES_MODULE: "YES"
-        CODE_SIGNING_ALLOWED: NO
-        CODE_SIGNING_REQUIRED: NO
-
-  BinaryResources:
-    type: framework
-    platform: macOS
-    sources:
-      - path: CICResources/BinaryResources
-    resources:
-      - path: CICResources/BinaryResources
-        type: directory
-        buildPhase: resources
-    settings:
-      base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.BinaryResources
-        MACOSX_DEPLOYMENT_TARGET: "15.2"
-        DEFINES_MODULE: "YES"
-        CODE_SIGNING_ALLOWED: NO
-        CODE_SIGNING_REQUIRED: NO
-
-  MultiClassResources:
-    type: framework
-    platform: macOS
-    sources:
-      - path: CICResources/MultiClassResources
-    resources:
-      - path: CICResources/MultiClassResources
-        type: directory
-        buildPhase: resources
-    settings:
-      base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.MultiClassResources
-        MACOSX_DEPLOYMENT_TARGET: "15.2"
-        DEFINES_MODULE: "YES"
-        CODE_SIGNING_ALLOWED: NO
-        CODE_SIGNING_REQUIRED: NO
-
-  MultiLabelResources:
-    type: framework
-    platform: macOS
-    sources:
-      - path: CICResources/MultiLabelResources
-    resources:
-      - path: CICResources/MultiLabelResources
-        type: directory
-        buildPhase: resources
-    settings:
-      base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.MultiLabelResources
-        MACOSX_DEPLOYMENT_TARGET: "15.2"
-        DEFINES_MODULE: "YES"
-        CODE_SIGNING_ALLOWED: NO
-        CODE_SIGNING_REQUIRED: NO
-
-  OvRResources:
-    type: framework
-    platform: macOS
-    sources:
-      - path: CICResources/OvRResources
-    resources:
-      - path: CICResources/OvRResources
-        type: directory
-        buildPhase: resources
-    settings:
-      base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.OvRResources
-        MACOSX_DEPLOYMENT_TARGET: "15.2"
-        DEFINES_MODULE: "YES"
-        CODE_SIGNING_ALLOWED: NO
-        CODE_SIGNING_REQUIRED: NO
-
-  OvOResources:
-    type: framework
-    platform: macOS
-    sources:
-      - path: CICResources/OvOResources
-    resources:
-      - path: CICResources/OvOResources
-        type: directory
-        buildPhase: resources
-    settings:
-      base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.OvOResources
-        MACOSX_DEPLOYMENT_TARGET: "15.2"
-        DEFINES_MODULE: "YES"
-        CODE_SIGNING_ALLOWED: NO
-        CODE_SIGNING_REQUIRED: NO
-
-  BinaryClassification:
-    type: framework
-    platform: macOS
-    sources:
-      - path: Classifiers/BinaryClassifier
-    dependencies:
-      - target: CICInterface
-      - target: CICConfusionMatrix
-      - target: CICFileManager
-      - target: CICTrainingResult
-    settings:
-      base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.BinaryClassification
-        MACOSX_DEPLOYMENT_TARGET: "15.2"
-        CODE_SIGNING_ALLOWED: NO
-        CODE_SIGNING_REQUIRED: NO
-
-  MultiClassClassification:
-    type: framework
-    platform: macOS
-    sources:
-      - path: Classifiers/MultiClassifier
-    dependencies:
-      - target: CICInterface
-      - target: CICConfusionMatrix
-      - target: CICFileManager
-      - target: CICTrainingResult
-    settings:
-      base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.MultiClassClassification
-        MACOSX_DEPLOYMENT_TARGET: "15.2"
-        DEFINES_MODULE: "YES"
-        CODE_SIGNING_ALLOWED: NO
-        CODE_SIGNING_REQUIRED: NO
-
-  MultiLabelClassification:
-    type: framework
-    platform: macOS
-    sources:
-      - path: Classifiers/MultiLabelClassifier
-    dependencies:
-      - target: CICInterface
-      - target: CICConfusionMatrix
-      - target: CICFileManager
-      - target: CICTrainingResult
-    settings:
-      base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.MultiLabelClassification
-        MACOSX_DEPLOYMENT_TARGET: "15.2"
-        DEFINES_MODULE: "YES"
-        CODE_SIGNING_ALLOWED: NO
-        CODE_SIGNING_REQUIRED: NO
-
-  OvRClassification:
-    type: framework
-    platform: macOS
-    sources:
-      - path: Classifiers/OvRClassifier
-    dependencies:
-      - target: CICInterface
-      - target: CICConfusionMatrix
-      - target: CICFileManager
-      - target: CICTrainingResult
-    settings:
-      base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.OvRClassification
-        MACOSX_DEPLOYMENT_TARGET: "15.2"
-        CODE_SIGNING_ALLOWED: NO
-        CODE_SIGNING_REQUIRED: NO
-
-  OvOClassification:
-    type: framework
-    platform: macOS
-    sources:
-      - path: Classifiers/OvOClassifier
-    dependencies:
-      - target: CICInterface
-      - target: CICConfusionMatrix
-      - target: CICFileManager
-      - target: CICTrainingResult
-    settings:
-      base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.OvOClassification
-        MACOSX_DEPLOYMENT_TARGET: "15.2"
-        CODE_SIGNING_ALLOWED: NO
-        CODE_SIGNING_REQUIRED: NO
-
-  TestResources:
-    type: framework
-    platform: macOS
-    sources:
-      - path: CreateImageClassifierTests/ClassifierTests/TestResources
-        excludes:
-          - "**/*.jpg"
-          - "**/*.jpeg"
-          - "**/*.png"
-    resources:
-      - path: CreateImageClassifierTests/ClassifierTests/TestResources
-        type: directory
-        buildPhase: resources
-    settings:
-      base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.TestResources
-        MACOSX_DEPLOYMENT_TARGET: "15.2"
-        DEFINES_MODULE: "YES"
-        CODE_SIGNING_ALLOWED: NO
-        CODE_SIGNING_REQUIRED: NO
+schemes:
+  CreateImageClassifier:
+    build:
+      targets:
+        CreateImageClassifier: all
+    run:
+      config: Debug

@@ -15,11 +15,10 @@ jobs:
     permissions:
       contents: read
 
-  # ユニットテストを実行
+  # パッケージテストを実行
   run-tests:
-    name: Run Unit Tests
-    needs: setup-mint
-    uses: ./.github/workflows/run-tests.yml
+    name: Package Tests
+    uses: ./.github/workflows/package-test.yml
     
   # コード品質チェック
   code-quality:

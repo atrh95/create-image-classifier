@@ -12,11 +12,12 @@ public protocol ClassifierProtocol {
     var outputDirectoryPathOverride: String? { get set }
     var resourceDirPathOverride: String? { get set }
 
-    /// モデルの作成
-    func create(
+    /// モデルの作成と保存
+    func createAndSaveModel(
         author: String,
         modelName: String,
         version: String,
-        modelParameters: CreateML.MLImageClassifier.ModelParameters
-    ) async throws
+        modelParameters: CreateML.MLImageClassifier.ModelParameters,
+        shouldEqualizeFileCount: Bool
+    ) throws
 }

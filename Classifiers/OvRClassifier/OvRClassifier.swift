@@ -41,10 +41,7 @@ public final class OvRClassifier: ClassifierProtocol {
         let currentFileURL = URL(fileURLWithPath: #filePath)
         return currentFileURL
             .deletingLastPathComponent() // OvRClassifier
-            .deletingLastPathComponent() // Classifiers
-            .deletingLastPathComponent() // Project root
-            .appendingPathComponent("CICResources")
-            .appendingPathComponent("OvRResources")
+            .appendingPathComponent("Resources")
             .path
     }
 
@@ -56,12 +53,13 @@ public final class OvRClassifier: ClassifierProtocol {
         self.resourceDirPathOverride = resourceDirPathOverride
     }
 
-    public func create(
+    public func createAndSaveModel(
         author: String,
         modelName: String,
         version: String,
-        modelParameters: CreateML.MLImageClassifier.ModelParameters
-    ) async throws {
+        modelParameters: CreateML.MLImageClassifier.ModelParameters,
+        shouldEqualizeFileCount _: Bool
+    ) throws {
         print("📁 リソースディレクトリ: \(resourcesDirectoryPath)")
         print("🚀 OvRモデル作成開始 (バージョン: \(version))...")
 
@@ -88,11 +86,11 @@ public final class OvRClassifier: ClassifierProtocol {
         var classLabelCounts: [String: Int] = [:]
 
         // 各クラスに対して1つの .mlmodel を作成
-        for (index, oneClassDir) in classLabelDirURLs.enumerated() {
+        for oneClassDir in classLabelDirURLs {
             let oneClassLabel = oneClassDir.lastPathComponent
             print("🔄 クラス [\(oneClassLabel)] のモデル作成開始...")
 
-            let (imageClassifier, individualReport) = try await createModelForClass(
+            let (imageClassifier, individualReport) = try createModelForClass(
                 oneClassLabel: oneClassLabel,
                 modelName: modelName,
                 version: version,
@@ -106,7 +104,7 @@ public final class OvRClassifier: ClassifierProtocol {
                 "なし"
             }
 
-            let featureExtractorDescription = String(describing: modelParameters.featureExtractor)
+            let featureExtractorDescription = modelParameters.algorithm.description
 
             let metricsDescription = createMetricsDescription(
                 individualReport: individualReport,
@@ -137,7 +135,7 @@ public final class OvRClassifier: ClassifierProtocol {
             maxIterations: modelParameters.maxIterations,
             dataAugmentationDescription: modelParameters.augmentationOptions
                 .isEmpty ? "なし" : String(describing: modelParameters.augmentationOptions),
-            featureExtractorDescription: String(describing: modelParameters.featureExtractor)
+            featureExtractorDescription: modelParameters.algorithm.description
         )
 
         let result = OvRTrainingResult(
@@ -149,7 +147,7 @@ public final class OvRClassifier: ClassifierProtocol {
         result.displayComparisonTable()
 
         // ログを保存
-        try result.saveLog(
+        result.saveLog(
             modelAuthor: author,
             modelName: modelName,
             modelVersion: version,
@@ -162,7 +160,7 @@ public final class OvRClassifier: ClassifierProtocol {
         modelName: String,
         version: String,
         modelParameters: CreateML.MLImageClassifier.ModelParameters
-    ) async throws -> (MLImageClassifier, CICIndividualModelReport) {
+    ) throws -> (MLImageClassifier, CICIndividualModelReport) {
         // トレーニングデータの準備
         let sourceDir = URL(fileURLWithPath: resourcesDirectoryPath)
         let positiveClassDir = sourceDir.appendingPathComponent(oneClassLabel)
@@ -229,7 +227,7 @@ public final class OvRClassifier: ClassifierProtocol {
         positiveClassDir: URL
     ) throws -> TrainingData {
         // 正例クラスの画像ファイルを取得
-        let positiveClassFiles = try FileManager.default.contentsOfDirectory(
+        let positiveClassFiles = try fileManager.contentsOfDirectory(
             at: positiveClassDir,
             includingPropertiesForKeys: nil
         )
@@ -237,7 +235,7 @@ public final class OvRClassifier: ClassifierProtocol {
 
         // 残りのクラスの画像URLを取得
         var restClassFiles: [URL] = []
-        let subdirectories = try FileManager.default.contentsOfDirectory(
+        let subdirectories = try fileManager.contentsOfDirectory(
             at: sourceDir,
             includingPropertiesForKeys: [.isDirectoryKey]
         )
@@ -247,35 +245,43 @@ public final class OvRClassifier: ClassifierProtocol {
         let samplesPerRestClass = Int(ceil(Double(positiveClassFiles.count) / Double(subdirectories.count)))
 
         for subdir in subdirectories {
-            let files = try FileManager.default.contentsOfDirectory(at: subdir, includingPropertiesForKeys: nil)
+            let files = try fileManager.contentsOfDirectory(at: subdir, includingPropertiesForKeys: nil)
             let sampledFiles = files.shuffled().prefix(samplesPerRestClass)
             restClassFiles.append(contentsOf: sampledFiles)
         }
         print("📊 \(oneClassLabel): \(positiveClassFiles.count)枚, rest: \(restClassFiles.count)枚")
 
         // 一時ディレクトリを準備
-        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(Self.tempBaseDirName)
+        let tempDir = fileManager.temporaryDirectory.appendingPathComponent(Self.tempBaseDirName)
         let tempPositiveDir = tempDir.appendingPathComponent(oneClassLabel)
         let tempRestDir = tempDir.appendingPathComponent("rest")
 
-        // 既存の一時ディレクトリをクリーンにする
-        if FileManager.default.fileExists(atPath: tempDir.path) {
-            try FileManager.default.removeItem(at: tempDir)
+        // 既存の一時ディレクトリをクリーンにする（初回のみ）
+        if !fileManager.fileExists(atPath: tempDir.path) {
+            try fileManager.createDirectory(at: tempDir, withIntermediateDirectories: true)
         }
 
-        try FileManager.default.createDirectory(at: tempPositiveDir, withIntermediateDirectories: true)
-        try FileManager.default.createDirectory(at: tempRestDir, withIntermediateDirectories: true)
+        // 既存のクラスディレクトリをクリーンにする
+        if fileManager.fileExists(atPath: tempPositiveDir.path) {
+            try fileManager.removeItem(at: tempPositiveDir)
+        }
+        if fileManager.fileExists(atPath: tempRestDir.path) {
+            try fileManager.removeItem(at: tempRestDir)
+        }
+
+        try fileManager.createDirectory(at: tempPositiveDir, withIntermediateDirectories: true)
+        try fileManager.createDirectory(at: tempRestDir, withIntermediateDirectories: true)
 
         // 正例は全画像をコピー
         for (index, file) in positiveClassFiles.enumerated() {
             let destination = tempPositiveDir.appendingPathComponent("\(index).\(file.pathExtension)")
-            try FileManager.default.copyItem(at: file, to: destination)
+            try fileManager.copyItem(at: file, to: destination)
         }
 
-        // 負例はサンプリング済みの画像をすべてコピー
+        // restはサンプリング済みの画像をすべてコピー
         for (index, file) in restClassFiles.enumerated() {
             let destination = tempRestDir.appendingPathComponent("\(index).\(file.pathExtension)")
-            try FileManager.default.copyItem(at: file, to: destination)
+            try fileManager.copyItem(at: file, to: destination)
         }
 
         return TrainingData(
