@@ -14,7 +14,6 @@ let package = Package(
             "CICTrainingResult",
             "BinaryClassifier",
             "MultiClassClassifier",
-            "MultiLabelClassifier",
             "OvOClassifier",
             "OvRClassifier",
         ]),
@@ -24,7 +23,6 @@ let package = Package(
         .library(name: "CICTrainingResult", targets: ["CICTrainingResult"]),
         .library(name: "BinaryClassifier", targets: ["BinaryClassifier"]),
         .library(name: "MultiClassClassifier", targets: ["MultiClassClassifier"]),
-        .library(name: "MultiLabelClassifier", targets: ["MultiLabelClassifier"]),
         .library(name: "OvOClassifier", targets: ["OvOClassifier"]),
         .library(name: "OvRClassifier", targets: ["OvRClassifier"]),
     ],
@@ -39,17 +37,18 @@ let package = Package(
             sources: [
                 "CICBinaryConfusionMatrix.swift",
                 "CICMultiClassConfusionMatrix.swift",
-                "CICMultiLabelConfusionMatrix.swift",
+            ],
+            resources: [
+                .process("Tests")
             ]
         ),
         .testTarget(
             name: "CICConfusionMatrixTests",
             dependencies: ["CICConfusionMatrix"],
-            path: "CICConfusionMatrix/Tests/CICConfusionMatrixTests",
+            path: "CICConfusionMatrix/Tests",
             sources: [
                 "CICBinaryConfusionMatrixTests.swift",
                 "CICMultiClassConfusionMatrixTests.swift",
-                "CICMultiLabelConfusionMatrixTests.swift",
             ]
         ),
         .target(
@@ -57,12 +56,15 @@ let package = Package(
             path: "CICFileManager",
             sources: [
                 "CICFileManager.swift",
+            ],
+            resources: [
+                .process("Tests")
             ]
         ),
         .testTarget(
             name: "CICFileManagerTests",
             dependencies: ["CICFileManager"],
-            path: "CICFileManager/Tests/CICFileManagerTests",
+            path: "CICFileManager/Tests",
             sources: ["CICFileManagerTests.swift"]
         ),
         .target(
@@ -101,21 +103,6 @@ let package = Package(
             resources: [.copy("Resources")]
         ),
         .target(
-            name: "MultiLabelClassifier",
-            dependencies: [
-                "CICInterface",
-                "CICConfusionMatrix",
-                "CICFileManager",
-                "CICTrainingResult",
-            ],
-            path: "Classifiers/MultiLabelClassifier",
-            sources: [
-                "MultiLabelClassifier.swift",
-                "MultiLabelTrainingResult.swift",
-            ],
-            resources: [.copy("Resources")]
-        ),
-        .target(
             name: "OvOClassifier",
             dependencies: [
                 "CICInterface",
@@ -150,7 +137,6 @@ let package = Package(
             dependencies: [
                 "BinaryClassifier",
                 "MultiClassClassifier",
-                "MultiLabelClassifier",
                 "OvOClassifier",
                 "OvRClassifier",
                 "CICInterface",
@@ -162,7 +148,6 @@ let package = Package(
             sources: [
                 "Tests/BinaryClassifierTests.swift",
                 "Tests/MultiClassClassifierTests.swift",
-                "Tests/MultiLabelClassifierTests.swift",
                 "Tests/OvOClassifierTests.swift",
                 "Tests/OvRClassifierTests.swift",
                 "TestUtils.swift",

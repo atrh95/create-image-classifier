@@ -4,7 +4,6 @@ import CICFileManager
 import CICTrainingResult
 import BinaryClassifier
 import MultiClassClassifier
-import MultiLabelClassifier
 import OvOClassifier
 import OvRClassifier
 import CreateML
@@ -13,13 +12,12 @@ import Foundation
 
 // 分類器の種類
 enum ClassifierType: String {
-    case binary, multiClass, multiLabel, ovr, ovo
+    case binary, multiClass, ovr, ovo
 
     func makeClassifier() -> any ClassifierProtocol {
         switch self {
             case .binary: BinaryClassifier()
             case .multiClass: MultiClassClassifier()
-            case .multiLabel: MultiLabelClassifier()
             case .ovr: OvRClassifier()
             case .ovo: OvOClassifier()
         }
@@ -43,7 +41,6 @@ enum MLModelType: String {
             supportedClassifierVersions: [
                 .binary: "v6",
                 .multiClass: "v3",
-                .multiLabel: "v1",
                 .ovr: "v32",
                 .ovo: "v1",
             ],

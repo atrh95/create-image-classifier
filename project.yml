@@ -28,7 +28,6 @@ packages:
       - CICTrainingResult
       - BinaryClassifier
       - MultiClassClassifier
-      - MultiLabelClassifier
       - OvOClassifier
       - OvRClassifier
 

@@ -8,10 +8,10 @@ import XCTest
 
 final class OvOClassifierTests: XCTestCase {
     var classifier: OvOClassifier!
-    let fileManager = FileManager.default
-    let authorName: String = "Test Author"
-    let testModelName: String = "TestModel"
-    let testModelVersion: String = "v1"
+    let fileManager = CICFileManager()
+    var authorName: String = "Test Author"
+    var testModelName: String = "TestModel"
+    var testModelVersion: String = "v1"
 
     let algorithm = MLImageClassifier.ModelParameters.ModelAlgorithmType.transferLearning(
         featureExtractor: .scenePrint(revision: 1),
@@ -100,11 +100,7 @@ final class OvOClassifierTests: XCTestCase {
         }
 
         // クラスラベルディレクトリの取得
-        let classLabelDirs = try fileManager.contentsOfDirectory(
-            at: URL(fileURLWithPath: classifier.resourcesDirectoryPath),
-            includingPropertiesForKeys: [.isDirectoryKey],
-            options: [.skipsHiddenFiles]
-        ).filter(\.hasDirectoryPath)
+        let classLabelDirs = try fileManager.getClassLabelDirectories(resourcesPath: classifier.resourcesDirectoryPath)
             .map(\.lastPathComponent)
             .sorted()
 
@@ -134,10 +130,7 @@ final class OvOClassifierTests: XCTestCase {
         for classLabel in classLabelDirs {
             let classDirURL = URL(fileURLWithPath: classifier.resourcesDirectoryPath)
                 .appendingPathComponent(classLabel)
-            let files = try fileManager.contentsOfDirectory(
-                at: classDirURL,
-                includingPropertiesForKeys: nil
-            )
+            let files = try fileManager.getFilesInDirectory(classDirURL)
 
             XCTAssertFalse(
                 files.isEmpty,
@@ -249,11 +242,7 @@ final class OvOClassifierTests: XCTestCase {
         let vnCoreMLModel = try VNCoreMLModel(for: mlModel)
         let predictionRequest = VNCoreMLRequest(model: vnCoreMLModel)
 
-        let classLabels = try fileManager.contentsOfDirectory(
-            at: URL(fileURLWithPath: classifier.resourcesDirectoryPath),
-            includingPropertiesForKeys: [.isDirectoryKey],
-            options: [.skipsHiddenFiles]
-        ).filter(\.hasDirectoryPath)
+        let classLabels = try fileManager.getClassLabelDirectories(resourcesPath: classifier.resourcesDirectoryPath)
             .map(\.lastPathComponent)
             .sorted()
 
@@ -387,11 +376,7 @@ final class OvOClassifierTests: XCTestCase {
     // クラス間のファイル数バランスを検証
     func testClassFileCountBalance() throws {
         // クラスラベルディレクトリの取得
-        let classLabelDirs = try fileManager.contentsOfDirectory(
-            at: URL(fileURLWithPath: classifier.resourcesDirectoryPath),
-            includingPropertiesForKeys: [.isDirectoryKey],
-            options: [.skipsHiddenFiles]
-        ).filter(\.hasDirectoryPath)
+        let classLabelDirs = try fileManager.getClassLabelDirectories(resourcesPath: classifier.resourcesDirectoryPath)
             .map(\.lastPathComponent)
             .sorted()
 
@@ -399,10 +384,7 @@ final class OvOClassifierTests: XCTestCase {
         var originalFileCounts: [String: Int] = [:]
         for classLabel in classLabelDirs {
             let classDir = URL(fileURLWithPath: classifier.resourcesDirectoryPath).appendingPathComponent(classLabel)
-            let files = try fileManager.contentsOfDirectory(
-                at: classDir,
-                includingPropertiesForKeys: nil
-            )
+            let files = try fileManager.getFilesInDirectory(classDir)
             originalFileCounts[classLabel] = files.count
         }
 
@@ -415,10 +397,7 @@ final class OvOClassifierTests: XCTestCase {
         // 各クラスのファイル数が等しいことを確認
         var balancedFileCounts: [String: Int] = [:]
         for (className, dir) in balancedDirs {
-            let files = try fileManager.contentsOfDirectory(
-                at: dir,
-                includingPropertiesForKeys: nil
-            )
+            let files = try fileManager.getFilesInDirectory(dir)
             balancedFileCounts[className] = files.count
         }
 
@@ -439,7 +418,7 @@ final class OvOClassifierTests: XCTestCase {
             )
         }
 
-        // すべてのクラスのファイル数が等しいことを確認
+        // クラス間のファイル数が等しいことを確認
         let counts = Array(balancedFileCounts.values)
         let firstCount = counts[0]
         for (index, count) in counts.enumerated() {
@@ -448,8 +427,8 @@ final class OvOClassifierTests: XCTestCase {
                 firstCount,
                 """
                 クラス間のファイル数が等しくありません。
-                クラス1 (\(balancedFileCounts.keys.first ?? "不明")): \(firstCount)枚
-                クラス\(index + 1) (\(Array(balancedFileCounts.keys)[index] ?? "不明")): \(count)枚
+                クラス1 (\(Array(balancedFileCounts.keys)[0])): \(firstCount)枚
+                クラス\(index + 1) (\(Array(balancedFileCounts.keys)[index])): \(count)枚
                 """
             )
         }

@@ -1,10 +1,8 @@
 import Foundation
 
-public class CICFileManager {
-    private let fileManager: Foundation.FileManager
-
-    public init(fileManager: Foundation.FileManager = .default) {
-        self.fileManager = fileManager
+public final class CICFileManager: FileManager {
+    public override init() {
+        super.init()
     }
 
     public func createOutputDirectory(
@@ -18,8 +16,8 @@ public class CICFileManager {
             .appendingPathComponent(version)
 
         // 親ディレクトリが存在しない場合は作成
-        if !fileManager.fileExists(atPath: baseDir.path) {
-            try fileManager.createDirectory(at: baseDir, withIntermediateDirectories: true)
+        if !fileExists(atPath: baseDir.path) {
+            try createDirectory(at: baseDir, withIntermediateDirectories: true)
         }
 
         // 既存の実行を確認
@@ -27,37 +25,37 @@ public class CICFileManager {
         var finalOutputDir = baseDir.appendingPathComponent("\(classificationMethod)_Result_\(runIndex)")
 
         // 既存のディレクトリを確認
-        while fileManager.fileExists(atPath: finalOutputDir.path) {
+        while fileExists(atPath: finalOutputDir.path) {
             runIndex += 1
             finalOutputDir = baseDir.appendingPathComponent("\(classificationMethod)_Result_\(runIndex)")
         }
 
         // 最終的なディレクトリを作成
-        try fileManager.createDirectory(at: finalOutputDir, withIntermediateDirectories: true)
+        try createDirectory(at: finalOutputDir, withIntermediateDirectories: true)
         return finalOutputDir
     }
 
     public func getClassLabelDirectories(resourcesPath: String) throws -> [URL] {
         let resourcesDir = URL(fileURLWithPath: resourcesPath)
-        return try fileManager.contentsOfDirectory(
+        return try contentsOfDirectory(
             at: resourcesDir,
             includingPropertiesForKeys: [.isDirectoryKey],
             options: .skipsHiddenFiles
         ).filter { url in
             var isDirectory: ObjCBool = false
-            fileManager.fileExists(atPath: url.path, isDirectory: &isDirectory)
+            fileExists(atPath: url.path, isDirectory: &isDirectory)
             return isDirectory.boolValue && !url.lastPathComponent.hasPrefix(".")
         }
     }
 
     public func getFilesInDirectory(_ directoryURL: URL) throws -> [URL] {
-        try fileManager.contentsOfDirectory(
+        try contentsOfDirectory(
             at: directoryURL,
             includingPropertiesForKeys: [.isRegularFileKey],
             options: [.skipsHiddenFiles, .skipsSubdirectoryDescendants]
         ).filter { url in
             var isDirectory: ObjCBool = false
-            fileManager.fileExists(atPath: url.path, isDirectory: &isDirectory)
+            fileExists(atPath: url.path, isDirectory: &isDirectory)
             return !isDirectory.boolValue && !url.lastPathComponent.hasPrefix(".")
         }
     }
@@ -69,7 +67,7 @@ public class CICFileManager {
         // 1. 各クラスの画像ファイルを取得
         var classFiles: [String: [URL]] = [:]
         for classDir in classDirs {
-            let files = try FileManager.default.contentsOfDirectory(at: classDir, includingPropertiesForKeys: nil)
+            let files = try getFilesInDirectory(classDir)
             classFiles[classDir.lastPathComponent] = files
         }
 
@@ -77,24 +75,24 @@ public class CICFileManager {
         let minCount = classFiles.values.map { $0.count }.min() ?? 0
 
         // 3. 一時ディレクトリを作成
-        let tempBaseDir = FileManager.default.temporaryDirectory
+        let tempBaseDir = temporaryDirectory
             .appendingPathComponent("TempBalancedImages")
-        if FileManager.default.fileExists(atPath: tempBaseDir.path) {
-            try FileManager.default.removeItem(at: tempBaseDir)
+        if fileExists(atPath: tempBaseDir.path) {
+            try removeItem(at: tempBaseDir)
         }
-        try FileManager.default.createDirectory(at: tempBaseDir, withIntermediateDirectories: true)
+        try createDirectory(at: tempBaseDir, withIntermediateDirectories: true)
 
         // 4. 各クラスのサブディレクトリを作成し、画像をコピー
         var result: [String: URL] = [:]
         for (className, files) in classFiles {
             let tempClassDir = tempBaseDir.appendingPathComponent(className)
-            try FileManager.default.createDirectory(at: tempClassDir, withIntermediateDirectories: true)
+            try createDirectory(at: tempClassDir, withIntermediateDirectories: true)
             
             // ランダムに選択した画像をコピー
             let selectedFiles = Array(files.shuffled().prefix(minCount))
             for (index, file) in selectedFiles.enumerated() {
                 let destination = tempClassDir.appendingPathComponent("\(index).\(file.pathExtension)")
-                try FileManager.default.copyItem(at: file, to: destination)
+                try copyItem(at: file, to: destination)
             }
             
             result[className] = tempClassDir

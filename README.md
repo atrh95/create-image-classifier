@@ -16,14 +16,12 @@ Create Image Classifier は、AppleのCoreMLおよびCreateMLフレームワー�
 ├── CICResources/
 │   ├── BinaryResources/
 │   ├── MultiClassResources/
-│   ├── MultiLabelResources/
 │   ├── OvOResources/
 │   └── OvRResources/
 ├── CICOutputModels/
 ├── Classifiers/
 │   ├── BinaryClassifier/
 │   ├── MultiClassifier/
-│   ├── MultiLabelClassifier/
 │   ├── OvRClassifier/
 │   └── OvOClassifier/
 └── CreateImageClassifierTests/
@@ -31,13 +29,12 @@ Create Image Classifier は、AppleのCoreMLおよびCreateMLフレームワー�
 
 ## 主要機能
 
-Create Image Classifierは、以下の5つの異なる分類アプローチをサポートします。
+Create Image Classifierは、以下の4つの異なる分類アプローチをサポートします。
 
 | 分類タイプ                  | 説明                                                                 | ユースケース                                                                   |
 | --------------------------- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
 | **二値分類**                | 画像を2つのカテゴリのいずれかに分類します                            | 画像が特定の特徴を含むかどうかを判断します（例 「犬か、猫か」）         |
 | **マルチクラス分類**          | 画像を相互に排他的ないくつかのカテゴリの1つに分類します                | 画像内の主要な特性を識別します                                                     |
-| **マルチラベル分類**          | 単一の画像に複数のラベルを割り当てます                                 | 1つの画像に共存しうる複数の特徴を検出します                                        |
 | **One-vs-Rest (OvR) 分類** | 各カテゴリに対して1つずつ、複数の二値分類器をトレーニングします        | 各カテゴリに対する特化した検出器を作成します                                       |
 | **One-vs-One (OvO) 分類**  | 全てのカテゴリのペアに対して1つずつ、複数の二値分類器をトレーニングします | 各ペアのカテゴリ間での識別能力に特化した検出器を作成します                         |
 
