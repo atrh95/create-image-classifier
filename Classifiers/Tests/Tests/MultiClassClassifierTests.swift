@@ -13,7 +13,7 @@ final class MultiClassClassifierTests: XCTestCase {
     let testModelVersion: String = "v1"
 
     let algorithm = MLImageClassifier.ModelParameters.ModelAlgorithmType.transferLearning(
-        featureExtractor: .scenePrint(revision: 1),
+        featureExtractor: .scenePrint(revision: 2),
         classifier: .logisticRegressor
     )
 
