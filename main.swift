@@ -72,7 +72,7 @@ let semaphore = DispatchSemaphore(value: 0)
 
 Task {
     let selectedModel: MLModelType = .scaryCatScreeningML
-    let selectedClassifier: ClassifierType = .ovr
+    let selectedClassifier: ClassifierType = .ovo
     let trainingCount = 1
 
     guard selectedModel.config.supportedClassifierVersions.keys.contains(selectedClassifier),
@@ -90,7 +90,7 @@ Task {
 
         do {
             // モデルの作成
-            try await classifier.create(
+            try classifier.createAndSaveModel(
                 author: selectedModel.config.author,
                 modelName: selectedModel.config.name,
                 version: version,

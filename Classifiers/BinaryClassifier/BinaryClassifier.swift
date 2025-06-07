@@ -7,12 +7,15 @@ import CreateML
 import Foundation
 
 public final class BinaryClassifier: ClassifierProtocol {
+    
     public typealias TrainingResultType = BinaryTrainingResult
 
     private let fileManager: CICFileManager
     public var outputDirectoryPathOverride: String?
     public var resourceDirPathOverride: String?
     private var classImageCounts: [String: Int] = [:]
+
+    private static let tempBaseDirName = "TempBinaryTrainingData"
 
     public var outputParentDirPath: String {
         if let override = outputDirectoryPathOverride {
@@ -51,22 +54,31 @@ public final class BinaryClassifier: ClassifierProtocol {
         self.fileManager = fileManager
     }
 
-    public func create(
+    public func createAndSaveModel(
         author: String,
         modelName: String,
         version: String,
-        modelParameters: CreateML.MLImageClassifier.ModelParameters
-    ) async throws {
+        modelParameters: MLImageClassifier.ModelParameters
+    ) throws {
         print("📁 リソースディレクトリ: \(resourcesDirectoryPath)")
-        print("🚀 2クラス分類モデル作成開始 (バージョン: \(version))...")
+        print("🚀 Binaryモデル作成開始 (バージョン: \(version))...")
+
+        // 共通の説明文を作成
+        let augmentationFinalDescription = if !modelParameters.augmentationOptions.isEmpty {
+            String(describing: modelParameters.augmentationOptions)
+        } else {
+            "なし"
+        }
+        let featureExtractorDescription = modelParameters.algorithm.description
 
         // クラスラベルディレクトリの取得と検証
         let classLabelDirURLs = try fileManager.getClassLabelDirectories(resourcesPath: resourcesDirectoryPath)
+            .sorted { $0.lastPathComponent < $1.lastPathComponent }
         print("📁 検出されたクラスラベルディレクトリ: \(classLabelDirURLs.map(\.lastPathComponent).joined(separator: ", "))")
 
         guard classLabelDirURLs.count == 2 else {
             throw NSError(domain: "BinaryClassifier", code: -1, userInfo: [
-                NSLocalizedDescriptionKey: "2クラス分類には2つのクラスラベルディレクトリが必要です。現在 \(classLabelDirURLs.count)個。",
+                NSLocalizedDescriptionKey: "Binary分類には2つのクラスラベルディレクトリが必要です。現在 \(classLabelDirURLs.count)個。",
             ])
         }
 
@@ -79,33 +91,24 @@ public final class BinaryClassifier: ClassifierProtocol {
         )
         print("📁 出力ディレクトリ作成成功: \(outputDirectoryURL.path)")
 
-        // トレーニングデータの準備
-        let sourceDir = URL(fileURLWithPath: resourcesDirectoryPath)
-        let positiveClass = classLabelDirURLs[1].lastPathComponent
-        let negativeClass = classLabelDirURLs[0].lastPathComponent
+        // 各クラスの画像ファイル数を取得
+        var classLabelCounts: [String: Int] = [:]
+        for classLabel in classLabelDirURLs.map(\.lastPathComponent) {
+            let classDir = URL(fileURLWithPath: resourcesDirectoryPath).appendingPathComponent(classLabel)
+            let files = try FileManager.default.contentsOfDirectory(
+                at: classDir,
+                includingPropertiesForKeys: nil
+            )
+            classLabelCounts[classLabel] = files.count
+        }
 
-        // 各クラスの画像ファイルを取得
-        let positiveClassDir = sourceDir.appendingPathComponent(positiveClass)
-        let negativeClassDir = sourceDir.appendingPathComponent(negativeClass)
-
-        let positiveClassFiles = try FileManager.default.contentsOfDirectory(
-            at: positiveClassDir,
-            includingPropertiesForKeys: nil
+        // バランス調整された画像セットを準備
+        let balancedDirs = try fileManager.prepareEqualizedMinimumImageSet(
+            classDirs: classLabelDirURLs
         )
-
-        let negativeClassFiles = try FileManager.default.contentsOfDirectory(
-            at: negativeClassDir,
-            includingPropertiesForKeys: nil
-        )
-
-        // クラスごとの画像数を更新
-        classImageCounts[positiveClass] = positiveClassFiles.count
-        classImageCounts[negativeClass] = negativeClassFiles.count
-
-        print("📊 \(positiveClass): \(positiveClassFiles.count)枚, \(negativeClass): \(negativeClassFiles.count)枚")
 
         // トレーニングデータソースを作成
-        let trainingDataSource = MLImageClassifier.DataSource.labeledDirectories(at: sourceDir)
+        let trainingDataSource = MLImageClassifier.DataSource.labeledDirectories(at: balancedDirs[classLabelDirURLs[0].lastPathComponent]!.deletingLastPathComponent())
 
         // モデルのトレーニング
         let trainingStartTime = Date()
@@ -122,7 +125,7 @@ public final class BinaryClassifier: ClassifierProtocol {
             dataTable: currentValidationMetrics.confusion,
             predictedColumn: "Predicted",
             actualColumn: "True Label",
-            positiveClass: positiveClass
+            positiveClass: classLabelDirURLs[1].lastPathComponent
         )
 
         // 個別モデルのレポートを作成
@@ -141,19 +144,12 @@ public final class BinaryClassifier: ClassifierProtocol {
             ),
             confusionMatrix: confusionMatrix,
             classCounts: (
-                positive: (name: positiveClass, count: positiveClassFiles.count),
-                negative: (name: negativeClass, count: negativeClassFiles.count)
+                positive: (name: classLabelDirURLs[1].lastPathComponent, count: try FileManager.default.contentsOfDirectory(at: balancedDirs[classLabelDirURLs[1].lastPathComponent]!, includingPropertiesForKeys: nil).count),
+                negative: (name: classLabelDirURLs[0].lastPathComponent, count: try FileManager.default.contentsOfDirectory(at: balancedDirs[classLabelDirURLs[0].lastPathComponent]!, includingPropertiesForKeys: nil).count)
             )
         )
 
         // モデルのメタデータ作成
-        let augmentationFinalDescription = if !modelParameters.augmentationOptions.isEmpty {
-            String(describing: modelParameters.augmentationOptions)
-        } else {
-            "なし"
-        }
-        let featureExtractorDescription = modelParameters.algorithm.description
-
         let metricsDescription = createMetricsDescription(
             individualReport: individualReport,
             modelParameters: modelParameters,
@@ -168,7 +164,7 @@ public final class BinaryClassifier: ClassifierProtocol {
         )
 
         // モデルファイルを保存
-        let modelFilePath = outputDirectoryURL.appendingPathComponent(individualReport.modelFileName).path
+        let modelFilePath = outputDirectoryURL.appendingPathComponent(modelFileName).path
         print("💾 モデルファイル保存中: \(modelFilePath)")
         try imageClassifier.write(to: URL(fileURLWithPath: modelFilePath), metadata: modelMetadata)
         print("✅ モデルファイル保存完了")
@@ -176,10 +172,7 @@ public final class BinaryClassifier: ClassifierProtocol {
         // メタデータの作成
         let metadata = CICTrainingMetadata(
             modelName: modelName,
-            classLabelCounts: [
-                individualReport.classCounts.negative.name: individualReport.classCounts.negative.count,
-                individualReport.classCounts.positive.name: individualReport.classCounts.positive.count,
-            ],
+            classLabelCounts: classLabelCounts,
             maxIterations: modelParameters.maxIterations,
             dataAugmentationDescription: augmentationFinalDescription,
             featureExtractorDescription: featureExtractorDescription
@@ -189,12 +182,12 @@ public final class BinaryClassifier: ClassifierProtocol {
             metadata: metadata,
             metrics: (
                 training: (
-                    accuracy: 1.0 - imageClassifier.trainingMetrics.classificationError,
-                    errorRate: imageClassifier.trainingMetrics.classificationError
+                    accuracy: 1.0 - currentTrainingMetrics.classificationError,
+                    errorRate: currentTrainingMetrics.classificationError
                 ),
                 validation: (
-                    accuracy: 1.0 - imageClassifier.validationMetrics.classificationError,
-                    errorRate: imageClassifier.validationMetrics.classificationError
+                    accuracy: 1.0 - currentValidationMetrics.classificationError,
+                    errorRate: currentValidationMetrics.classificationError
                 )
             ),
             confusionMatrix: confusionMatrix,

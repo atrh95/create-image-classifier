@@ -53,12 +53,12 @@ public final class OvRClassifier: ClassifierProtocol {
         self.resourceDirPathOverride = resourceDirPathOverride
     }
 
-    public func create(
+    public func createAndSaveModel(
         author: String,
         modelName: String,
         version: String,
         modelParameters: CreateML.MLImageClassifier.ModelParameters
-    ) async throws {
+    ) throws {
         print("📁 リソースディレクトリ: \(resourcesDirectoryPath)")
         print("🚀 OvRモデル作成開始 (バージョン: \(version))...")
 
@@ -89,7 +89,7 @@ public final class OvRClassifier: ClassifierProtocol {
             let oneClassLabel = oneClassDir.lastPathComponent
             print("🔄 クラス [\(oneClassLabel)] のモデル作成開始...")
 
-            let (imageClassifier, individualReport) = try await createModelForClass(
+            let (imageClassifier, individualReport) = try createModelForClass(
                 oneClassLabel: oneClassLabel,
                 modelName: modelName,
                 version: version,
@@ -159,7 +159,7 @@ public final class OvRClassifier: ClassifierProtocol {
         modelName: String,
         version: String,
         modelParameters: CreateML.MLImageClassifier.ModelParameters
-    ) async throws -> (MLImageClassifier, CICIndividualModelReport) {
+    ) throws -> (MLImageClassifier, CICIndividualModelReport) {
         // トレーニングデータの準備
         let sourceDir = URL(fileURLWithPath: resourcesDirectoryPath)
         let positiveClassDir = sourceDir.appendingPathComponent(oneClassLabel)

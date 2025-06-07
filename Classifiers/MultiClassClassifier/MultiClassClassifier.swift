@@ -49,12 +49,12 @@ public final class MultiClassClassifier: ClassifierProtocol {
         self.resourceDirPathOverride = resourceDirPathOverride
     }
 
-    public func create(
+    public func createAndSaveModel(
         author: String,
         modelName: String,
         version: String,
         modelParameters: CreateML.MLImageClassifier.ModelParameters
-    ) async throws {
+    ) throws {
         print("📁 リソースディレクトリ: \(resourcesDirectoryPath)")
         print("🚀 多クラス分類モデル作成開始 (バージョン: \(version))...")
 
@@ -230,19 +230,22 @@ public final class MultiClassClassifier: ClassifierProtocol {
     public func prepareTrainingData(from classLabelDirURLs: [URL]) throws -> MLImageClassifier.DataSource {
         print("📁 トレーニングデータ親ディレクトリ: \(resourcesDirectoryPath)")
 
-        // 各クラスの画像枚数を効率的にカウント
-        for classDir in classLabelDirURLs {
-            let className = classDir.lastPathComponent
+        // 各クラスの画像を最小枚数に揃える
+        let balancedDirs = try fileManager.prepareEqualizedMinimumImageSet(
+            classDirs: classLabelDirURLs
+        )
+
+        // 各クラスの画像枚数を更新
+        for (className, dir) in balancedDirs {
             let files = try FileManager.default.contentsOfDirectory(
-                at: classDir,
+                at: dir,
                 includingPropertiesForKeys: nil
             )
-            let count = files.count
-            classImageCounts[className] = count
-            print("📊 \(className): \(count)枚")
+            classImageCounts[className] = files.count
+            print("📊 \(className): \(files.count)枚")
         }
 
-        return MLImageClassifier.DataSource.labeledDirectories(at: URL(fileURLWithPath: resourcesDirectoryPath))
+        return MLImageClassifier.DataSource.labeledDirectories(at: balancedDirs[classLabelDirURLs[0].lastPathComponent]!.deletingLastPathComponent())
     }
 
     private func createMetricsDescription(

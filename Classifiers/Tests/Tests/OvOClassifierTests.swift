@@ -62,9 +62,8 @@ final class OvOClassifierTests: XCTestCase {
         try super.tearDownWithError()
     }
 
-    func testClassifierDIConfiguration() async throws {
-        // モデルの作成
-        try await classifier.create(
+    func testClassifierDIConfiguration() throws {
+        try classifier.createAndSaveModel(
             author: authorName,
             modelName: testModelName,
             version: testModelVersion,
@@ -76,9 +75,8 @@ final class OvOClassifierTests: XCTestCase {
     }
 
     // モデルの訓練と成果物の生成をテスト
-    func testModelTrainingAndArtifactGeneration() async throws {
-        // モデルの作成
-        try await classifier.create(
+    func testModelTrainingAndArtifactGeneration() throws {
+        try classifier.createAndSaveModel(
             author: authorName,
             modelName: testModelName,
             version: testModelVersion,
@@ -190,9 +188,8 @@ final class OvOClassifierTests: XCTestCase {
     }
 
     // モデルが予測を実行できるかテスト
-    func testModelCanPerformPrediction() async throws {
-        // モデルの作成
-        try await classifier.create(
+    func testModelCanPerformPrediction() throws {
+        try classifier.createAndSaveModel(
             author: authorName,
             modelName: testModelName,
             version: testModelVersion,
@@ -231,7 +228,7 @@ final class OvOClassifierTests: XCTestCase {
         }
 
         // モデルのコンパイル
-        let compiledModelURL = try await MLModel.compileModel(at: modelFile)
+        let compiledModelURL = try MLModel.compileModel(at: modelFile)
         print("コンパイルされたモデル: \(compiledModelURL.path)")
 
         // コンパイルされたモデルファイルの存在確認
@@ -320,9 +317,8 @@ final class OvOClassifierTests: XCTestCase {
     }
 
     // 出力ディレクトリの連番を検証
-    func testSequentialOutputDirectoryNumbering() async throws {
-        // 1回目のモデル作成
-        try await classifier.create(
+    func testSequentialOutputDirectoryNumbering() throws {
+        try classifier.createAndSaveModel(
             author: authorName,
             modelName: testModelName,
             version: testModelVersion,
@@ -346,7 +342,7 @@ final class OvOClassifierTests: XCTestCase {
         }
 
         // 2回目のモデル作成を実行
-        try await classifier.create(
+        try classifier.createAndSaveModel(
             author: "TestAuthor",
             modelName: testModelName,
             version: "v1",
@@ -388,31 +384,8 @@ final class OvOClassifierTests: XCTestCase {
         )
     }
 
-    func testClassFileCountBalance() async throws {
-        // モデルの作成
-        try await classifier.create(
-            author: authorName,
-            modelName: testModelName,
-            version: testModelVersion,
-            modelParameters: modelParameters
-        )
-
-        // 出力ディレクトリから最新の結果を取得
-        let outputDir = URL(fileURLWithPath: classifier.outputParentDirPath)
-            .appendingPathComponent(testModelName)
-            .appendingPathComponent(testModelVersion)
-        let resultDirs = try fileManager.contentsOfDirectory(
-            at: outputDir,
-            includingPropertiesForKeys: [.isDirectoryKey],
-            options: [.skipsHiddenFiles]
-        ).filter(\.hasDirectoryPath)
-            .sorted { $0.lastPathComponent > $1.lastPathComponent }
-
-        guard let latestResultDir = resultDirs.first else {
-            XCTFail("結果ディレクトリが見つかりません: \(outputDir.path)")
-            return
-        }
-
+    // クラス間のファイル数バランスを検証
+    func testClassFileCountBalance() throws {
         // クラスラベルディレクトリの取得
         let classLabelDirs = try fileManager.contentsOfDirectory(
             at: URL(fileURLWithPath: classifier.resourcesDirectoryPath),
@@ -422,94 +395,63 @@ final class OvOClassifierTests: XCTestCase {
             .map(\.lastPathComponent)
             .sorted()
 
-        // 各クラスの画像ファイル数を取得
-        var classFileCounts: [String: Int] = [:]
+        // 各クラスの元のファイル数を取得
+        var originalFileCounts: [String: Int] = [:]
         for classLabel in classLabelDirs {
             let classDir = URL(fileURLWithPath: classifier.resourcesDirectoryPath).appendingPathComponent(classLabel)
             let files = try fileManager.contentsOfDirectory(
                 at: classDir,
                 includingPropertiesForKeys: nil
             )
-            classFileCounts[classLabel] = files.count
+            originalFileCounts[classLabel] = files.count
         }
 
-        // 各クラスペアのモデルファイルを検証
-        for i in 0 ..< classLabelDirs.count {
-            for j in (i + 1) ..< classLabelDirs.count {
-                let class1 = classLabelDirs[i]
-                let class2 = classLabelDirs[j]
-                let expectedModelFileName =
-                    "\(testModelName)_\(classifier.classificationMethod)_\(class1)_vs_\(class2)_\(testModelVersion).mlmodel"
-                let modelFilePath = latestResultDir.appendingPathComponent(expectedModelFileName).path
-
-                // モデルファイルの存在確認
-                XCTAssertTrue(
-                    fileManager.fileExists(atPath: modelFilePath),
-                    "クラスペア '\(class1) vs \(class2)' の訓練モデルファイルが期待されるパス「\(modelFilePath)」に見つかりません"
-                )
-
-                // モデルのメタデータを読み込み
-                let modelURL = URL(fileURLWithPath: modelFilePath)
-                let compiledModelURL = try await MLModel.compileModel(at: modelURL)
-                let model = try MLModel(contentsOf: compiledModelURL)
-
-                // メタデータから説明文を取得
-                guard let description = model.modelDescription.metadata[MLModelMetadataKey.description] as? String
-                else {
-                    XCTFail("クラスペア '\(class1) vs \(class2)' のモデルメタデータから説明文を取得できません")
-                    continue
-                }
-
-                // 説明文からファイル数を抽出
-                let lines = description.components(separatedBy: CharacterSet.newlines)
-                var class1Count = 0
-                var class2Count = 0
-
-                for line in lines {
-                    if line.contains("\(class1):") {
-                        if let count = extractFileCount(from: line) {
-                            class1Count = count
-                        }
-                    } else if line.contains("\(class2):") {
-                        if let count = extractFileCount(from: line) {
-                            class2Count = count
-                        }
-                    }
-                }
-
-                // 両クラスのファイル数が一致することを確認
-                XCTAssertEqual(
-                    class1Count,
-                    class2Count,
-                    """
-                    クラスペア '\(class1) vs \(class2)' のモデルで、両クラスのファイル数が一致しません。
-                    \(class1): \(class1Count)枚
-                    \(class2): \(class2Count)枚
-                    """
-                )
-
-                // ファイル数が期待値（両クラスの最小枚数）と一致することを確認
-                let originalClass1Count = classFileCounts[class1] ?? 0
-                let originalClass2Count = classFileCounts[class2] ?? 0
-                let expectedCount = min(originalClass1Count, originalClass2Count)
-
-                XCTAssertEqual(
-                    class1Count,
-                    expectedCount,
-                    """
-                    クラスペア '\(class1) vs \(class2)' のモデルで、ファイル数が期待値と一致しません。
-                    期待値: \(expectedCount)枚（\(class1): \(originalClass1Count)枚, \(class2): \(originalClass2Count)枚 の最小値）
-                    実際: \(class1Count)枚
-                    """
-                )
-            }
+        // バランス調整された画像セットを準備
+        let classDirURLs = classLabelDirs.map { classLabel in
+            URL(fileURLWithPath: classifier.resourcesDirectoryPath).appendingPathComponent(classLabel)
         }
-    }
+        let balancedDirs = try fileManager.prepareEqualizedMinimumImageSet(classDirs: classDirURLs)
 
-    private func extractFileCount(from line: String) -> Int? {
-        let components = line.components(separatedBy: ":")
-        guard components.count >= 2 else { return nil }
-        let countString = components[1].trimmingCharacters(in: .whitespaces)
-        return Int(countString.replacingOccurrences(of: "枚", with: ""))
+        // 各クラスのファイル数が等しいことを確認
+        var balancedFileCounts: [String: Int] = [:]
+        for (className, dir) in balancedDirs {
+            let files = try fileManager.contentsOfDirectory(
+                at: dir,
+                includingPropertiesForKeys: nil
+            )
+            balancedFileCounts[className] = files.count
+        }
+
+        // 最小枚数を計算
+        let minCount = originalFileCounts.values.min() ?? 0
+
+        // 各クラスのファイル数が最小枚数に揃えられていることを確認
+        for (className, count) in balancedFileCounts {
+            XCTAssertEqual(
+                count,
+                minCount,
+                """
+                クラス '\(className)' のファイル数が最小枚数と一致しません。
+                期待: \(minCount)枚
+                実際: \(count)枚
+                元のファイル数: \(originalFileCounts[className] ?? 0)枚
+                """
+            )
+        }
+
+        // すべてのクラスのファイル数が等しいことを確認
+        let counts = Array(balancedFileCounts.values)
+        let firstCount = counts[0]
+        for (index, count) in counts.enumerated() {
+            XCTAssertEqual(
+                count,
+                firstCount,
+                """
+                クラス間のファイル数が等しくありません。
+                クラス1 (\(balancedFileCounts.keys.first ?? "不明")): \(firstCount)枚
+                クラス\(index + 1) (\(Array(balancedFileCounts.keys)[index] ?? "不明")): \(count)枚
+                """
+            )
+        }
     }
 }

@@ -61,4 +61,45 @@ public class CICFileManager {
             return !isDirectory.boolValue && !url.lastPathComponent.hasPrefix(".")
         }
     }
+
+    // 最小枚数に揃えた画像セットを準備する
+    public func prepareEqualizedMinimumImageSet(
+        classDirs: [URL]
+    ) throws -> [String: URL] {
+        // 1. 各クラスの画像ファイルを取得
+        var classFiles: [String: [URL]] = [:]
+        for classDir in classDirs {
+            let files = try FileManager.default.contentsOfDirectory(at: classDir, includingPropertiesForKeys: nil)
+            classFiles[classDir.lastPathComponent] = files
+        }
+
+        // 2. 最小枚数を計算
+        let minCount = classFiles.values.map { $0.count }.min() ?? 0
+
+        // 3. 一時ディレクトリを作成
+        let tempBaseDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("TempBalancedImages")
+        if FileManager.default.fileExists(atPath: tempBaseDir.path) {
+            try FileManager.default.removeItem(at: tempBaseDir)
+        }
+        try FileManager.default.createDirectory(at: tempBaseDir, withIntermediateDirectories: true)
+
+        // 4. 各クラスのサブディレクトリを作成し、画像をコピー
+        var result: [String: URL] = [:]
+        for (className, files) in classFiles {
+            let tempClassDir = tempBaseDir.appendingPathComponent(className)
+            try FileManager.default.createDirectory(at: tempClassDir, withIntermediateDirectories: true)
+            
+            // ランダムに選択した画像をコピー
+            let selectedFiles = Array(files.shuffled().prefix(minCount))
+            for (index, file) in selectedFiles.enumerated() {
+                let destination = tempClassDir.appendingPathComponent("\(index).\(file.pathExtension)")
+                try FileManager.default.copyItem(at: file, to: destination)
+            }
+            
+            result[className] = tempClassDir
+        }
+
+        return result
+    }
 }

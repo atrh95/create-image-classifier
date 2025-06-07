@@ -2,7 +2,7 @@ import CICFileManager
 import CoreML
 import CreateML
 import Foundation
-import MultiClassifier
+import MultiClassClassifier
 import Vision
 import XCTest
 
@@ -62,9 +62,8 @@ final class MultiClassClassifierTests: XCTestCase {
         try super.tearDownWithError()
     }
 
-    func testClassifierDIConfiguration() async throws {
-        // モデルの作成
-        try await classifier.create(
+    func testClassifierDIConfiguration() throws {
+        try classifier.createAndSaveModel(
             author: authorName,
             modelName: testModelName,
             version: testModelVersion,
@@ -76,9 +75,8 @@ final class MultiClassClassifierTests: XCTestCase {
     }
 
     // モデルの訓練と成果物の生成をテスト
-    func testModelTrainingAndArtifactGeneration() async throws {
-        // モデルの作成
-        try await classifier.create(
+    func testModelTrainingAndArtifactGeneration() throws {
+        try classifier.createAndSaveModel(
             author: authorName,
             modelName: testModelName,
             version: testModelVersion,
@@ -171,9 +169,8 @@ final class MultiClassClassifierTests: XCTestCase {
     }
 
     // モデルが予測を実行できるかテスト
-    func testModelCanPerformPrediction() async throws {
-        // モデルの作成
-        try await classifier.create(
+    func testModelCanPerformPrediction() throws {
+        try classifier.createAndSaveModel(
             author: authorName,
             modelName: testModelName,
             version: testModelVersion,
@@ -212,7 +209,7 @@ final class MultiClassClassifierTests: XCTestCase {
         }
 
         // モデルのコンパイル
-        let compiledModelURL = try await MLModel.compileModel(at: modelFile)
+        let compiledModelURL = try MLModel.compileModel(at: modelFile)
         print("コンパイルされたモデル: \(compiledModelURL.path)")
 
         // コンパイルされたモデルファイルの存在確認
@@ -301,9 +298,8 @@ final class MultiClassClassifierTests: XCTestCase {
     }
 
     // 出力ディレクトリの連番を検証
-    func testSequentialOutputDirectoryNumbering() async throws {
-        // 1回目のモデル作成
-        try await classifier.create(
+    func testSequentialOutputDirectoryNumbering() throws {
+        try classifier.createAndSaveModel(
             author: authorName,
             modelName: testModelName,
             version: testModelVersion,
@@ -327,7 +323,7 @@ final class MultiClassClassifierTests: XCTestCase {
         }
 
         // 2回目のモデル作成を実行
-        try await classifier.create(
+        try classifier.createAndSaveModel(
             author: "TestAuthor",
             modelName: testModelName,
             version: "v1",

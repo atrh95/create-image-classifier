@@ -62,15 +62,14 @@ final class OvRClassifierTests: XCTestCase {
         try super.tearDownWithError()
     }
 
-    func testClassifierDIConfiguration() async throws {
+    func testClassifierDIConfiguration() throws {
         XCTAssertNotNil(classifier, "OvRClassifierの初期化失敗")
         XCTAssertEqual(classifier.outputParentDirPath, temporaryOutputDirectoryURL.path, "分類器の出力パスが期待値と不一致")
     }
 
     // モデルの訓練と成果物の生成をテスト
-    func testModelTrainingAndArtifactGeneration() async throws {
-        // モデルの作成
-        try await classifier.create(
+    func testModelTrainingAndArtifactGeneration() throws {
+        try classifier.createAndSaveModel(
             author: authorName,
             modelName: testModelName,
             version: testModelVersion,
@@ -174,9 +173,8 @@ final class OvRClassifierTests: XCTestCase {
     }
 
     // モデルが予測を実行できるかテスト
-    func testModelCanPerformPrediction() async throws {
-        // モデルの作成
-        try await classifier.create(
+    func testModelCanPerformPrediction() throws {
+        try classifier.createAndSaveModel(
             author: authorName,
             modelName: testModelName,
             version: testModelVersion,
@@ -215,7 +213,7 @@ final class OvRClassifierTests: XCTestCase {
         }
 
         // モデルのコンパイル
-        let compiledModelURL = try await MLModel.compileModel(at: modelFile)
+        let compiledModelURL = try MLModel.compileModel(at: modelFile)
         print("コンパイルされたモデル: \(compiledModelURL.path)")
 
         // コンパイルされたモデルファイルの存在確認
@@ -304,9 +302,8 @@ final class OvRClassifierTests: XCTestCase {
     }
 
     // 出力ディレクトリの連番を検証
-    func testSequentialOutputDirectoryNumbering() async throws {
-        // 1回目のモデル作成
-        try await classifier.create(
+    func testSequentialOutputDirectoryNumbering() throws {
+        try classifier.createAndSaveModel(
             author: authorName,
             modelName: testModelName,
             version: testModelVersion,
@@ -330,7 +327,7 @@ final class OvRClassifierTests: XCTestCase {
         }
 
         // 2回目のモデル作成を実行
-        try await classifier.create(
+        try classifier.createAndSaveModel(
             author: "TestAuthor",
             modelName: testModelName,
             version: "v1",
@@ -373,9 +370,8 @@ final class OvRClassifierTests: XCTestCase {
     }
 
     // クラス間のファイル数バランスを検証
-    func testClassFileCountBalance() async throws {
-        // モデルの作成
-        try await classifier.create(
+    func testClassFileCountBalance() throws {
+        try classifier.createAndSaveModel(
             author: authorName,
             modelName: testModelName,
             version: testModelVersion,
@@ -432,7 +428,7 @@ final class OvRClassifierTests: XCTestCase {
 
             // モデルのメタデータを読み込み
             let modelURL = URL(fileURLWithPath: modelFilePath)
-            let compiledModelURL = try await MLModel.compileModel(at: modelURL)
+            let compiledModelURL = try MLModel.compileModel(at: modelURL)
             let model = try MLModel(contentsOf: compiledModelURL)
 
             // メタデータから説明文を取得

@@ -51,12 +51,12 @@ public final class MultiLabelClassifier: ClassifierProtocol {
         self.resourceDirPathOverride = resourceDirPathOverride
     }
 
-    public func create(
+    public func createAndSaveModel(
         author: String,
         modelName: String,
         version: String,
         modelParameters: CreateML.MLImageClassifier.ModelParameters
-    ) async throws {
+    ) throws {
         print("📁 リソースディレクトリ: \(resourcesDirectoryPath)")
         print("🚀 MultiLabelモデル作成開始 (バージョン: \(version))...")
 
