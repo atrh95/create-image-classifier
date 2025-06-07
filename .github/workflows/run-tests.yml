@@ -2,16 +2,10 @@ name: Run Unit Tests
 
 on:
   workflow_call:
-    outputs:
-      test_result:
-        description: "Overall result of all test suites"
-        value: ${{ jobs.run-tests.outputs.overall_result }}
 
 jobs:
   run-tests:
     runs-on: macos-15
-    outputs:
-      overall_result: ${{ steps.final_check.outcome }}
     env:
       MINT_PATH: ${{ github.workspace }}/.mint
     steps:
@@ -37,14 +31,7 @@ jobs:
       - name: Generate Xcode Project
         run: mint run xcodegen generate
 
-      - name: Create Test Output Directory
-        run: |
-          rm -rf ci-outputs/test-results/all-tests
-          mkdir -p ci-outputs/test-results/all-tests
-
       - name: Run Unit Tests
-        id: execute_all_tests
-        continue-on-error: true 
         run: |
           set -o pipefail
           xcodebuild test \
@@ -53,26 +40,4 @@ jobs:
             -destination "platform=macOS" \
             -enableCodeCoverage NO \
             MACOSX_DEPLOYMENT_TARGET=15.2 \
-            -resultBundlePath ./ci-outputs/test-results/all-tests/TestResults.xcresult \
-            | xcbeautify --report junit --report-path ./ci-outputs/test-results/all-tests/junit.xml
-      - name: Upload Test Results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: all-test-results-${{ github.run_id }}
-          path: |
-            ci-outputs/test-results/all-tests/TestResults.xcresult
-            ci-outputs/test-results/all-tests/junit.xml
-          retention-days: 7
-      
-      - name: Final Check
-        id: final_check
-        if: always() # Ensure this step always runs
-        run: |
-          if [[ "${{ steps.execute_all_tests.outcome }}" == "success" ]]; then
-            echo "All tests passed."
-            exit 0
-          else
-            echo "One or more tests failed."
-            exit 1
-          fi 
+            | xcbeautify
