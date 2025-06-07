@@ -23,6 +23,7 @@ public final class MultiLabelClassifier: ClassifierProtocol {
         let currentFileURL = URL(fileURLWithPath: #filePath)
         return currentFileURL
             .deletingLastPathComponent() // MultiLabelClassifier
+            .deletingLastPathComponent() // Sources
             .deletingLastPathComponent() // Classifiers
             .deletingLastPathComponent() // Project root
             .appendingPathComponent("CICOutputModels")
@@ -39,6 +40,7 @@ public final class MultiLabelClassifier: ClassifierProtocol {
         let currentFileURL = URL(fileURLWithPath: #filePath)
         return currentFileURL
             .deletingLastPathComponent() // MultiLabelClassifier
+            .deletingLastPathComponent() // Sources
             .deletingLastPathComponent() // Classifiers
             .deletingLastPathComponent() // Project root
             .appendingPathComponent("CICResources")

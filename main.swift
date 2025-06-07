@@ -1,12 +1,8 @@
-import BinaryClassification
 import CICInterface
+import Classifiers
 import CreateML
 import CreateMLComponents
 import Foundation
-import MultiClassClassification
-import MultiLabelClassification
-import OvOClassification
-import OvRClassification
 
 // 分類器の種類
 enum ClassifierType: String {

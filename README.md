@@ -2,15 +2,7 @@
 
 ## 概要
 
-Create Image Classifier は、AppleのCoreMLおよびCreateMLフレームワークを利用して画像分類を行うMLモデルを作成するためのツールです。
-
-## 設計
-
-Swiftアプリケーションに典型的なモジュラーでプロトコル指向の設計パターンを採用しており、`main.swift`から5つの分類フレームワークのいずれかを選択して実行します。各フレームワークは特化した分類アプローチを実装しつつ、共通のインターフェースとして`CICInterface`に依存します。
-
-主要なプロトコルとして以下が定義されています。
-*   `ClassifierProtocol` 全てのトレーナー実装のためのインターフェースを定義します。
-*   `TrainingResultProtocol` トレーニング結果がどのように処理され、記録されるかを標準化します。
+Create Image Classifier は、AppleのCoreMLおよびCreateMLフレームワークを利用して画像分類を行うMLモデルを作成するためのツールです。`main.swift`から実行します。
 
 ## ディレクトリ構成
 
