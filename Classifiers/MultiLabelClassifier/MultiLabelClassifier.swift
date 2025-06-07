@@ -23,7 +23,6 @@ public final class MultiLabelClassifier: ClassifierProtocol {
         let currentFileURL = URL(fileURLWithPath: #filePath)
         return currentFileURL
             .deletingLastPathComponent() // MultiLabelClassifier
-            .deletingLastPathComponent() // Sources
             .deletingLastPathComponent() // Classifiers
             .deletingLastPathComponent() // Project root
             .appendingPathComponent("CICOutputModels")
@@ -40,11 +39,7 @@ public final class MultiLabelClassifier: ClassifierProtocol {
         let currentFileURL = URL(fileURLWithPath: #filePath)
         return currentFileURL
             .deletingLastPathComponent() // MultiLabelClassifier
-            .deletingLastPathComponent() // Sources
-            .deletingLastPathComponent() // Classifiers
-            .deletingLastPathComponent() // Project root
-            .appendingPathComponent("CICResources")
-            .appendingPathComponent("MultiLabelResources")
+            .appendingPathComponent("Resources")
             .path
     }
 
@@ -129,8 +124,7 @@ public final class MultiLabelClassifier: ClassifierProtocol {
         } else {
             "なし"
         }
-
-        let featureExtractorDescription = String(describing: modelParameters.featureExtractor)
+        let featureExtractorDescription = modelParameters.algorithm.description
 
         let metricsDescription = createMetricsDescription(
             individualReport: CICMultiClassModelReport(
@@ -204,7 +198,7 @@ public final class MultiLabelClassifier: ClassifierProtocol {
         result.displayComparisonTable()
 
         // ログを保存
-        try result.saveLog(
+        result.saveLog(
             modelAuthor: author,
             modelName: modelName,
             modelVersion: version,

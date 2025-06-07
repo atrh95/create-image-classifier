@@ -67,7 +67,8 @@ public struct MultiClassTrainingResult: TrainingResultProtocol {
         検証誤分類率 (学習時自動検証) : \(validationErrStr)%
         """
 
-        if let confusionMatrix {
+        if confusionMatrix != nil {
+            let classMetrics = confusionMatrix?.calculateMetrics() ?? []
             markdownText += """
             ## クラス別性能指標
             | クラス | 再現率 | 適合率 | F1スコア |
@@ -98,7 +99,7 @@ public struct MultiClassTrainingResult: TrainingResultProtocol {
     }
 
     public func displayComparisonTable() {
-        guard let confusionMatrix else { return }
+        guard confusionMatrix != nil else { return }
 
         print("\n📊 モデルの性能")
         print("+----------------------+-------+-------+-------+-------+-------+")

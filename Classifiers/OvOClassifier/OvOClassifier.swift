@@ -24,7 +24,6 @@ public final class OvOClassifier: ClassifierProtocol {
         let currentFileURL = URL(fileURLWithPath: #filePath)
         return currentFileURL
             .deletingLastPathComponent() // OvOClassifier
-            .deletingLastPathComponent() // Sources
             .deletingLastPathComponent() // Classifiers
             .deletingLastPathComponent() // Project root
             .appendingPathComponent("CICOutputModels")
@@ -41,11 +40,7 @@ public final class OvOClassifier: ClassifierProtocol {
         let currentFileURL = URL(fileURLWithPath: #filePath)
         return currentFileURL
             .deletingLastPathComponent() // OvOClassifier
-            .deletingLastPathComponent() // Sources
-            .deletingLastPathComponent() // Classifiers
-            .deletingLastPathComponent() // Project root
-            .appendingPathComponent("CICResources")
-            .appendingPathComponent("OvOResources")
+            .appendingPathComponent("Resources")
             .path
     }
 
@@ -74,7 +69,7 @@ public final class OvOClassifier: ClassifierProtocol {
         } else {
             "なし"
         }
-        let featureExtractorDescription = String(describing: modelParameters.featureExtractor)
+        let featureExtractorDescription = modelParameters.algorithm.description
 
         // クラスラベルディレクトリの取得と検証
         let classLabelDirURLs = try fileManager.getClassLabelDirectories(resourcesPath: resourcesDirectoryPath)
@@ -175,7 +170,7 @@ public final class OvOClassifier: ClassifierProtocol {
         result.displayComparisonTable()
 
         // ログを保存
-        try result.saveLog(
+        result.saveLog(
             modelAuthor: author,
             modelName: modelName,
             modelVersion: version,

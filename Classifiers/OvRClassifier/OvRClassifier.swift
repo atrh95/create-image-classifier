@@ -25,7 +25,6 @@ public final class OvRClassifier: ClassifierProtocol {
         let currentFileURL = URL(fileURLWithPath: #filePath)
         return currentFileURL
             .deletingLastPathComponent() // OvRClassifier
-            .deletingLastPathComponent() // Sources
             .deletingLastPathComponent() // Classifiers
             .deletingLastPathComponent() // Project root
             .appendingPathComponent("CICOutputModels")
@@ -42,11 +41,7 @@ public final class OvRClassifier: ClassifierProtocol {
         let currentFileURL = URL(fileURLWithPath: #filePath)
         return currentFileURL
             .deletingLastPathComponent() // OvRClassifier
-            .deletingLastPathComponent() // Sources
-            .deletingLastPathComponent() // Classifiers
-            .deletingLastPathComponent() // Project root
-            .appendingPathComponent("CICResources")
-            .appendingPathComponent("OvRResources")
+            .appendingPathComponent("Resources")
             .path
     }
 
@@ -90,7 +85,7 @@ public final class OvRClassifier: ClassifierProtocol {
         var classLabelCounts: [String: Int] = [:]
 
         // 各クラスに対して1つの .mlmodel を作成
-        for (index, oneClassDir) in classLabelDirURLs.enumerated() {
+        for (_, oneClassDir) in classLabelDirURLs.enumerated() {
             let oneClassLabel = oneClassDir.lastPathComponent
             print("🔄 クラス [\(oneClassLabel)] のモデル作成開始...")
 
@@ -108,7 +103,7 @@ public final class OvRClassifier: ClassifierProtocol {
                 "なし"
             }
 
-            let featureExtractorDescription = String(describing: modelParameters.featureExtractor)
+            let featureExtractorDescription = modelParameters.algorithm.description
 
             let metricsDescription = createMetricsDescription(
                 individualReport: individualReport,
@@ -139,7 +134,7 @@ public final class OvRClassifier: ClassifierProtocol {
             maxIterations: modelParameters.maxIterations,
             dataAugmentationDescription: modelParameters.augmentationOptions
                 .isEmpty ? "なし" : String(describing: modelParameters.augmentationOptions),
-            featureExtractorDescription: String(describing: modelParameters.featureExtractor)
+            featureExtractorDescription: modelParameters.algorithm.description
         )
 
         let result = OvRTrainingResult(
@@ -151,7 +146,7 @@ public final class OvRClassifier: ClassifierProtocol {
         result.displayComparisonTable()
 
         // ログを保存
-        try result.saveLog(
+        result.saveLog(
             modelAuthor: author,
             modelName: modelName,
             modelVersion: version,

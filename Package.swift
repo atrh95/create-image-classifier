@@ -13,7 +13,7 @@ let package = Package(
             "CICFileManager",
             "CICTrainingResult",
             "BinaryClassifier",
-            "MultiClassifier",
+            "MultiClassClassifier",
             "MultiLabelClassifier",
             "OvOClassifier",
             "OvRClassifier",
@@ -23,13 +23,10 @@ let package = Package(
         .library(name: "CICFileManager", targets: ["CICFileManager"]),
         .library(name: "CICTrainingResult", targets: ["CICTrainingResult"]),
         .library(name: "BinaryClassifier", targets: ["BinaryClassifier"]),
-        .library(name: "MultiClassifier", targets: ["MultiClassifier"]),
+        .library(name: "MultiClassClassifier", targets: ["MultiClassClassifier"]),
         .library(name: "MultiLabelClassifier", targets: ["MultiLabelClassifier"]),
         .library(name: "OvOClassifier", targets: ["OvOClassifier"]),
         .library(name: "OvRClassifier", targets: ["OvRClassifier"]),
-    ],
-    dependencies: [
-        // Dependencies will be added here
     ],
     targets: [
         .target(
@@ -89,14 +86,14 @@ let package = Package(
             resources: [.copy("Resources")]
         ),
         .target(
-            name: "MultiClassifier",
+            name: "MultiClassClassifier",
             dependencies: [
                 "CICInterface",
                 "CICConfusionMatrix",
                 "CICFileManager",
                 "CICTrainingResult",
             ],
-            path: "Classifiers/MultiClassifier",
+            path: "Classifiers/MultiClassClassifier",
             sources: [
                 "MultiClassClassifier.swift",
                 "MultiClassTrainingResult.swift",
@@ -152,7 +149,7 @@ let package = Package(
             name: "ClassifierTests",
             dependencies: [
                 "BinaryClassifier",
-                "MultiClassifier",
+                "MultiClassClassifier",
                 "MultiLabelClassifier",
                 "OvOClassifier",
                 "OvRClassifier",

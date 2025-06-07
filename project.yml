@@ -21,6 +21,16 @@ settings:
 packages:
   CreateImageClassifier:
     path: .
+    products:
+      - CICInterface
+      - CICConfusionMatrix
+      - CICFileManager
+      - CICTrainingResult
+      - BinaryClassifier
+      - MultiClassClassifier
+      - MultiLabelClassifier
+      - OvOClassifier
+      - OvRClassifier
 
 targets:
   CreateImageClassifier:
@@ -30,7 +40,6 @@ targets:
       - path: main.swift
     dependencies:
       - package: CreateImageClassifier
-        product: CreateImageClassifier
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.CreateImageClassifier

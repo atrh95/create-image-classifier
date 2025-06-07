@@ -1,5 +1,12 @@
 import CICInterface
-import Classifiers
+import CICConfusionMatrix
+import CICFileManager
+import CICTrainingResult
+import BinaryClassifier
+import MultiClassClassifier
+import MultiLabelClassifier
+import OvOClassifier
+import OvRClassifier
 import CreateML
 import CreateMLComponents
 import Foundation
@@ -65,8 +72,8 @@ let semaphore = DispatchSemaphore(value: 0)
 
 Task {
     let selectedModel: MLModelType = .scaryCatScreeningML
-    let selectedClassifier: ClassifierType = .ovo
-    let trainingCount = 5
+    let selectedClassifier: ClassifierType = .ovr
+    let trainingCount = 1
 
     guard selectedModel.config.supportedClassifierVersions.keys.contains(selectedClassifier),
           let version = selectedModel.config.supportedClassifierVersions[selectedClassifier]
