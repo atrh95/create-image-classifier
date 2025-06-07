@@ -1,14 +1,14 @@
-import CICInterface
+import BinaryClassifier
 import CICConfusionMatrix
 import CICFileManager
+import CICInterface
 import CICTrainingResult
-import BinaryClassifier
-import MultiClassClassifier
-import OvOClassifier
-import OvRClassifier
 import CreateML
 import CreateMLComponents
 import Foundation
+import MultiClassClassifier
+import OvOClassifier
+import OvRClassifier
 
 // 分類器の種類
 enum ClassifierType: String {

@@ -38,12 +38,7 @@ final class BinaryClassifierTests: XCTestCase {
             attributes: nil
         )
 
-        let resourceDirectoryPath = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent() // BinaryClassifierTests
-            .deletingLastPathComponent() // Tests
-            .appendingPathComponent("TestResources")
-            .appendingPathComponent("BinaryResources")
-            .path
+        let resourceDirectoryPath = "Classifiers/Tests/TestResources/BinaryResources"
 
         classifier = BinaryClassifier(
             outputDirectoryPathOverride: temporaryOutputDirectoryURL.path,

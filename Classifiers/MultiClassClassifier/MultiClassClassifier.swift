@@ -245,7 +245,13 @@ public final class MultiClassClassifier: ClassifierProtocol {
             print("📊 \(className): \(files.count)枚")
         }
 
-        return MLImageClassifier.DataSource.labeledDirectories(at: balancedDirs[classLabelDirURLs[0].lastPathComponent]!.deletingLastPathComponent())
+        // トレーニングデータソースを作成
+        guard let firstClassDir = balancedDirs[classLabelDirURLs[0].lastPathComponent] else {
+            throw NSError(domain: "MultiClassClassifier", code: -1, userInfo: [
+                NSLocalizedDescriptionKey: "トレーニングデータの準備に失敗しました。",
+            ])
+        }
+        return MLImageClassifier.DataSource.labeledDirectories(at: firstClassDir.deletingLastPathComponent())
     }
 
     private func createMetricsDescription(

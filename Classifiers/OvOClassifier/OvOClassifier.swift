@@ -195,7 +195,13 @@ public final class OvOClassifier: ClassifierProtocol {
         )
 
         // トレーニングデータソースを作成
-        let trainingDataSource = MLImageClassifier.DataSource.labeledDirectories(at: balancedDirs[classPair.0]!.deletingLastPathComponent())
+        guard let firstClassDir = balancedDirs[classPair.0] else {
+            throw NSError(domain: "OvOClassifier", code: -1, userInfo: [
+                NSLocalizedDescriptionKey: "トレーニングデータの準備に失敗しました。",
+            ])
+        }
+        let trainingDataSource = MLImageClassifier.DataSource
+            .labeledDirectories(at: firstClassDir.deletingLastPathComponent())
 
         // モデルのトレーニング
         let trainingStartTime = Date()
@@ -217,7 +223,7 @@ public final class OvOClassifier: ClassifierProtocol {
 
         // 個別モデルのレポートを作成
         let modelFileName = "\(modelName)_\(classificationMethod)_\(classPair.0)_vs_\(classPair.1)_\(version).mlmodel"
-        let individualReport = CICIndividualModelReport(
+        let individualReport = try CICIndividualModelReport(
             modelFileName: modelFileName,
             metrics: (
                 training: (
@@ -231,8 +237,14 @@ public final class OvOClassifier: ClassifierProtocol {
             ),
             confusionMatrix: confusionMatrix,
             classCounts: (
-                positive: (name: classPair.1, count: try FileManager.default.contentsOfDirectory(at: class2Dir, includingPropertiesForKeys: nil).count),
-                negative: (name: classPair.0, count: try FileManager.default.contentsOfDirectory(at: class1Dir, includingPropertiesForKeys: nil).count)
+                positive: (
+                    name: classPair.1,
+                    count: FileManager.default.contentsOfDirectory(at: class2Dir, includingPropertiesForKeys: nil).count
+                ),
+                negative: (
+                    name: classPair.0,
+                    count: FileManager.default.contentsOfDirectory(at: class1Dir, includingPropertiesForKeys: nil).count
+                )
             )
         )
 

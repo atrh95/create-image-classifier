@@ -7,7 +7,6 @@ import CreateML
 import Foundation
 
 public final class BinaryClassifier: ClassifierProtocol {
-    
     public typealias TrainingResultType = BinaryTrainingResult
 
     private let fileManager: CICFileManager
@@ -108,7 +107,13 @@ public final class BinaryClassifier: ClassifierProtocol {
         )
 
         // トレーニングデータソースを作成
-        let trainingDataSource = MLImageClassifier.DataSource.labeledDirectories(at: balancedDirs[classLabelDirURLs[0].lastPathComponent]!.deletingLastPathComponent())
+        guard let firstClassDir = balancedDirs[classLabelDirURLs[0].lastPathComponent] else {
+            throw NSError(domain: "BinaryClassifier", code: -1, userInfo: [
+                NSLocalizedDescriptionKey: "トレーニングデータの準備に失敗しました。",
+            ])
+        }
+        let trainingDataSource = MLImageClassifier.DataSource
+            .labeledDirectories(at: firstClassDir.deletingLastPathComponent())
 
         // モデルのトレーニング
         let trainingStartTime = Date()
@@ -130,7 +135,14 @@ public final class BinaryClassifier: ClassifierProtocol {
 
         // 個別モデルのレポートを作成
         let modelFileName = "\(modelName)_\(classificationMethod)_\(version).mlmodel"
-        let individualReport = CICIndividualModelReport(
+        guard let positiveClassDir = balancedDirs[classLabelDirURLs[1].lastPathComponent],
+              let negativeClassDir = balancedDirs[classLabelDirURLs[0].lastPathComponent]
+        else {
+            throw NSError(domain: "BinaryClassifier", code: -1, userInfo: [
+                NSLocalizedDescriptionKey: "トレーニングデータの準備に失敗しました。",
+            ])
+        }
+        let individualReport = try CICIndividualModelReport(
             modelFileName: modelFileName,
             metrics: (
                 training: (
@@ -144,8 +156,16 @@ public final class BinaryClassifier: ClassifierProtocol {
             ),
             confusionMatrix: confusionMatrix,
             classCounts: (
-                positive: (name: classLabelDirURLs[1].lastPathComponent, count: try FileManager.default.contentsOfDirectory(at: balancedDirs[classLabelDirURLs[1].lastPathComponent]!, includingPropertiesForKeys: nil).count),
-                negative: (name: classLabelDirURLs[0].lastPathComponent, count: try FileManager.default.contentsOfDirectory(at: balancedDirs[classLabelDirURLs[0].lastPathComponent]!, includingPropertiesForKeys: nil).count)
+                positive: (
+                    name: classLabelDirURLs[1].lastPathComponent,
+                    count: FileManager.default
+                        .contentsOfDirectory(at: positiveClassDir, includingPropertiesForKeys: nil).count
+                ),
+                negative: (
+                    name: classLabelDirURLs[0].lastPathComponent,
+                    count: FileManager.default
+                        .contentsOfDirectory(at: negativeClassDir, includingPropertiesForKeys: nil).count
+                )
             )
         )
 

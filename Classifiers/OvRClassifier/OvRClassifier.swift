@@ -85,7 +85,7 @@ public final class OvRClassifier: ClassifierProtocol {
         var classLabelCounts: [String: Int] = [:]
 
         // 各クラスに対して1つの .mlmodel を作成
-        for (_, oneClassDir) in classLabelDirURLs.enumerated() {
+        for oneClassDir in classLabelDirURLs {
             let oneClassLabel = oneClassDir.lastPathComponent
             print("🔄 クラス [\(oneClassLabel)] のモデル作成開始...")
 

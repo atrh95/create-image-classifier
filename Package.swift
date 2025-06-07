@@ -39,7 +39,7 @@ let package = Package(
                 "CICMultiClassConfusionMatrix.swift",
             ],
             resources: [
-                .process("Tests")
+                .process("Tests"),
             ]
         ),
         .testTarget(
@@ -58,7 +58,7 @@ let package = Package(
                 "CICFileManager.swift",
             ],
             resources: [
-                .process("Tests")
+                .process("Tests"),
             ]
         ),
         .testTarget(

@@ -1,7 +1,7 @@
 import Foundation
 
 public final class CICFileManager: FileManager {
-    public override init() {
+    override public init() {
         super.init()
     }
 
@@ -72,7 +72,7 @@ public final class CICFileManager: FileManager {
         }
 
         // 2. 最小枚数を計算
-        let minCount = classFiles.values.map { $0.count }.min() ?? 0
+        let minCount = classFiles.values.map(\.count).min() ?? 0
 
         // 3. 一時ディレクトリを作成
         let tempBaseDir = temporaryDirectory
@@ -87,14 +87,14 @@ public final class CICFileManager: FileManager {
         for (className, files) in classFiles {
             let tempClassDir = tempBaseDir.appendingPathComponent(className)
             try createDirectory(at: tempClassDir, withIntermediateDirectories: true)
-            
+
             // ランダムに選択した画像をコピー
             let selectedFiles = Array(files.shuffled().prefix(minCount))
             for (index, file) in selectedFiles.enumerated() {
                 let destination = tempClassDir.appendingPathComponent("\(index).\(file.pathExtension)")
                 try copyItem(at: file, to: destination)
             }
-            
+
             result[className] = tempClassDir
         }
 

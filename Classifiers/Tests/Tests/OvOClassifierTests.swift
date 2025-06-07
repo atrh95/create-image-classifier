@@ -38,12 +38,7 @@ final class OvOClassifierTests: XCTestCase {
             attributes: nil
         )
 
-        let resourceDirectoryPath = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent() // OvOClassifierTests
-            .deletingLastPathComponent() // Tests
-            .appendingPathComponent("TestResources")
-            .appendingPathComponent("OvOResources")
-            .path
+        let resourceDirectoryPath = "Classifiers/Tests/TestResources/OvOResources"
 
         classifier = OvOClassifier(
             outputDirectoryPathOverride: temporaryOutputDirectoryURL.path,

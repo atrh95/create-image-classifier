@@ -62,7 +62,7 @@ public struct BinaryTrainingResult: TrainingResultProtocol {
         訓練データ正解率 (学習時) : \(trainingAccuracyPercent)%
         検証データ正解率 (学習時自動検証) : \(validationAccuracyPercent)%
         検証誤分類率 (学習時自動検証) : \(validationErrorPercent)%
-        
+
         """
 
         if let confusionMatrix {
