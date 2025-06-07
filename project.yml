@@ -44,10 +44,60 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.CreateImageClassifier
         MACOSX_DEPLOYMENT_TARGET: "15.2"
 
+  CICConfusionMatrixTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: CICConfusionMatrix/Tests
+    dependencies:
+      - package: CreateImageClassifier
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.CICConfusionMatrixTests
+        GENERATE_INFOPLIST_FILE: YES
+
+  CICFileManagerTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: CICFileManager/Tests
+    dependencies:
+      - package: CreateImageClassifier
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.CICFileManagerTests
+        GENERATE_INFOPLIST_FILE: YES
+
+  ClassifierTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: Classifiers/Tests
+    dependencies:
+      - package: CreateImageClassifier
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.ClassifierTests
+        GENERATE_INFOPLIST_FILE: YES
+
 schemes:
   CreateImageClassifier:
     build:
       targets:
         CreateImageClassifier: all
+        CICConfusionMatrixTests: all
+        CICFileManagerTests: all
+        ClassifierTests: all
     run:
       config: Debug
+    test:
+      config: Debug
+      gatherCoverageData: true
+      coverageTargets:
+        - CICConfusionMatrixTests
+        - CICFileManagerTests
+        - ClassifierTests
+      targets:
+        - CICConfusionMatrixTests
+        - CICFileManagerTests
+        - ClassifierTests

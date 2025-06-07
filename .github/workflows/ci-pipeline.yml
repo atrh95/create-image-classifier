@@ -24,6 +24,13 @@ jobs:
       - name: Build
         run: swift build
 
+  
+  # ユニットテストを実行
+  run-tests:
+    name: Run Unit Tests
+    needs: setup-mint
+    uses: ./.github/workflows/run-tests.yml
+
   # コード品質チェック
   code-quality:
     name: Code Quality Check
