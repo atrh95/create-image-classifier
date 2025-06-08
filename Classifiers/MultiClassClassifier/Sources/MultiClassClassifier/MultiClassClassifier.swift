@@ -35,6 +35,8 @@ public final class MultiClassClassifier: ClassifierProtocol {
         let currentFileURL = URL(fileURLWithPath: #filePath)
         return currentFileURL
             .deletingLastPathComponent() // MultiClassClassifier
+            .deletingLastPathComponent() // Sources
+            .deletingLastPathComponent() // MultiClassClassifier
             .appendingPathComponent("Resources")
             .path
     }

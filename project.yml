@@ -21,6 +21,8 @@ settings:
 packages:
   CreateImageClassifier:
     path: .
+    products:
+      - CreateImageClassifier
 
 targets:
   CreateImageClassifier:
@@ -84,6 +86,7 @@ schemes:
         ClassifierTests: all
     run:
       config: Debug
+      executable: CreateImageClassifier
     test:
       config: Debug
       gatherCoverageData: true

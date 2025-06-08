@@ -40,6 +40,8 @@ public final class OvOClassifier: ClassifierProtocol {
         let currentFileURL = URL(fileURLWithPath: #filePath)
         return currentFileURL
             .deletingLastPathComponent() // OvOClassifier
+            .deletingLastPathComponent() // Sources
+            .deletingLastPathComponent() // OvOClassifier
             .appendingPathComponent("Resources")
             .path
     }

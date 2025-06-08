@@ -37,6 +37,8 @@ public final class BinaryClassifier: ClassifierProtocol {
         let currentFileURL = URL(fileURLWithPath: #filePath)
         return currentFileURL
             .deletingLastPathComponent() // BinaryClassifier
+            .deletingLastPathComponent() // Sources
+            .deletingLastPathComponent() // BinaryClassifier
             .appendingPathComponent("Resources")
             .path
     }

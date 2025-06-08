@@ -7,24 +7,20 @@ let package = Package(
         .macOS(.v13),
     ],
     products: [
-        .library(name: "CreateImageClassifier", targets: [
-            "CICInterface",
-            "CICConfusionMatrix",
-            "CICFileManager",
-            "CICTrainingResult",
-            "BinaryClassifier",
-            "MultiClassClassifier",
-            "OvOClassifier",
-            "OvRClassifier",
-        ]),
-        .library(name: "CICInterface", targets: ["CICInterface"]),
-        .library(name: "CICConfusionMatrix", targets: ["CICConfusionMatrix"]),
-        .library(name: "CICFileManager", targets: ["CICFileManager"]),
-        .library(name: "CICTrainingResult", targets: ["CICTrainingResult"]),
-        .library(name: "BinaryClassifier", targets: ["BinaryClassifier"]),
-        .library(name: "MultiClassClassifier", targets: ["MultiClassClassifier"]),
-        .library(name: "OvOClassifier", targets: ["OvOClassifier"]),
-        .library(name: "OvRClassifier", targets: ["OvRClassifier"]),
+        .library(
+            name: "CreateImageClassifier",
+            type: .dynamic,
+            targets: [
+                "CICInterface",
+                "CICConfusionMatrix",
+                "CICFileManager",
+                "CICTrainingResult",
+                "BinaryClassifier",
+                "MultiClassClassifier",
+                "OvOClassifier",
+                "OvRClassifier",
+            ]
+        ),
     ],
     targets: [
         .target(

@@ -36,7 +36,7 @@ jobs:
           set -o pipefail
           xcodebuild test \
             -project "CreateImageClassifier.xcodeproj" \
-            -scheme "CreateImageClassifier" \
+            -scheme "CreateImageClassifierTests" \
             -destination "platform=macOS" \
             -enableCodeCoverage NO \
             MACOSX_DEPLOYMENT_TARGET=15.2 \

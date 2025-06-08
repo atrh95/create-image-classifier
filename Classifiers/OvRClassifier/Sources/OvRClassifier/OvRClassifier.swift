@@ -41,6 +41,8 @@ public final class OvRClassifier: ClassifierProtocol {
         let currentFileURL = URL(fileURLWithPath: #filePath)
         return currentFileURL
             .deletingLastPathComponent() // OvRClassifier
+            .deletingLastPathComponent() // Sources
+            .deletingLastPathComponent() // OvRClassifier
             .appendingPathComponent("Resources")
             .path
     }
@@ -249,7 +251,7 @@ public final class OvRClassifier: ClassifierProtocol {
 
         let tempDir = fileManager.temporaryDirectory
             .appendingPathComponent(Self.tempBaseDirName)
-            .appendingPathComponent(oneClassLabel) // クラス別のサブディレクトリを追加
+            .appendingPathComponent(oneClassLabel)
         let tempPositiveDir = tempDir.appendingPathComponent(oneClassLabel)
         let tempRestDir = tempDir.appendingPathComponent("rest")
 
@@ -263,11 +265,9 @@ public final class OvRClassifier: ClassifierProtocol {
             try fileManager.removeItem(at: tempRestDir)
         }
 
-        // Create fresh directories for copying
         try fileManager.createDirectory(at: tempPositiveDir, withIntermediateDirectories: true)
         try fileManager.createDirectory(at: tempRestDir, withIntermediateDirectories: true)
 
-        // Copy positive class files
         for (index, file) in positiveClassFiles.enumerated() {
             let destination = tempPositiveDir.appendingPathComponent("\(index).\(file.pathExtension)")
             do {
@@ -276,11 +276,9 @@ public final class OvRClassifier: ClassifierProtocol {
                 print(
                     "❌ 正例ファイルコピー失敗: \(file.lastPathComponent) -> \(destination.lastPathComponent) エラー: \(error.localizedDescription)"
                 )
-                // Consider re-throwing or failing early if a critical file fails to copy
             }
         }
 
-        // Copy rest class files with unique names and robust error handling
         var copiedRestFilesCount = 0
         for file in restClassFiles {
             let originalDirectoryName = file.deletingLastPathComponent().lastPathComponent
@@ -295,22 +293,18 @@ public final class OvRClassifier: ClassifierProtocol {
                 print(
                     "❌ restファイルコピー失敗: \(file.lastPathComponent) -> \(uniqueDestinationFileName) エラー: \(error.localizedDescription)"
                 )
-                // Log the error but continue if other files might succeed
             }
         }
-        print("DEBUG: tempRestDirに実際にコピーされたrestファイル数: \(copiedRestFilesCount)枚")
 
-        // Validate the actual count of files in tempRestDir immediately after copying
         let actualRestFilesCountInTempDir = try fileManager.contentsOfDirectory(
             at: tempRestDir,
             includingPropertiesForKeys: nil
         )
         .count
-        print("DEBUG: tempRestDir内の実際に存在するrestファイル数 (確認): \(actualRestFilesCountInTempDir)枚")
 
         return TrainingData(
-            positiveClassFiles: positiveClassFiles, // This refers to original files
-            restClassFiles: restClassFiles, // This refers to original sampled files
+            positiveClassFiles: positiveClassFiles,
+            restClassFiles: restClassFiles,
             tempDir: tempDir
         )
     }
