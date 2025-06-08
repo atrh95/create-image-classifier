@@ -25,6 +25,8 @@ public final class OvRClassifier: ClassifierProtocol {
         let currentFileURL = URL(fileURLWithPath: #filePath)
         return currentFileURL
             .deletingLastPathComponent() // OvRClassifier
+            .deletingLastPathComponent() // Sources
+            .deletingLastPathComponent() // OvRClassifier
             .deletingLastPathComponent() // Classifiers
             .deletingLastPathComponent() // Project root
             .appendingPathComponent("CICOutputModels")

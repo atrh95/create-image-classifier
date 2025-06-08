@@ -42,14 +42,14 @@ enum MLModelType: String {
             supportedClassifierVersions: [
                 .binary: "v6",
                 .multiClass: "v3",
-                .ovr: "v33",
+                .ovr: "v35",
                 .ovo: "v1",
             ],
             author: "akitora",
             modelParameters: MLImageClassifier.ModelParameters(
                 validation: .split(strategy: .automatic),
-                maxIterations: 15,
-                augmentation: [.flip, .rotation],
+                maxIterations: 20,
+                augmentation: [],
                 algorithm: .transferLearning(
                     featureExtractor: .scenePrint(revision: 2),
                     classifier: .logisticRegressor
@@ -71,8 +71,8 @@ let semaphore = DispatchSemaphore(value: 0)
 
 Task {
     let selectedModel: MLModelType = .scaryCatScreeningML
-    let selectedClassifier: ClassifierType = .ovr
-    let trainingCount = 10
+    let selectedClassifier: ClassifierType = .binary
+    let trainingCount = 5
 
     guard selectedModel.config.supportedClassifierVersions.keys.contains(selectedClassifier),
           let version = selectedModel.config.supportedClassifierVersions[selectedClassifier]

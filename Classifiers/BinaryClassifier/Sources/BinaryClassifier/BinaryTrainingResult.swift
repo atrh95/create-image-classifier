@@ -55,7 +55,7 @@ public struct BinaryTrainingResult: TrainingResultProtocol {
         特徴抽出器       : \(metadata.featureExtractorDescription)
 
         ## トレーニング設定
-        使用されたクラスラベル : \(metadata.classLabelCounts.map { "\($0.key) (\($0.value)枚)" }.joined(separator: ", "))
+        使用されたクラスラベル : \(individualModelReport.classCounts.positive.name) (\(individualModelReport.classCounts.positive.count)枚), \(individualModelReport.classCounts.negative.name) (\(individualModelReport.classCounts.negative.count)枚)
 
         ## パフォーマンス指標 (全体)
         トレーニング誤分類率 (学習時) : \(trainingErrorPercent)%

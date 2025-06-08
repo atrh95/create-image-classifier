@@ -65,11 +65,13 @@ public struct MultiClassTrainingResult: TrainingResultProtocol {
         訓練データ正解率 (学習時) : \(trainingAccStr)%
         検証データ正解率 (学習時自動検証) : \(validationAccStr)%
         検証誤分類率 (学習時自動検証) : \(validationErrStr)%
+
         """
 
         if confusionMatrix != nil {
             let classMetrics = confusionMatrix?.calculateMetrics() ?? []
             markdownText += """
+            
             ## クラス別性能指標
             | クラス | 再現率 | 適合率 | F1スコア |
             |:---|:---|:---|:---|

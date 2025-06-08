@@ -24,6 +24,8 @@ public final class OvOClassifier: ClassifierProtocol {
         let currentFileURL = URL(fileURLWithPath: #filePath)
         return currentFileURL
             .deletingLastPathComponent() // OvOClassifier
+            .deletingLastPathComponent() // Sources
+            .deletingLastPathComponent() // OvOClassifier
             .deletingLastPathComponent() // Classifiers
             .deletingLastPathComponent() // Project root
             .appendingPathComponent("CICOutputModels")

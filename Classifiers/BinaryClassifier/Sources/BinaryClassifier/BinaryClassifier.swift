@@ -23,6 +23,8 @@ public final class BinaryClassifier: ClassifierProtocol {
         let currentFileURL = URL(fileURLWithPath: #filePath)
         return currentFileURL
             .deletingLastPathComponent() // BinaryClassifier
+            .deletingLastPathComponent() // Sources
+            .deletingLastPathComponent() // BinaryClassifier
             .deletingLastPathComponent() // Classifiers
             .deletingLastPathComponent() // Project root
             .appendingPathComponent("CICOutputModels")
@@ -136,7 +138,7 @@ public final class BinaryClassifier: ClassifierProtocol {
         )
 
         // 個別モデルのレポートを作成
-        let modelFileName = "\(modelName)_\(classificationMethod)_\(version).mlmodel"
+        let modelFileName = "\(modelName)_\(classificationMethod)_\(classLabelDirURLs[0].lastPathComponent)_vs_\(classLabelDirURLs[1].lastPathComponent)_\(version).mlmodel"
         guard let positiveClassDir = balancedDirs[classLabelDirURLs[1].lastPathComponent],
               let negativeClassDir = balancedDirs[classLabelDirURLs[0].lastPathComponent]
         else {
