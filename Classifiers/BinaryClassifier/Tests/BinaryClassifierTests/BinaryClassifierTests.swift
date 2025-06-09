@@ -101,19 +101,19 @@ final class BinaryClassifierTests: XCTestCase {
             return
         }
 
+        // Binary分類器の期待されるクラスラベル
+        let classLabelDirs = try fileManager.getClassLabelDirectories(resourcesPath: classifier.resourcesDirectoryPath)
+            .map(\.lastPathComponent)
+            .sorted()
+
         // モデルファイルの存在確認
-        let expectedModelFileName = "\(testModelName)_\(classifier.classificationMethod)_\(testModelVersion).mlmodel"
+        let expectedModelFileName = "\(testModelName)_\(classifier.classificationMethod)_\(classLabelDirs[0])_vs_\(classLabelDirs[1])_\(testModelVersion).mlmodel"
         let modelFilePath = latestResultDir.appendingPathComponent(expectedModelFileName).path
 
         XCTAssertTrue(
             fileManager.fileExists(atPath: modelFilePath),
             "訓練モデルファイルが期待されるパス「\(modelFilePath)」に見つかりません"
         )
-
-        // Binary分類器の期待されるクラスラベル
-        let classLabelDirs = try fileManager.getClassLabelDirectories(resourcesPath: classifier.resourcesDirectoryPath)
-            .map(\.lastPathComponent)
-            .sorted()
 
         // クラスラベルの存在確認
         XCTAssertFalse(
@@ -142,7 +142,7 @@ final class BinaryClassifierTests: XCTestCase {
 
         // モデルファイル名の検証
         let modelFileName = expectedModelFileName
-        let regex = #"^TestModel_Binary_v\d+\.mlmodel$"#
+        let regex = #"^TestModel_Binary_\w+_vs_\w+_v\d+\.mlmodel$"#
         XCTAssertTrue(
             modelFileName.range(of: regex, options: .regularExpression) != nil,
             """

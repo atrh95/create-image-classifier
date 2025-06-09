@@ -1,5 +1,3 @@
-# Create Image Classifier
-
 ## 概要
 
 Create Image Classifier は、AppleのCoreMLおよびCreateMLフレームワークを利用して画像分類を行うMLモデルを作成するためのツールです。`main.swift`から実行します。
