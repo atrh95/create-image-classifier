@@ -298,12 +298,6 @@ public final class OvRClassifier: ClassifierProtocol {
             }
         }
 
-        let actualRestFilesCountInTempDir = try fileManager.contentsOfDirectory(
-            at: tempRestDir,
-            includingPropertiesForKeys: nil
-        )
-        .count
-
         return TrainingData(
             positiveClassFiles: positiveClassFiles,
             restClassFiles: restClassFiles,

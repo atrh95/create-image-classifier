@@ -102,12 +102,13 @@ final class BinaryClassifierTests: XCTestCase {
         }
 
         // Binary分類器の期待されるクラスラベル
-        let classLabelDirs = try fileManager.getClassLabelDirectories(resourcesPath: classifier.resourcesDirectoryPath)
+        let classLabelDirs = try classifier.getClassLabelDirectories()
             .map(\.lastPathComponent)
             .sorted()
 
         // モデルファイルの存在確認
-        let expectedModelFileName = "\(testModelName)_\(classifier.classificationMethod)_\(classLabelDirs[0])_vs_\(classLabelDirs[1])_\(testModelVersion).mlmodel"
+        let expectedModelFileName =
+            "\(testModelName)_\(classifier.classificationMethod)_\(classLabelDirs[0])_vs_\(classLabelDirs[1])_\(testModelVersion).mlmodel"
         let modelFilePath = latestResultDir.appendingPathComponent(expectedModelFileName).path
 
         XCTAssertTrue(
@@ -122,13 +123,13 @@ final class BinaryClassifierTests: XCTestCase {
         )
 
         // 各クラスラベルディレクトリにファイルが存在することを確認
-        for classLabel in classLabelDirs {
-            let classDirURL = URL(fileURLWithPath: classifier.resourcesDirectoryPath).appendingPathComponent(classLabel)
+        let classLabelDirURLs = try classifier.getClassLabelDirectories()
+        for classDirURL in classLabelDirURLs {
             let files = try fileManager.getFilesInDirectory(classDirURL)
 
             XCTAssertFalse(
                 files.isEmpty,
-                "クラスラベル「\(classLabel)」のディレクトリにファイルが見つかりません: \(classDirURL.path)"
+                "クラスラベル「\(classDirURL.lastPathComponent)」のディレクトリにファイルが見つかりません: \(classDirURL.path)"
             )
         }
 
@@ -230,24 +231,18 @@ final class BinaryClassifierTests: XCTestCase {
     // クラス間のファイル数バランスを検証
     func testClassFileCountBalance() throws {
         // クラスラベルディレクトリの取得
-        let classLabelDirs = try fileManager.getClassLabelDirectories(resourcesPath: classifier.resourcesDirectoryPath)
-            .map(\.lastPathComponent)
-            .sorted()
+        let classLabelDirURLs = try classifier.getClassLabelDirectories()
 
         // 各クラスの元のファイル数を取得
         var originalFileCounts: [String: Int] = [:]
-        for classLabel in classLabelDirs {
-            let classDir = URL(fileURLWithPath: classifier.resourcesDirectoryPath).appendingPathComponent(classLabel)
-            let files = try fileManager.getFilesInDirectory(classDir)
-            originalFileCounts[classLabel] = files.count
+        for classDirURL in classLabelDirURLs {
+            let files = try fileManager.getFilesInDirectory(classDirURL)
+            originalFileCounts[classDirURL.lastPathComponent] = files.count
         }
 
         // バランス調整された画像セットを準備
-        let classDirURLs = classLabelDirs.map { classLabel in
-            URL(fileURLWithPath: classifier.resourcesDirectoryPath).appendingPathComponent(classLabel)
-        }
         let balancedDirs = try fileManager.prepareEqualizedMinimumImageSet(
-            classDirs: classDirURLs
+            classDirs: classLabelDirURLs
         )
 
         // 各クラスのファイル数が等しいことを確認

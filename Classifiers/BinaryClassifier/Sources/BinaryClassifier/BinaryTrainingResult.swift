@@ -55,7 +55,14 @@ public struct BinaryTrainingResult: TrainingResultProtocol {
         特徴抽出器       : \(metadata.featureExtractorDescription)
 
         ## トレーニング設定
-        使用されたクラスラベル : \(individualModelReport.classCounts.positive.name) (\(individualModelReport.classCounts.positive.count)枚), \(individualModelReport.classCounts.negative.name) (\(individualModelReport.classCounts.negative.count)枚)
+        Positive: \(individualModelReport.classCounts.positive.name) (\(
+            individualModelReport.classCounts.positive
+                .count
+        )枚)
+        Negative: \(individualModelReport.classCounts.negative.name) (\(
+            individualModelReport.classCounts.negative
+                .count
+        )枚)
 
         ## パフォーマンス指標 (全体)
         トレーニング誤分類率 (学習時) : \(trainingErrorPercent)%
@@ -68,11 +75,11 @@ public struct BinaryTrainingResult: TrainingResultProtocol {
         if let confusionMatrix {
             markdownText += """
 
-            ## 性能指標
+            ## 性能指標 (Positiveクラス: \(individualModelReport.classCounts.positive.name) に対する指標)
             | 指標 | 値 |
             |------|-----|
-            | 再現率 | \(String(format: "%.1f%%", confusionMatrix.recall * 100.0)) |
-            | 適合率 | \(String(format: "%.1f%%", confusionMatrix.precision * 100.0)) |
+            | 再現率 (Recall) | \(String(format: "%.1f%%", confusionMatrix.recall * 100.0)) |
+            | 適合率 (Precision) | \(String(format: "%.1f%%", confusionMatrix.precision * 100.0)) |
             | F1スコア | \(String(format: "%.3f", confusionMatrix.f1Score)) |
 
             """

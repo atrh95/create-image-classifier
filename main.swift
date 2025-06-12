@@ -49,7 +49,7 @@ enum MLModelType: String {
             modelParameters: MLImageClassifier.ModelParameters(
                 validation: .split(strategy: .automatic),
                 maxIterations: 20,
-                augmentation: [],
+                augmentation: [.rotation, .flip],
                 algorithm: .transferLearning(
                     featureExtractor: .scenePrint(revision: 2),
                     classifier: .logisticRegressor
@@ -72,7 +72,7 @@ let semaphore = DispatchSemaphore(value: 0)
 Task {
     let selectedModel: MLModelType = .scaryCatScreeningML
     let selectedClassifier: ClassifierType = .binary
-    let trainingCount = 5
+    let trainingCount = 1
 
     guard selectedModel.config.supportedClassifierVersions.keys.contains(selectedClassifier),
           let version = selectedModel.config.supportedClassifierVersions[selectedClassifier]

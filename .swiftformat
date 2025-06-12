@@ -65,3 +65,6 @@
                                  #        "key3": value3
                                  #     ]
                                  # 各要素が同じインデントレベルに並び、視覚的に整理されて読みやすい
+
+ # 複数行のステートメントの折り返しを無効化
+--disable wrapMultilineStatementBraces

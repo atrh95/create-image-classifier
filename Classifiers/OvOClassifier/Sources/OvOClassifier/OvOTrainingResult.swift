@@ -38,7 +38,7 @@ public struct OvOTrainingResult: TrainingResultProtocol {
 
         ## トレーニング設定
         使用されたクラスラベル : \(metadata.classLabelCounts.map { "\($0.key) (\($0.value)枚)" }.joined(separator: ", "))
-        
+
         """
 
         markdownText += """

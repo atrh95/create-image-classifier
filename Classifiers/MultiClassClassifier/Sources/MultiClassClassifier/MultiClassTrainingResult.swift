@@ -71,7 +71,7 @@ public struct MultiClassTrainingResult: TrainingResultProtocol {
         if confusionMatrix != nil {
             let classMetrics = confusionMatrix?.calculateMetrics() ?? []
             markdownText += """
-            
+
             ## クラス別性能指標
             | クラス | 再現率 | 適合率 | F1スコア |
             |:---|:---|:---|:---|

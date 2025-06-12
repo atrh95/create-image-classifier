@@ -74,8 +74,7 @@ public final class BinaryClassifier: ClassifierProtocol {
         let featureExtractorDescription = modelParameters.algorithm.description
 
         // クラスラベルディレクトリの取得と検証
-        let classLabelDirURLs = try fileManager.getClassLabelDirectories(resourcesPath: resourcesDirectoryPath)
-            .sorted { $0.lastPathComponent < $1.lastPathComponent }
+        let classLabelDirURLs = try getClassLabelDirectories()
         print("📁 検出されたクラスラベルディレクトリ: \(classLabelDirURLs.map(\.lastPathComponent).joined(separator: ", "))")
 
         guard classLabelDirURLs.count == 2 else {
@@ -95,13 +94,12 @@ public final class BinaryClassifier: ClassifierProtocol {
 
         // 各クラスの画像ファイル数を取得
         var classLabelCounts: [String: Int] = [:]
-        for classLabel in classLabelDirURLs.map(\.lastPathComponent) {
-            let classDir = URL(fileURLWithPath: resourcesDirectoryPath).appendingPathComponent(classLabel)
+        for classDirURL in classLabelDirURLs {
             let files = try FileManager.default.contentsOfDirectory(
-                at: classDir,
+                at: classDirURL,
                 includingPropertiesForKeys: nil
             )
-            classLabelCounts[classLabel] = files.count
+            classLabelCounts[classDirURL.lastPathComponent] = files.count
         }
 
         // バランス調整された画像セットを準備
@@ -138,7 +136,8 @@ public final class BinaryClassifier: ClassifierProtocol {
         )
 
         // 個別モデルのレポートを作成
-        let modelFileName = "\(modelName)_\(classificationMethod)_\(classLabelDirURLs[0].lastPathComponent)_vs_\(classLabelDirURLs[1].lastPathComponent)_\(version).mlmodel"
+        let modelFileName =
+            "\(modelName)_\(classificationMethod)_\(classLabelDirURLs[0].lastPathComponent)_vs_\(classLabelDirURLs[1].lastPathComponent)_\(version).mlmodel"
         guard let positiveClassDir = balancedDirs[classLabelDirURLs[1].lastPathComponent],
               let negativeClassDir = balancedDirs[classLabelDirURLs[0].lastPathComponent]
         else {
@@ -237,8 +236,8 @@ public final class BinaryClassifier: ClassifierProtocol {
         featureExtractorDescription: String
     ) -> String {
         var metricsDescription = """
-        \(individualReport.classCounts.positive.name): \(individualReport.classCounts.positive.count)枚
-        \(individualReport.classCounts.negative.name): \(individualReport.classCounts.negative.count)枚
+        Positive: \(individualReport.classCounts.positive.name) (\(individualReport.classCounts.positive.count)枚)
+        Negative: \(individualReport.classCounts.negative.name) (\(individualReport.classCounts.negative.count)枚)
         最大反復回数: \(modelParameters.maxIterations)回
         訓練正解率: \(String(format: "%.1f%%", individualReport.metrics.training.accuracy * 100.0))
         検証正解率: \(String(format: "%.1f%%", individualReport.metrics.validation.accuracy * 100.0))
@@ -283,8 +282,75 @@ public final class BinaryClassifier: ClassifierProtocol {
     }
 
     public func getClassLabelDirectories() throws -> [URL] {
+        // positive/negative構造をチェック
+        let resourcesURL = URL(fileURLWithPath: resourcesDirectoryPath)
+        let positiveURL = resourcesURL.appendingPathComponent("positive")
+        let negativeURL = resourcesURL.appendingPathComponent("negative")
+
+        if FileManager.default.fileExists(atPath: positiveURL.path),
+           FileManager.default.fileExists(atPath: negativeURL.path) {
+            // positive/negative構造の場合
+            return try getClassLabelDirectoriesFromPositiveNegativeStructure()
+        } else {
+            // 従来の構造の場合
+            return try getClassLabelDirectoriesFromLegacyStructure()
+        }
+    }
+
+    private func getClassLabelDirectoriesFromPositiveNegativeStructure() throws -> [URL] {
+        let resourcesURL = URL(fileURLWithPath: resourcesDirectoryPath)
+        let positiveURL = resourcesURL.appendingPathComponent("positive")
+        let negativeURL = resourcesURL.appendingPathComponent("negative")
+
+        // positiveディレクトリ内のサブディレクトリを取得
+        let positiveContents = try FileManager.default.contentsOfDirectory(
+            at: positiveURL,
+            includingPropertiesForKeys: [.isDirectoryKey]
+        ).filter { url in
+            var isDirectory: ObjCBool = false
+            FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory)
+            return isDirectory.boolValue
+        }
+
+        // negativeディレクトリ内のサブディレクトリを取得
+        let negativeContents = try FileManager.default.contentsOfDirectory(
+            at: negativeURL,
+            includingPropertiesForKeys: [.isDirectoryKey]
+        ).filter { url in
+            var isDirectory: ObjCBool = false
+            FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory)
+            return isDirectory.boolValue
+        }
+
+        // 各ディレクトリに一つずつのサブディレクトリがあることを確認
+        guard positiveContents.count == 1 else {
+            throw NSError(domain: "BinaryClassifier", code: -1, userInfo: [
+                NSLocalizedDescriptionKey: "positiveディレクトリには1つのクラスディレクトリが必要です。現在 \(positiveContents.count)個。",
+            ])
+        }
+
+        guard negativeContents.count == 1 else {
+            throw NSError(domain: "BinaryClassifier", code: -1, userInfo: [
+                NSLocalizedDescriptionKey: "negativeディレクトリには1つのクラスディレクトリが必要です。現在 \(negativeContents.count)個。",
+            ])
+        }
+
+        let positiveClassURL = positiveContents[0]
+        let negativeClassURL = negativeContents[0]
+
+        print("📁 Positive/Negative構造を検出:")
+        print("  ✅ Positive: \(positiveClassURL.lastPathComponent)")
+        print("  🔴 Negative: \(negativeClassURL.lastPathComponent)")
+
+        // positiveクラスを最初に、negativeクラスを2番目に返す（order matters for confusion matrix）
+        return [negativeClassURL, positiveClassURL]
+    }
+
+    private func getClassLabelDirectoriesFromLegacyStructure() throws -> [URL] {
         let classLabelDirURLs = try fileManager.getClassLabelDirectories(resourcesPath: resourcesDirectoryPath)
-        print("📁 検出されたクラスラベルディレクトリ: \(classLabelDirURLs.map(\.lastPathComponent).joined(separator: ", "))")
+            .sorted { $0.lastPathComponent < $1.lastPathComponent }
+        print("📁 従来構造を検出 - クラスラベルディレクトリ: \(classLabelDirURLs.map(\.lastPathComponent).joined(separator: ", "))")
+        print("⚠️  警告: アルファベット順で2番目のディレクトリ (\(classLabelDirURLs[1].lastPathComponent)) がpositiveクラスとして扱われます")
 
         guard classLabelDirURLs.count == 2 else {
             throw NSError(domain: "BinaryClassifier", code: -1, userInfo: [
